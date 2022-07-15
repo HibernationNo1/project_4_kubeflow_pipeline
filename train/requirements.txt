@@ -1,0 +1,8 @@
+opencv-python
+pytz
+PyYAML
+yacs
+termcolor
+tqdm
+terminaltables
+pycocotools
