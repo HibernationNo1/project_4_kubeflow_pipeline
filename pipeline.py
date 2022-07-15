@@ -36,7 +36,9 @@ def ITC_pipeline():
     _lebelme_op = lebelme_op(ann_pvc_name, ann_volume_name, ann_volume_mount_path,
                              ratio_val)
     
-    _train_op = train_op(_lebelme_op.output['train_dataset'] ).after(_lebelme_op) 
+    _train_op = train_op(_lebelme_op.output['train_dataset'] )
+    
+    _train_op.after(_lebelme_op)
     
     
 if __name__=="__main__":
