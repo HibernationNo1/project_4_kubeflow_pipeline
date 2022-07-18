@@ -22,14 +22,6 @@ def test_1(args : int,
         json.dump(dict_tmp, f)
         
 
-if __name__=="__main__":
-    
-
-    parser = argparse.ArgumentParser()    
-    parser.add_argument("--tmp", help = "tmp") 
-    
-    args = parser.parse_args()
-    test_1(args)
     
     
     

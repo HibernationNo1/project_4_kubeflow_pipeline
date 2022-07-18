@@ -23,12 +23,3 @@ def test_2(args : InputPath("dict"),
     
     return dict_tmp
 
-
-if __name__=="__main__":
-    
-
-    parser = argparse.ArgumentParser()    
-    parser.add_argument("--tmp", help = "tmp") 
-    
-    args = parser.parse_args()
-    test_2(args)

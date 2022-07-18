@@ -5,4 +5,3 @@ RUN mkdir /code
 WORKDIR /code
 COPY . /code/
 
-ENTRYPOINT ["python", "test.py"]
