@@ -6,7 +6,7 @@ import argparse
 
 @create_component_from_func(
         base_image = 'hibernation4958/test_2:0.1',
-        output_comonent_file="test_2.component.yaml")
+        output_component_file="test_2.component.yaml")
 def test_2(args : InputPath("dict"),
            save_path : OutputPath("dict")):  
     import json
