@@ -25,11 +25,5 @@ def test_pipeline(tmp_num):
 
     
     
-if __name__=="__main__":
-    
-    parser = argparse.ArgumentParser()    
-    parser.add_argument("--tmp", help = "tmp") 
-    
-    args = parser.parse_args()
-    
-    kfp.compiler.Compiler().compile(test_pipeline(args.tmp), "./test_pipeline.yaml")
+if __name__=="__main__":    
+    kfp.compiler.Compiler().compile(test_pipeline(), "./test_pipeline.yaml")
