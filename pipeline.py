@@ -8,9 +8,8 @@ import os
 def lebelme_op(pvc_name, volume_name, volume_mount_path, ratio_val):
     return dsl.ContainerOp(
         name='lebelme',
-        image='hibernation4958/labelme:0.3',
-        arguments=['--ann_path', volume_mount_path,
-                   '--ratio-val', ratio_val],
+        image='hibernation4958/labelme:0.4',
+        arguments=['--ratio-val', ratio_val],
         file_outputs = {'train_dataset' : '/train_dataset/train_dataset.json'}
     	).apply(
         onprem.mount_pvc(pvc_name, volume_name=volume_name, volume_mount_path=volume_mount_path))
@@ -36,13 +35,11 @@ def ITC_pipeline():
     _lebelme_op = lebelme_op(ann_pvc_name, ann_volume_name, ann_volume_mount_path,
                              ratio_val)
     
-    print(f"type(_lebelme_op.outputs) : {type(_lebelme_op.outputs)}")
-    print(f"keys : {_lebelme_op.outputs.keys()}")
-    print(f"_lebelme_op.outputs['train_dataset'] : {_lebelme_op.outputs['train_dataset']}")
+    
+    print(f" \n\n  _lebelme_op.outputs['train_dataset'] : {_lebelme_op.outputs['train_dataset']} \n")
     
     _train_op = train_op(_lebelme_op.outputs['train_dataset']).after(_lebelme_op)
 
-    print(f"_train_op : {_train_op},            done??")
 
     
     

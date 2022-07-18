@@ -317,9 +317,11 @@ if __name__=="__main__":
     
     parser.add_argument("--ratio-val", type=float, default = 0.0, 
                         help = "split ratio from train_dataset to val_dataset for valditate during training") 
+
     
     args = parser.parse_args()
     cfg = Labelme_config(args)
+
     print(f"args : {args.ratio_val} !!!!!!!!!")
     
     LabelMe_Custom(cfg)
