@@ -5,7 +5,7 @@ from kfp.components import InputPath, OutputPath, create_component_from_func
 import argparse
 
 @create_component_from_func(
-        base_image = 'hibernation4958/test_2:0.1',
+        base_image = 'hibernation4958/test_2:0.3',
         output_component_file="test_2.component.yaml")
 def test_2(args : InputPath("dict"),
            save_path : OutputPath("dict")):  
