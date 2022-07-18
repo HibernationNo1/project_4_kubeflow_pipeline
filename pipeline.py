@@ -8,7 +8,7 @@ import os
 def lebelme_op(pvc_name, volume_name, volume_mount_path, ratio_val):
     return dsl.ContainerOp(
         name='lebelme',
-        image='hibernation4958/labelme:0.1',
+        image='hibernation4958/labelme:0.2',
         arguments=['--ann_path', volume_mount_path,
                    '--ratio-val', ratio_val],
         file_outputs = {'train_dataset' : '/train_dataset/train_dataset.json'}
@@ -18,7 +18,7 @@ def lebelme_op(pvc_name, volume_name, volume_mount_path, ratio_val):
 def train_op(dataset_path):
     return dsl.ContainerOp(
         name='train',
-        image='hibernation4958/train:0.1', 
+        image='hibernation4958/train:0.2', 
         arguments=['--dataset_path', dataset_path]
     	)
 
