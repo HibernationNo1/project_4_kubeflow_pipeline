@@ -8,10 +8,10 @@ import argparse
 
 
 
-test_1_op = create_component_from_func(finc = test_1, 
+test_1_op = create_component_from_func(func = test_1, 
                                        base_image = 'hibernation4958/test_1:0.4',
                                        output_component_file="test_1.component.yaml")
-test_2_op = create_component_from_func(finc = test_2,
+test_2_op = create_component_from_func(func = test_2,
                                        base_image = 'hibernation4958/test_2:0.4',
                                        output_component_file="test_2.component.yaml")
 
