@@ -10,7 +10,7 @@ if __name__=="__main__":
     
     args = parser.parse_args()
     
-    
+    print(f"args.data_path : {args.data_path}")
     train_dataset = os.path.join(os.getcwd(), args.data_path)
     print(f"train_dataset : {train_dataset}")
     

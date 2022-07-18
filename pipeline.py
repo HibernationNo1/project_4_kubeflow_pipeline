@@ -37,6 +37,7 @@ def ITC_pipeline():
                              ratio_val)
     
     print(f"type(_lebelme_op.outputs) : {type(_lebelme_op.outputs)}")
+    print(f"keys : {_lebelme_op.outputs.keys()}")
     
     _train_op = train_op(_lebelme_op.outputs['train_dataset']).after(_lebelme_op)
 
