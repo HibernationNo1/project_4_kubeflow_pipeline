@@ -1,5 +1,5 @@
-import kfp
-from kfp.components import InputPath, OutputPath, create_component_from_func
+# import kfp
+# from kfp.components import InputPath, OutputPath, create_component_from_func
 
 # from test_1 import test_1
 # from test_2 import test_2
@@ -71,31 +71,48 @@ from kfp.components import InputPath, OutputPath, create_component_from_func
 
 import kfp
 from kfp.dsl import pipeline
-from kfp.components import create_component_from_func
-                          
-def add(value_1:int, value_2:int)->int:		
-    ret = value_1 + value_2	
-    return ret
-                                                   
-def subtract(value_1:int, value_2:int)->int:
-    ret = value_1 - value_2
-    return ret	   
-                            
-def multiply(value_1:int, value_2:int)->int:
-    ret = value_1 * value_2
-    return ret	
-                            
-add_op = create_component_from_func(add)
-subtract_op = create_component_from_func(subtract)
-multiply_op = create_component_from_func(multiply)
+from kfp.components import InputPath, OutputPath, create_component_from_func
+       
+@create_component_from_func                          
+def test_1(input_test_1 : dict, output_test_1 : OutputPath("dict") = None):
+    import json		
+    print(f"input_test_1 : {input_test_1}")
+    input_test_1["3"] = input_test_1["1"] + input_test_1["2"]
+    
+    with open(output_test_1, "w") as f:
+        json.dump(input_test_1)
+    
+    print(f"output_test_1 : {output_test_1} \n")
+    
+             
+@create_component_from_func                                      
+def test_2(input_test_2 : InputPath("dict"), output_test_2 : OutputPath("dict")):
+    print(f"\n input_test_2 : {input_test_2}")
+    import json
+    with open(input_test_2, "r") as f:
+        data_test_2 = json.loads(f) 
+        
+    data_test_2["4"] = input_test_2["2"]  * input_test_2["3"]
+    
+    with open(output_test_2, "w") as f:
+        json.dump(data_test_2)
+    print(f"output_test_2 : {input_test_2} \n ")
+    
 
 
-@pipeline(name="add_example")
+                            
+
+
+@pipeline(name="add_example 0.1")
 def my_pipeline(value_1:int, value_2:int)->int:
-    task_1 = add_op(value_1, value_2)
-    task_2 = subtract_op(value_1, value_2)
+    dict_tmp = {"1" : value_1, "2" : value_2} 
+    _task_1 = test_1(dict_tmp)
+    print(f"type(_task_1.outputs) : {_task_1.outputs}, _task_1.outputs.keys() : {_task_1.outputs.keys()}")
+    _task_2 = test_2(_task_1.outputs["data_output"])
+    print(f"type(_task_2.outputs) : {_task_2.outputs}, _task_2.outputs.keys() : {_task_2.outputs.keys()}")
+    print(f'_task_2.outputs["data_output"] : {_task_2.outputs["data_output"]}')
 
-    task_3 = multiply_op(task_1.output, task_2.output)  #  output -> input 으로 연결
+    
 
 if __name__=="__main__":
     kfp.compiler.Compiler().compile(my_pipeline, "./add_exam.yaml")
