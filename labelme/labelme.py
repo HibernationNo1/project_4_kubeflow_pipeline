@@ -1,6 +1,3 @@
-import kfp
-from kfp.components import InputPath, OutputPath, create_component_from_func
-
 import argparse
 from labelme_config import Labelme_config
 
