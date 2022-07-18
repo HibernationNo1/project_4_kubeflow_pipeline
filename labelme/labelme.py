@@ -320,5 +320,6 @@ if __name__=="__main__":
     
     args = parser.parse_args()
     cfg = Labelme_config(args)
+    print(f"args : {args.ratio_val} !!!!!!!!!")
     
     LabelMe_Custom(cfg)
