@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: mmdet-taeuk4958
+Version: 1.0.1
+Summary: OpenMMLab Detection Toolbox and Benchmark (costomized by taeuk4958 for personal project)
+Home-page: https://github.com/open-mmlab/mmdetection (costomized by https://github.com/HibernationNo1/project_4_kubeflow_pipeline.git)
+Author: MMDetection Contributors (costomized by taeuk4958) 
+Author-email: openmmlab@gmail.com (costomized by taeuk4958@gmail.com)
+License: Apache License 2.0
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Provides-Extra: all
+Provides-Extra: tests
+Provides-Extra: build
+Provides-Extra: optional

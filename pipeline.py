@@ -1,118 +1,119 @@
-# import kfp
-# from kfp.components import InputPath, OutputPath, create_component_from_func
-
-# from test_1 import test_1
-# from test_2 import test_2
-
-
-# test_1_op = create_component_from_func(func = test_1, 
-#                                        base_image = 'hibernation4958/test_1:0.4',
-#                                        output_component_file="test_1.component.yaml")
-# test_2_op = create_component_from_func(func = test_2,
-#                                        base_image = 'hibernation4958/test_2:0.4',
-#                                        output_component_file="test_2.component.yaml")
-
-
-# @kfp.dsl.pipeline(name="test Example")
-# def test_pipeline(tmp_num):
-#     _test_1_op = test_1_op(tmp_num)
-#     _test_2_op = test_2_op(_test_1_op.outputs["data_output"])
-    
-#     print(f"_test_2_op : {_test_2_op}")
-
-    
-# @create_component_from_func(
-#     base_image = 'hibernation4958/test_1:0.5',
-#     output_component_file="test_1.component.yaml")
-# def test_1(args : int, 
-#            save_path : OutputPath("dict")):
-    
-#     import json
-    
-#     print(f"args.test_1 : {args.tmp}")
-    
-#     dict_tmp = {'1' : args}
-#     dict_tmp['2'] = 2
-
-#     with open(save_path, "w") as f:
-#         json.dump(dict_tmp, f)
-
-
-# @create_component_from_func(
-#     base_image = 'hibernation4958/test_2:0.5',
-#     output_component_file="test_2.component.yaml")
-# def test_2(args : InputPath("dict"),
-#            save_path : OutputPath("dict")):  
-#     import json
-    
-#     with open(args, "r") as f:
-#         data = json.load(f)
-    
-#     print(f"args.test_2 : {data}")
-#     data['3'] = 3
-#     dict_tmp = data
-
-#     with open(save_path, "w") as f:
-#         json.dump(dict_tmp, f)
-    
-#     return dict_tmp
-
-
-# @kfp.dsl.pipeline(name="test Example")
-# def test_pipeline(tmp_num):
-#     _test_1_op = test_1(tmp_num)
-#     _test_2_op = test_2(_test_1_op.outputs["data_output"])
-    
-#     print(f"_test_2_op : {_test_2_op}")
-
-# if __name__=="__main__":    
-#     kfp.compiler.Compiler().compile(test_pipeline(), "./test_pipeline.yaml")
-
-
 import kfp
-from kfp.dsl import pipeline
-from kfp.components import InputPath, OutputPath, create_component_from_func
-       
-@create_component_from_func                          
-def test_1(input_test_1 : dict, output_test_1 : OutputPath("dict") = None):
-    import json		
-    print(f"input_test_1 : {input_test_1}")
-    input_test_1["3"] = input_test_1["1"] + input_test_1["2"]
+import kfp.dsl as dsl
+import requests
+import os
+import argparse
+
+from labelme import labelme_op
+from save_S3 import save_labelme_op
+
+USERNAME = "user@example.com"
+PASSWORD = "12341234"
+NAMESPACE = "kubeflow-user-example-com"
+HOST =  "http://127.0.0.1:8080"     # "http://192.168.0.167:80"       
     
-    with open(output_test_1, "w") as f:
-        json.dump(input_test_1)
+def connet_client():   
+    session = requests.Session()
+    response = session.get(HOST)
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+
+    data = {"login": USERNAME, "password": PASSWORD}
+    session.post(response.url, headers=headers, data=data)                              
+    session_cookie = session.cookies.get_dict()["authservice_session"]  
+
+    # client에 접속
+    client = kfp.Client(
+        host=f"{HOST}/pipeline",
+        namespace=f"{NAMESPACE}",
+        cookies=f"authservice_session={session_cookie}",
+    )
+    return client
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Change structure from comments to custom dataset in json file format.")    
     
-    print(f"output_test_1 : {output_test_1} \n")
+    parser.add_argument("--name", required = True, help="name of pipeline")
     
-             
-@create_component_from_func                                      
-def test_2(input_test_2 : InputPath("dict"), output_test_2 : OutputPath("dict")):
-    print(f"\n input_test_2 : {input_test_2}")
-    import json
-    with open(input_test_2, "r") as f:
-        data_test_2 = json.loads(f) 
+    parser.add_argument('--mode', required = True, choices=['labelme', 'train', 'test'])
+    parser.add_argument("--cfg", required = True, help="name of config file")
+    
+    # mode : labelme 
+    parser.add_argument("--ratio-val", type=float, default = 0.0, help = "split ratio from train_dataset to val_dataset for valditate during training") 
+    parser.add_argument('--train', action = 'store_true', help = 'if True, go training after make custom dataset' ) # TODO
+    
+
+    
+    args = parser.parse_args()
+    
+    return args
+
+
+
+@dsl.pipeline(name="hibernation_project")
+def project_pipeline(input_mode : str, input_dict : dict):
+    
+    with dsl.Condition(input_mode == "labelme") : 	
+        _labelme_op = labelme_op(input_dict)
+        _save_labelme_op = save_labelme_op(_labelme_op.outputs['Output'], _labelme_op.outputs['train_dataset'], _labelme_op.outputs['val_dataset'])
         
-    data_test_2["4"] = input_test_2["2"]  * input_test_2["3"]
-    
-    with open(output_test_2, "w") as f:
-        json.dump(data_test_2)
-    print(f"output_test_2 : {input_test_2} \n ")
-    
-
-
-                            
-
-
-@pipeline(name="add_example 0.1")
-def my_pipeline(value_1:int, value_2:int)->int:
-    dict_tmp = {"1" : value_1, "2" : value_2} 
-    _task_1 = test_1(dict_tmp)
-    print(f"type(_task_1.outputs) : {_task_1.outputs}, _task_1.outputs.keys() : {_task_1.outputs.keys()}")
-    _task_2 = test_2(_task_1.outputs["data_output"])
-    print(f"type(_task_2.outputs) : {_task_2.outputs}, _task_2.outputs.keys() : {_task_2.outputs.keys()}")
-    print(f'_task_2.outputs["data_output"] : {_task_2.outputs["data_output"]}')
-
-    
-
+        
 if __name__=="__main__":
-    kfp.compiler.Compiler().compile(my_pipeline, "./add_exam.yaml")
+    # python pipeline.py --name labelme_0.3 --mode labelme --cfg configs/labelme_config.py --ratio-val 0.01
+    args = parse_args()
+    args_dict = vars(args)
+
+    pipeline_name = args.name
+    pipeline_pac = "mmdet_project.yaml"
+    pipeline_path = os.path.join(os.getcwd(), pipeline_pac)
+    pipeline_description = "test"
+    
+    input_dict = args_dict
+    input_mode = args.mode
+    params_dict = dict(input_mode = input_mode, input_dict = input_dict)
+    
+    
+    experiment_name = "test2"
+    
+    job_name = "test_run"
+    
+    print("\n comile pipeline")
+    kfp.compiler.Compiler().compile(
+        project_pipeline,
+        f"./{pipeline_pac}"
+        )
+
+    print("\n connet_client")
+    client = connet_client()
+
+    print("\n upload_client")
+    
+    client.upload_pipeline(pipeline_name= pipeline_name,
+                        description=pipeline_description,
+                        pipeline_package_path=pipeline_path)
+
+
+    pipeline_id = client.get_pipeline_id(pipeline_name)
+    print(f"\n pipeline_id : {pipeline_id}")
+
+    info_experiment = client.get_experiment(experiment_name= experiment_name, namespace= NAMESPACE)
+    info_experiment_id = info_experiment.id
+    print(f"info_experiment : {info_experiment_id}")
+
+    print("\n run pipeline")
+    exec_run = client.run_pipeline(
+            experiment_id = info_experiment_id,
+            job_name = job_name,
+            pipeline_id = pipeline_id,
+            params = params_dict
+            )
+
+    run_id = exec_run.id
+    print(f"run_id : {run_id}")
+
+    completed_run = client.wait_for_run_completion(run_id=run_id, timeout=600)
+    print(f"run completed_run : {completed_run.run.status}")
+    print(f"completed_run.run.error : {completed_run.run.error}")
+
