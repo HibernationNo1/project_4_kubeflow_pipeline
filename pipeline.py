@@ -10,7 +10,7 @@ from save_S3 import save_labelme_op
 USERNAME = "user@example.com"
 PASSWORD = "12341234"
 NAMESPACE = "kubeflow-user-example-com"
-HOST =  "https://b5b2-1-214-32-67.ngrok.io "     # "http://192.168.0.167:80"       
+HOST =  "https://b5b2-1-214-32-67.ngrok.io"     # "http://192.168.0.167:80"       
     
 def connet_client():   
     session = requests.Session()
@@ -100,7 +100,7 @@ if __name__=="__main__":
 
     info_experiment = client.get_experiment(experiment_name= experiment_name, namespace= NAMESPACE)
     info_experiment_id = info_experiment.id
-    print(f"info_experiment : {info_experiment_id}")
+    print(f"experiment_id : {info_experiment_id}")
 
     print("\n run pipeline")
     exec_run = client.run_pipeline(
