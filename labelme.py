@@ -39,6 +39,6 @@ def labelme(args: dict,
 
 
 labelme_op = create_component_from_func(func = labelme,
-                                        base_image = 'hibernation4958/labelme:0.1',
+                                        base_image = 'hibernation4958/labelme:0.3',
                                         output_component_file="labelme.component.yaml")
 
