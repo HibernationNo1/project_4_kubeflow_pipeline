@@ -10,7 +10,7 @@ from save_S3 import save_labelme_op
 USERNAME = "user@example.com"
 PASSWORD = "12341234"
 NAMESPACE = "kubeflow-user-example-com"
-HOST =  "http://127.0.0.1:8080"     # "http://192.168.0.167:80"       
+HOST =  "https://b5b2-1-214-32-67.ngrok.io "     # "http://192.168.0.167:80"       
     
 def connet_client():   
     session = requests.Session()
@@ -61,7 +61,7 @@ def project_pipeline(input_mode : str, input_dict : dict):
         
         
 if __name__=="__main__":
-    # python pipeline.py --name labelme_0.3 --mode labelme --cfg configs/labelme_config.py --ratio-val 0.01
+    # python pipeline.py --name labelme_0.4 --mode labelme --cfg configs/labelme_config.py --ratio-val 0.01
     args = parse_args()
     args_dict = vars(args)
 
