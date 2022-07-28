@@ -3,4 +3,5 @@ Pillow
 tqdm
 numpy
 boto3
-mmdet_taeuk4958
+pipeline_taeuk4958
+# mmdet_taeuk4958
