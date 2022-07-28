@@ -21,17 +21,13 @@ def labelme(args: dict,
 
     import os
     print("???")
-    print(os.path.isfile('/usr/lib/python3.9/json/encoder.py'))
-    print(os.listdir('/usr'))
+    print(os.path.isfile('/usr/lib/python3.9/mmdet_taeuk4958/configs/labelme_config.py'))     # 존재하는지 확인, file을 가져올 수 있는지 확인 
     
     import json
-    from configs.labelme_config import Labelme_Config
-    from utils import NpEncoder
+    from mdet_taeuk4958.configs.labelme_config import Labelme_Config
+    from mdet_taeuk4958.custom_utils.utils import NpEncoder
     cfg = Labelme_Config
-    
-    
-
-    
+        
     cfg.options['proportion_val'] = args['ratio_val']    
     
         
