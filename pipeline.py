@@ -72,7 +72,7 @@ if __name__=="__main__":
     
     input_dict = args_dict
     input_mode = args.mode
-    params_dict = dict(input_mode = 1, input_dict = 2)
+    params_dict = {'input_mode': input_mode, 'input_dict': input_dict }
     
     
     experiment_name = "test2"
