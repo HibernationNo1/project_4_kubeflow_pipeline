@@ -3,3 +3,4 @@ Pillow
 tqdm
 numpy
 boto3
+mmdet_teauk4958
