@@ -1,3 +1,9 @@
 tmp.py
 *.yaml
 *.pyc
+
+PypI/pipeline_taeuk4958/build/
+PypI/pipeline_taeuk4958/pipeline_taeuk4958.egg-info/
+
+PypI/mmdet_taeuk4958/build/
+PypI/mmdet_taeuk4958/mmdet_taeuk4958.egg-info/
