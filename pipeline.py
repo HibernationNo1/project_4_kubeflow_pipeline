@@ -4,13 +4,12 @@ import requests
 import os
 import argparse
 
-from labelme import labelme_op
+from set_config import set_config_op
+from labelme import lebelme_op
 from save_S3 import save_labelme_op
 
-USERNAME = "user@example.com"
-PASSWORD = "12341234"
-NAMESPACE = "kubeflow-user-example-com"
-HOST =  "https://b5b2-1-214-32-67.ngrok.io"     # "http://192.168.0.167:80"       
+from config import (USERNAME, PASSWORD, NAMESPACE, HOST,   
+                    PIPELINE_PAC, PIPELINE_DISCRIPTION , EXPERIMENT_NAME, RUN_NAME)
     
 def connet_client():   
     session = requests.Session()
@@ -50,39 +49,35 @@ def parse_args():
     
     return args
 
-
-
 @dsl.pipeline(name="hibernation_project")
 def project_pipeline(input_mode : str, input_dict : dict):
     
     with dsl.Condition(input_mode == "labelme") : 	
-        _labelme_op = labelme_op(input_dict)
-        _save_labelme_op = save_labelme_op(_labelme_op.outputs['Output'], _labelme_op.outputs['train_dataset'], _labelme_op.outputs['val_dataset'])
+        _set_config_op = set_config_op(input_dict)
+        _lebelme_op = lebelme_op(_set_config_op.outputs['config'])
+        # _save_labelme_op = save_labelme_op(_labelme_op.outputs['Output'], _labelme_op.outputs['train_dataset'], _labelme_op.outputs['val_dataset'])
         
         
 if __name__=="__main__":
-    # python pipeline.py --name labelme_0.4 --mode labelme --cfg configs/labelme_config.py --ratio-val 0.01
+    # python pipeline.py --name 0729_0.1 --mode labelme --cfg labelme_config.py --ratio-val 0.01
     args = parse_args()
     args_dict = vars(args)
 
     pipeline_name = args.name
-    pipeline_pac = "mmdet_project.yaml"
-    pipeline_path = os.path.join(os.getcwd(), pipeline_pac)
+    pipeline_path = os.path.join(os.getcwd(), PIPELINE_PAC)
     pipeline_description = "test"
     
     input_dict = args_dict
     input_mode = args.mode
-    params_dict = {'input_mode': input_mode, 'input_dict': input_dict }
-    
-    
-    experiment_name = "test2"
-    
-    job_name = "test_run"
+    input_ann = "glob.glob(path/*.json)"
+    params_dict = {'input_mode': input_mode, 'input_dict': input_dict, "input_ann" : input_ann}
+   
+
     
     print("\n comile pipeline")
     kfp.compiler.Compiler().compile(
         project_pipeline,
-        f"./{pipeline_pac}"
+        f"./{PIPELINE_PAC}"
         )
 
     print("\n connet_client")
@@ -91,21 +86,21 @@ if __name__=="__main__":
     print("\n upload_client")
     
     client.upload_pipeline(pipeline_name= pipeline_name,
-                        description=pipeline_description,
+                        description=PIPELINE_DISCRIPTION,
                         pipeline_package_path=pipeline_path)
 
 
     pipeline_id = client.get_pipeline_id(pipeline_name)
     print(f"\n pipeline_id : {pipeline_id}")
 
-    info_experiment = client.get_experiment(experiment_name= experiment_name, namespace= NAMESPACE)
+    info_experiment = client.get_experiment(experiment_name= EXPERIMENT_NAME, namespace= NAMESPACE)
     info_experiment_id = info_experiment.id
     print(f"experiment_id : {info_experiment_id}")
 
     print("\n run pipeline")
     exec_run = client.run_pipeline(
             experiment_id = info_experiment_id,
-            job_name = job_name,
+            job_name = RUN_NAME,
             pipeline_id = pipeline_id,
             params = params_dict
             )

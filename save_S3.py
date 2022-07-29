@@ -1,17 +1,19 @@
 import kfp
 from kfp.components import InputPath, create_component_from_func
 
-from configs.labelme_config import Labelme_Config as for_type
-config = for_type
-cfg_type = type(config)
+from config import SAVES3_IMAGE 
 
-def save_labelme(cfg : cfg_type, train_dataset_path: InputPath("dict"), val_dataset_path: InputPath("dict")):
-    
-    from utils import NpEncoder
+def save_labelme(cfg, train_dataset_path: InputPath("dict"), val_dataset_path: InputPath("dict")):
+    AWS_ACCESS_KEY_ID ="AKIAXZX44242SIJNTR5O"
+    AWS_SECRET_ACCESS_KEY = "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"
+    BUCKET_NAME = "hibernationproject"
+    from pipeline_taeuk4958.utils.utils import NpEncoder
     import json
     import os
     import boto3
 
+    print(f"cfg.options['proportion_val'] : {cfg.options['proportion_val']}")
+    
     with open(train_dataset_path, "r", encoding='utf-8') as f:
         train_dataset = json.load(f)
     train_dataset_to_upload = os.path.join(os.getcwd(), cfg.json['train_file_name'])
@@ -24,21 +26,18 @@ def save_labelme(cfg : cfg_type, train_dataset_path: InputPath("dict"), val_data
     json.dump(val_dataset, open(val_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
     val_dataset_in_storage = cfg.json['val_file_name']
 
-    AWS_ACCESS_KEY_ID ="AKIAXZX44242SIJNTR5O"
-    AWS_SECRET_ACCESS_KEY = "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"
-    bucket_name = "hibernationproject"
     
     s3 = boto3.resource('s3',
                       aws_access_key_id=AWS_ACCESS_KEY_ID,
                       aws_secret_access_key=AWS_SECRET_ACCESS_KEY
                       )
 
-    bucket = s3.Bucket(bucket_name)
+    bucket = s3.Bucket(BUCKET_NAME)
     bucket.upload_file(train_dataset_to_upload, train_dataset_in_storage)
     bucket.upload_file(val_dataset_to_upload, val_dataset_in_storage)
     
 
 
 save_labelme_op  = create_component_from_func(func =save_labelme,
-                                              base_image = 'hibernation4958/labelme.0.1',        # 'hibernation4958/for_save.0.1'
+                                              base_image = SAVES3_IMAGE,        
                                               output_component_file="for_save.component.yaml")
