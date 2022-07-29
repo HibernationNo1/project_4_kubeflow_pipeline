@@ -1,4 +1,4 @@
-pipeline_taeuk4958==1.0.5
+pipeline_taeuk4958==1.0.6
 opencv-python
 Pillow
 tqdm

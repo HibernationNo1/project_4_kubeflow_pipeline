@@ -27,7 +27,7 @@ dataset = dict(
     info = dict(description = 'Hibernation Custom Dataset',
                 url = ' ',
                 version = '0.0.1',
-                year = today.year,
+                year = f"{today.year}",
                 contributor = ' ',
                 data_created = (f"{today.year}/{today.month}/{today.day}"),
                 licenses = dict(url = ' ', id = 1, name = ' ')  
