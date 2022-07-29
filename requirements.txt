@@ -1,7 +1,6 @@
+pipeline_taeuk4958==1.0.5
 opencv-python
 Pillow
 tqdm
-numpy
 boto3
-pipeline_taeuk4958==1.0.4
 # mmdet_taeuk4958
