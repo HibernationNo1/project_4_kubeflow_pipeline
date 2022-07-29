@@ -1,5 +1,6 @@
-from labelme_config import Labelme_Config
+from .labelme_config import Labelme_Config
+from .config import Config
 
 __all__ = [
-    'Labelme_Config'
+    'Labelme_Config', 'Config'
 ]
