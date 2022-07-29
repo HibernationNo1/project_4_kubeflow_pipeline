@@ -6,6 +6,6 @@ COPY requirements.txt requirements.txt
 
 RUN pip install -r requirements.txt
 
-# docker build -t labelme .
-# docker tag labelme:latest hibernation4958/labelme:0.7
-# docker push hibernation4958/labelme:0.7
+# docker build -t 0729 .
+# docker tag 0729:latest hibernation4958/0729:0.1
+# docker push hibernation4958/0729:0.1

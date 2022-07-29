@@ -3,5 +3,5 @@ Pillow
 tqdm
 numpy
 boto3
-pipeline_taeuk4958==1.0.3
+pipeline_taeuk4958==1.0.4
 # mmdet_taeuk4958
