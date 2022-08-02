@@ -62,11 +62,6 @@ def project_pipeline(input_mode : str, input_dict : dict):
         
         
 if __name__=="__main__":   
-    """
-    python pipeline.py --access_key_id AKIAUA6XTFHLBNEKA5X2 \ 
-    --secret_access_key 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 \
-    --mode labelme --cfg labelme_config.py --ratio-val 0.01 --name 0802_0.2
-    """
      
     args = parse_args()
     args_dict = vars(args)
