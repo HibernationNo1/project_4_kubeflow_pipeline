@@ -3,12 +3,12 @@
 USERNAME = "user@example.com"
 PASSWORD = "12341234"
 NAMESPACE = "kubeflow-user-example-com"
-HOST =  "http://989d-1-214-32-67.ngrok.io"     # "http://192.168.0.167:80"       
+HOST =  "http://6957-1-214-32-67.ngrok.io"     # "http://192.168.0.167:80"       
 
 # docker images
-SETUP_IMAGE = 'hibernation4958/0729:0.5'
-LABELME_IMAGE = 'hibernation4958/0729:0.5'
-SAVES3_IMAGE = 'hibernation4958/0729:0.5'        # 'hibernation4958/for_save.0.1'
+SETUP_IMAGE = 'hibernation4958/0802:0.8'
+LABELME_IMAGE = 'hibernation4958/0802:0.8'
+SAVES3_IMAGE = 'hibernation4958/0802:0.8'        # 'hibernation4958/for_save.0.1'
 
 # pipeline
 PIPELINE_PAC = "mmdet_project.yaml"
@@ -23,9 +23,9 @@ AWS_SECRET_ACCESS_KEY = "m7IkmfIvNWXs4fO5ITaB1oaaFT/ZT4eXA4c4/5ua"
 BUCKET_NAME = "hibernationproject"
     
 """
-docker build -t 0729 .
-docker tag 0729:latest hibernation4958/0729:0.5
-docker push hibernation4958/0729:0.5
+docker build -t 0802 .
+docker tag 0802:latest hibernation4958/0802:0.8
+docker push hibernation4958/0802:0.8
 """
 
 # use_aws_secret

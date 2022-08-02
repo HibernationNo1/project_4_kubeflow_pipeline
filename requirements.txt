@@ -1,5 +1,17 @@
 pipeline_taeuk4958==1.0.7
 Pillow
 tqdm
-boto3
+boto3  
 # mmdet_taeuk4958
+
+
+# kfp
+# boto3
+# dvc[s3]
+
+
+# kfp boto3 dvc[all]
+
+
+
+

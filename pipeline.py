@@ -1,7 +1,8 @@
 import kfp
 import kfp.dsl as dsl
 import requests
-import os
+import os 
+import glob
 import argparse
 
 from set_config import set_config_op
@@ -35,6 +36,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Change structure from comments to custom dataset in json file format.")    
     
     parser.add_argument("--name", required = True, help="name of pipeline")
+    parser.add_argument("--access_key_id", required = True, )
+    parser.add_argument("--secret_access_key", required = True)
     
     parser.add_argument('--mode', required = True, choices=['labelme', 'train', 'test'])
     parser.add_argument("--cfg", required = True, help="name of config file")
@@ -54,12 +57,17 @@ def project_pipeline(input_mode : str, input_dict : dict):
     
     with dsl.Condition(input_mode == "labelme") : 	
         _set_config_op = set_config_op(input_dict)
-        _lebelme_op = lebelme_op(_set_config_op.outputs['config'])
+        # _lebelme_op = lebelme_op(_set_config_op.outputs['config'], input_ann)
         # _save_labelme_op = save_labelme_op(_labelme_op.outputs['Output'], _labelme_op.outputs['train_dataset'], _labelme_op.outputs['val_dataset'])
         
         
-if __name__=="__main__":
-    # python pipeline.py --name 0729_0.1 --mode labelme --cfg labelme_config.py --ratio-val 0.01
+if __name__=="__main__":   
+    """
+    python pipeline.py --access_key_id AKIAUA6XTFHLBNEKA5X2 \ 
+    --secret_access_key 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 \
+    --mode labelme --cfg labelme_config.py --ratio-val 0.01 --name 0802_0.2
+    """
+     
     args = parse_args()
     args_dict = vars(args)
 
@@ -69,8 +77,10 @@ if __name__=="__main__":
     
     input_dict = args_dict
     input_mode = args.mode
-    input_ann = "glob.glob(path/*.json)"
-    params_dict = {'input_mode': input_mode, 'input_dict': input_dict, "input_ann" : input_ann}
+    # ann_path = os.path.join(os.getcwd(), "ann")
+    
+    
+    params_dict = {'input_mode': input_mode, 'input_dict': input_dict}
    
 
     
