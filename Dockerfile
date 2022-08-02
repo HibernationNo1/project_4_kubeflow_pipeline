@@ -5,7 +5,7 @@ RUN mkdir workplace
 
 COPY . ./workplace
 
-WORKDIR app/
+WORKDIR workplace/
 CMD git clone https://github.com/HibernationNo1/project_4_kubeflow_pipeline.git
 
 RUN pip install dvc[s3]
