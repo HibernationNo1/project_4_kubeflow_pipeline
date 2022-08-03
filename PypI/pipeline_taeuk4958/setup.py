@@ -23,6 +23,6 @@ if __name__ == '__main__':
         packages=find_packages(),
         include_package_data=True,
         license='Apache License 2.0',
-        install_requires=['numpy', 'addict'])
+        install_requires=['numpy', 'addict', 'regex', 'yapf'])
     
     

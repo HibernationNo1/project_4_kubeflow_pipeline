@@ -16,6 +16,7 @@ from importlib import import_module
 from pathlib import Path
 
 from addict import Dict
+from yapf.yapflib.yapf_api import FormatCode
 
 if platform.system() == 'Windows':
     import regex as re  # type: ignore
@@ -493,6 +494,23 @@ class Config:
 
             return attr_str
 
+        def _format_list(k, v, use_mapping=False):
+            # check if all items in the list are dict
+            if all(isinstance(_, dict) for _ in v):
+                v_str = '[\n'
+                v_str += '\n'.join(
+                    f'dict({_indent(_format_dict(v_), indent)}),'
+                    for v_ in v).rstrip(',')
+                if use_mapping:
+                    k_str = f"'{k}'" if isinstance(k, str) else str(k)
+                    attr_str = f'{k_str}: {v_str}'
+                else:
+                    attr_str = f'{str(k)}={v_str}'
+                attr_str = _indent(attr_str, indent) + ']'
+            else:
+                attr_str = _format_basic_types(k, v, use_mapping)
+            return attr_str
+
         def _contain_invalid_identifier(dict_str):
             contain_invalid_identifier = False
             for key_name in dict_str:
@@ -500,7 +518,82 @@ class Config:
                     (not str(key_name).isidentifier())
             return contain_invalid_identifier
 
+        def _format_dict(input_dict, outest_level=False):
+            r = ''
+            s = []
 
+            use_mapping = _contain_invalid_identifier(input_dict)
+            if use_mapping:
+                r += '{'
+            for idx, (k, v) in enumerate(input_dict.items()):
+                is_last = idx >= len(input_dict) - 1
+                end = '' if outest_level or is_last else ','
+                if isinstance(v, dict):
+                    v_str = '\n' + _format_dict(v)
+                    if use_mapping:
+                        k_str = f"'{k}'" if isinstance(k, str) else str(k)
+                        attr_str = f'{k_str}: dict({v_str}'
+                    else:
+                        attr_str = f'{str(k)}=dict({v_str}'
+                    attr_str = _indent(attr_str, indent) + ')' + end
+                elif isinstance(v, list):
+                    attr_str = _format_list(k, v, use_mapping) + end
+                else:
+                    attr_str = _format_basic_types(k, v, use_mapping) + end
+
+                s.append(attr_str)
+            r += '\n'.join(s)
+            if use_mapping:
+                r += '}'
+            return r
+
+        cfg_dict = self._cfg_dict.to_dict()
+        text = _format_dict(cfg_dict, outest_level=True)
+        # copied from setup.cfg
+        yapf_style = dict(
+            based_on_style='pep8',
+            blank_line_before_nested_class_or_def=True,
+            split_before_expression_after_opening_paren=True)
+        text, _ = FormatCode(text, style_config=yapf_style, verify=True)
+
+        return text
+
+    def dump(self, file=None):
+        """Dumps config into a file or returns a string representation of the
+        config.
+
+        If a file argument is given, saves the config to that file using the
+        format defined by the file argument extension.
+
+        Otherwise, returns a string representing the config. The formatting of
+        this returned string is defined by the extension of `self.filename`. If
+        `self.filename` is not defined, returns a string representation of a
+         dict (lowercased and using ' for strings).
+
+        Examples:
+            >>> cfg_dict = dict(item1=[1, 2], item2=dict(a=0),
+            ...     item3=True, item4='test')
+            >>> cfg = Config(cfg_dict=cfg_dict)
+            >>> dump_file = "a.py"
+            >>> cfg.dump(dump_file)
+
+        Args:
+            file (str, optional): Path of the output file where the config
+                will be dumped. Defaults to None.
+        """
+        if file is None:
+            if self.filename is None or self.filename.endswith('.py'):
+                return self.pretty_text
+            else:
+                raise OSError(f'{file} is not exist path')
+                
+        elif file.endswith('.py'):
+            with open(file, 'w', encoding='utf-8') as f:
+                f.write(self.pretty_text)
+        else:
+            raise TypeError(f"{file} is must be .py format")
+        
+        
     def __repr__(self):
         return f'Config (path: {self.filename}): {self._cfg_dict.__repr__()}'
 

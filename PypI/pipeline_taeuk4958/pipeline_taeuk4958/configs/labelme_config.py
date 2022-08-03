@@ -6,7 +6,8 @@ today = datetime.date.today()
 mode = "labelme"
 
 dir_info = dict(
-    visul_gt_image_dir = 'gt_images'
+    visul_gt_image_dir = 'gt_images',
+    dataset_dir = "dataset"
 )
 
 options = dict(
