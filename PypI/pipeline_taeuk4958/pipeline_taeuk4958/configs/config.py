@@ -16,7 +16,7 @@ from importlib import import_module
 from pathlib import Path
 
 from addict import Dict
-from yapf.yapflib.yapf_api import FormatCode
+
 
 if platform.system() == 'Windows':
     import regex as re  # type: ignore
@@ -146,6 +146,7 @@ class Config:
         with open(filename, encoding='utf-8') as f:
             # Setting encoding explicitly to resolve coding issue on windows
             content = f.read()
+        
         try:
             ast.parse(content)
         except SyntaxError as e:
@@ -549,13 +550,7 @@ class Config:
 
         cfg_dict = self._cfg_dict.to_dict()
         text = _format_dict(cfg_dict, outest_level=True)
-        # copied from setup.cfg
-        yapf_style = dict(
-            based_on_style='pep8',
-            blank_line_before_nested_class_or_def=True,
-            split_before_expression_after_opening_paren=True)
-        text, _ = FormatCode(text, style_config=yapf_style, verify=True)
-
+        
         return text
 
     def dump(self, file=None):
@@ -591,7 +586,10 @@ class Config:
             with open(file, 'w', encoding='utf-8') as f:
                 f.write(self.pretty_text)
         else:
-            raise TypeError(f"{file} is must be .py format")
+            warnings.warn(f'{file} is not .py format')
+            with open(file, 'w', encoding='utf-8') as f:
+                f.write(self.pretty_text)
+                
         
         
     def __repr__(self):

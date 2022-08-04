@@ -1,6 +1,6 @@
-from __future__ import annotations
+
 import datetime
-today = datetime.date.today()
+today = str(datetime.date.today())
 
 
 mode = "labelme"
@@ -28,9 +28,9 @@ dataset = dict(
     info = dict(description = 'Hibernation Custom Dataset',
                 url = ' ',
                 version = '0.0.1',
-                year = f"{today.year}",
+                year = f"{today.split('-')[0]}",
                 contributor = ' ',
-                data_created = (f"{today.year}/{today.month}/{today.day}"),
+                data_created = (f"{today.split('-')[0]}/{today.split('-')[1]}/{today.split('-')[2]}"),
                 licenses = dict(url = ' ', id = 1, name = ' ')  
                 ) 
     

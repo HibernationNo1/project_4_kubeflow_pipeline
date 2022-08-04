@@ -11,8 +11,6 @@ class NpEncoder(json.JSONEncoder):
             return float(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
-        if isinstance(obj, datetime.date):
-            return 'datetime.date'
         else:
             return super(NpEncoder, self).default(obj)
 
