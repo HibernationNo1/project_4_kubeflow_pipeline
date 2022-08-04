@@ -4,5 +4,11 @@ tmp.py
 *.json
 *.jpg
 
-/PypI
+PypI/mmdet_taeuk4958/build/
+PypI/mmdet_taeuk4958/dist/
+PypI/mmdet_taeuk4958/mmdet_taeuk4958.egg-info/
+PypI/pipeline_taeuk4958/build/
+PypI/pipeline_taeuk4958/dist/
+PypI/pipeline_taeuk4958/pipeline_taeuk4958.egg-info/
+
 /dataset
