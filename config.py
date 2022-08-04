@@ -26,6 +26,9 @@ BUCKET_NAME = "hibernationproject"
 docker build -t 0803 .
 docker tag 0803:latest hibernation4958/0803:0.10
 docker push hibernation4958/0803:0.10
+
+dataset_0.0.1
+dvc remote add -d storage gdrive://1DjZBugJPcXKytqUaNge8F5P_fJmEvfBu
 """
 
 # use_aws_secret

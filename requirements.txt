@@ -1,17 +1,6 @@
-pipeline_taeuk4958==1.0.7
-Pillow
-tqdm
-boto3  
-# mmdet_taeuk4958
-
-
-# kfp
-# boto3
-# dvc[s3]
-# pipeline_taeuk4958==1.0.8
-
-
-# kfp boto3 dvc[all]
+pipeline_taeuk4958==1.0.18
+dvc[gdrive]
+kfp
 
 
 
