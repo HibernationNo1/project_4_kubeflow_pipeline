@@ -9,9 +9,10 @@ import json
 from set_config import set_config_op
 from record.record_dataset import record_op
 from record.save_GS import save_dataset_op
+from train.load_dataset import download_dataset_op
 
 from config import (USERNAME, PASSWORD, NAMESPACE, HOST,   
-                    PIPELINE_PAC, PIPELINE_DISCRIPTION , EXPERIMENT_NAME, RUN_NAME, SECRETS_DICT)
+                    PIPELINE_PAC, PIPELINE_DISCRIPTION , EXPERIMENT_NAME, RUN_NAME)
     
 def connet_client():   
     session = requests.Session()
@@ -33,11 +34,79 @@ def connet_client():
     )
     return client
 
+
+def upload_pipeline(client, args):
+    pipeline_path = os.path.join(os.getcwd(), PIPELINE_PAC)
+    if not os.path.isfile(pipeline_path) : raise OSError(f"{pipeline_path} is not exist!")
+    
+    if client.get_pipeline_id(args.p_name) == None:
+        print("\n Upload initial version pipeline named {args.p_name}!")
+        client.upload_pipeline(pipeline_package_path= pipeline_path,
+                            pipeline_name= args.p_name,
+                            description= PIPELINE_DISCRIPTION)
+        
+        pipeline_id = client.get_pipeline_id(args.p_name)
+    else: 
+        pipeline_id = client.get_pipeline_id(args.p_name)
+        pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id)
+        
+        versions = []
+        
+        
+        
+        print(f"pipelince_versions.total_size : {pipelince_versions.total_size}")  
+        for pipeline_index in range(pipelince_versions.total_size):
+            print(f"pipeline_index : {pipeline_index}")
+            print(f"pipelince_versions.versions[{pipeline_index}].name : {pipelince_versions.versions[pipeline_index].name} \n ")
+            if pipeline_index ==10: break
+            versions.append(pipelince_versions.versions[pipeline_index].name) 
+      
+        
+        if args.p_version in versions: raise TypeError(f"{args.p_version} version of {args.p_name} is exist!")
+                
+        print(f"\n Upload pipeline {args.p_version} version named {args.p_name}!")
+        client.upload_pipeline_version(pipeline_package_path= pipeline_path,
+                                    pipeline_version_name = args.p_version,
+                                    pipeline_id = pipeline_id,
+                                    description = PIPELINE_DISCRIPTION)      
+        
+        
+    return pipeline_id  
+    
+
+def run_pipeline(client, experiment_id, pipeline_id, params_dict):
+    exec_run = client.run_pipeline(
+            experiment_id = experiment_id,
+            job_name = RUN_NAME,
+            pipeline_id = pipeline_id,
+            params = params_dict
+            )
+    print("\n run pipeline")
+
+    run_id = exec_run.id
+
+
+    completed_run = client.wait_for_run_completion(run_id=run_id, timeout=600)
+    print(f"status of {RUN_NAME} : {completed_run.run.status}")
+        
+        
+def get_params(args, input_dict):
+    secrets_path = os.path.join(os.getcwd(), args.client_secrets)
+    if not os.path.isfile(secrets_path): raise OSError(f"{secrets_path} is not exist!")
+    with open(secrets_path, "r") as f:
+        client_secrets_dict = json.load(f)
+        
+    params_dict = {'input_mode': args.mode, 'input_dict': input_dict, 'gs_secret' : client_secrets_dict}
+        
+    return params_dict
+   
+    
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Change structure from comments to custom dataset in json file format.")    
     
-    parser.add_argument("--pipeline_name", required = True, help="name of pipeline")    
-    parser.add_argument("--pipeline_version", type = str, required = True, help="version of pipeline")    
+    parser.add_argument("--p_name", required = True, help="name of pipeline")    
+    parser.add_argument("--p_version", type = str, required = True, help="version of pipeline")    
     
     parser.add_argument('--mode', required = True, choices=['record', 'train', 'test'])
     parser.add_argument("--cfg", required = True, help="name of config file")
@@ -50,44 +119,72 @@ def parse_args():
                         help = 'client_secrets file path (json format)')
     parser.add_argument('--ann_bk_name', help = 'bucket_name of annotation dataset stored in google cloud storage')
     parser.add_argument('--dataset_bk_name', help = 'bucket_name of annotation dataset stored in google cloud storage')
-    parser.add_argument('--dataset_vers', type = str, help = 'version of recorded dataset to be store in google cloud storage.')
+    parser.add_argument('--d_version', type = str, help = 'version of recorded dataset to be store in google cloud storage.')
     
     parser.add_argument('--train', action = 'store_true', help = 'if True, go training after make custom dataset' ) # TODO
+    
+    # mode : train
+    parser.add_argument('--train_json', help= "name of train dataset file in .json format")
+    parser.add_argument(
+        '--validate',
+        default=False,
+        action="store_true",
+        help='whether do evaluate the checkpoint during training')
+    parser.add_argument('--val_json', help= "name of train dataset file in .json format")
+    parser.add_argument(
+        '--finetun',
+        default=False,
+        action="store_true",
+        help='whether do fine tuning')
+    
+    parser.add_argument('--model_vers', 
+                        type = str,
+                        default= 0.1,
+                        help= "directory name. version of model to be store in google cloud storage.")
+    parser.add_argument('--d_version_t', type = str, help = 'version of recorded dataset in google cloud storage.')
     
 
     args = parser.parse_args()
     
-    return args
+    input_dict = vars(args)
+    
+    return args, input_dict
+
+from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
 
 @dsl.pipeline(name="hibernation_project")
 def project_pipeline(input_mode : str, input_dict : dict, gs_secret : dict):
+    secret_name = "test-secret-01"
+    _set_config_op = set_config_op(input_dict).add_env_variable(V1EnvVar(
+                                                                name ='AWS_ACCESS_KEY_ID', 
+                                                                value_from= V1EnvVarSource(
+                                                                            secret_key_ref=V1SecretKeySelector(
+                                                                                            name=secret_name, 
+                                                                                            key = 'AWS_ACCESS_KEY_ID')))) \
+                                               .add_env_variable(V1EnvVar(
+                                                                name ='AWS_SECRET_ACCESS_KEY', 
+                                                                value_from= V1EnvVarSource(
+                                                                            secret_key_ref=V1SecretKeySelector(
+                                                                                            name=secret_name, 
+                                                                                            key = 'AWS_SECRET_ACCESS_KEY'))))                             
+                                                                            
+    
     
     with dsl.Condition(input_mode == "record") : 	
-        _set_config_op = set_config_op(input_dict)
         _record_op = record_op(gs_secret, _set_config_op.outputs['config'])
         _save_dataset_op = save_dataset_op(gs_secret, _set_config_op.outputs['config'], _record_op.outputs['train_dataset'], _record_op.outputs['val_dataset'])
+        
+    with dsl.Condition(input_mode == "train") :
+        _download_dataset_op = download_dataset_op(gs_secret, _set_config_op.outputs['config'])
+        
+        pass
+         
         
         
 if __name__=="__main__":      
 
-    args = parse_args()
-    args_dict = vars(args)
-    
-    input_dict = args_dict
-    input_mode = args.mode
-    # ann_path = os.path.join(os.getcwd(), "ann")
-    
-    
-    if input_mode == "record":
-        secrets_path = os.path.join(os.getcwd(), args.client_secrets)
-        if not os.path.isfile(secrets_path): raise OSError(f"{secrets_path} is not exist!")
-        with open(secrets_path, "r") as f:
-            client_secrets_dict = json.load(f)
-         
-    params_dict = {'input_mode': input_mode, 'input_dict': input_dict, 'gs_secret' : client_secrets_dict}
-   
+    args, input_dict = parse_args()    
 
-    
     print("\n comile pipeline")
     kfp.compiler.Compiler().compile(
         project_pipeline,
@@ -96,40 +193,18 @@ if __name__=="__main__":
 
     print("\n connet_client")
     client = connet_client()
-
-    print("\n upload_client")
-
-    pipeline_path = os.path.join(os.getcwd(), PIPELINE_PAC)
-    client.upload_pipeline(pipeline_name= args.pipeline_name,
-                        description=PIPELINE_DISCRIPTION,
-                        pipeline_package_path=pipeline_path)
-
-    # client.upload_pipeline_version(pipeline_package_path = pipeline_path, 
-    #                                pipeline_version_name = args.pipeline_version
-    #                                pipeline_id = )
-
-
-
-    pipeline_id = client.get_pipeline_id(args.pipeline_name)
-    print(f"\n pipeline_id : {pipeline_id}")
-
-    info_experiment = client.get_experiment(experiment_name= EXPERIMENT_NAME, namespace= NAMESPACE)
-    info_experiment_id = info_experiment.id
-    print(f"experiment_id : {info_experiment_id}")
-
-    print("\n run pipeline")
-    exec_run = client.run_pipeline(
-            experiment_id = info_experiment_id,
-            job_name = RUN_NAME,
-            pipeline_id = pipeline_id,
-            params = params_dict
-            )
-    list_pipelines = client.list_pipelines(page_size = 50) 
     
-    run_id = exec_run.id
-    print(f"run_id : {run_id}")
-
-    completed_run = client.wait_for_run_completion(run_id=run_id, timeout=600)
-    print(f"run completed_run : {completed_run.run.status}")
-    print(f"completed_run.run.error : {completed_run.run.error}")
+    pipeline_id = upload_pipeline(client, args)
+    
+    print("\n get experiment")
+    info_experiment = client.get_experiment(experiment_name= EXPERIMENT_NAME, namespace= NAMESPACE)
+    experiment_id = info_experiment.id
+   
+    
+    params_dict = get_params(args, input_dict)
+    run_pipeline(client, experiment_id, pipeline_id, params_dict)
+    
+    
+    
+        
 
