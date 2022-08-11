@@ -48,17 +48,10 @@ def upload_pipeline(client, args):
         pipeline_id = client.get_pipeline_id(args.p_name)
     else: 
         pipeline_id = client.get_pipeline_id(args.p_name)
-        pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id)
+        pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id, page_size = 50)
         
-        versions = []
-        
-        
-        
-        print(f"pipelince_versions.total_size : {pipelince_versions.total_size}")  
+        versions = []  
         for pipeline_index in range(pipelince_versions.total_size):
-            print(f"pipeline_index : {pipeline_index}")
-            print(f"pipelince_versions.versions[{pipeline_index}].name : {pipelince_versions.versions[pipeline_index].name} \n ")
-            if pipeline_index ==10: break
             versions.append(pipelince_versions.versions[pipeline_index].name) 
       
         
