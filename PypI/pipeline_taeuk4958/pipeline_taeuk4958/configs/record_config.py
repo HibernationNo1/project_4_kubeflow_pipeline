@@ -6,7 +6,7 @@ today = str(datetime.date.today())
 mode = "labelme"
 
 pipeline = dict(
-    pipeline_name = 'record_0.1',
+    pipeline_name = 'record',
     pipeline_version = "0.1"
 )
 
@@ -45,5 +45,5 @@ dataset = dict(
 cfg = {"pipeline" : pipeline ,
        'mode' : mode,
        'options' : options,
-       'json' : gs,
+       'gs' : gs,
        'dataset' : dataset}

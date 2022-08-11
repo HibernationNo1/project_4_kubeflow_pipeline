@@ -1,5 +1,5 @@
-from .config import Config
+from .config import Config, load_config_in_pipeline
 
 __all__ = [
-    'Config'
+    'Config', 'load_config_in_pipeline'
 ]
