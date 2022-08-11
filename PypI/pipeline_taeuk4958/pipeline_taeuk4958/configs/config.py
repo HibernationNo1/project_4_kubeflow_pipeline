@@ -30,6 +30,22 @@ RESERVED_KEYS = ['filename', 'text', 'pretty_text']
 
 
 
+def load_config_in_pipeline(cfg_path):
+    if not cfg_path.endswith('.py'):
+        cfg_pyformat_path = cfg_path + ".py"        # cfg_pyformat_path : {wiorkspace}/inputs/cfg/data.py
+                                                    # can't command 'mv' 
+    
+    # change format to .py
+    with open(cfg_path, "r") as f:
+        data = f.read()
+    with open(cfg_pyformat_path, "w") as f:
+        f.write(data)       
+    f.close()
+    
+    return Config.fromfile(cfg_pyformat_path)       # cfg_pyformat_path : must be .py format   
+    
+
+
 def import_modules_from_strings(imports, allow_failed_imports=False):
     """Import modules from the given list of strings.
 
