@@ -11,55 +11,52 @@ def save_dataset(gs_secret : dict,
     import json
     import os
     from pipeline_taeuk4958.utils.utils import NpEncoder
-    from pipeline_taeuk4958.configs.config import Config
-    
-    
-    ## load config
-    cfg_pyformat_path = cfg_path + ".py"        # cfg_pyformat_path : {wiorkspace}/inputs/cfg/data.py
-                                                # can't command 'mv' 
-    # change format to .py
-    with open(cfg_path, "r") as f:
-        data = f.read()
-    with open(cfg_pyformat_path, "w") as f:
-        f.write(data)       # 
-    f.close()
-
-    cfg = Config.fromfile(cfg_pyformat_path)    # cfg_pyformat_path : must be .py format   
-    
-    # load dataset    
-    with open(train_dataset_path, "r", encoding='utf-8') as f:
-        train_dataset = json.load(f)
-    train_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.train_file_name)
-    json.dump(train_dataset, open(train_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
-    train_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.train_file_name}' 
-    
-    with open(val_dataset_path, "r", encoding='utf-8') as f:
-        val_dataset = json.load(f)
-    val_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.val_file_name)
-    json.dump(val_dataset, open(val_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
-    val_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.val_file_name}'
-    
-    
-   
-    client_secrets_path = os.path.join(os.getcwd(), cfg.gs.client_secrets)
-        
-    # save client_secrets
-    json.dump(gs_secret, open(client_secrets_path, "w"), indent=4)
-    
-    
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = client_secrets_path
-
+    from pipeline_taeuk4958.configs.config import load_config_in_pipeline
+    from pipeline_taeuk4958.cloud.gs import set_gs_credentials
     
     from google.cloud import storage
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(cfg.gs.recoded_dataset_bucket_name)
+        
+
+    def load_recorded_dataset(cfg):
+        with open(train_dataset_path, "r", encoding='utf-8') as f:
+            train_dataset = json.load(f)
+        train_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.train_file_name)
+        json.dump(train_dataset, open(train_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
+        train_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.train_file_name}' 
+        
+        with open(val_dataset_path, "r", encoding='utf-8') as f:
+            val_dataset = json.load(f)
+        val_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.val_file_name)
+        json.dump(val_dataset, open(val_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
+        val_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.val_file_name}'
+        
+        return train_dataset_in_storage_path, val_dataset_in_storage_path
+
+
     
+        
+        
+        
+    def save_dataset_gs(cfg, train_dataset_path, val_dataset_path):        
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(cfg.gs.recoded_dataset_bucket_name)
+        
+        train_blob = bucket.blob(train_dataset_path)
+        train_blob.upload_from_filename(cfg.dataset.train_file_name)
+        
+        val_blob = bucket.blob(val_dataset_path)
+        val_blob.upload_from_filename(cfg.dataset.val_file_name)
+        
+        
+        
+    if __name__=="__main__":
+        cfg = load_config_in_pipeline(cfg_path)
+        set_gs_credentials(cfg.gs.client_secrets, gs_secret)
+        
+        train_dataset_path, val_dataset_path = load_recorded_dataset(cfg)
+        
+        save_dataset_gs(cfg, train_dataset_path, val_dataset_path)
     
-    train_blob = bucket.blob(train_dataset_in_storage_path)
-    train_blob.upload_from_filename(cfg.dataset.train_file_name)
-    
-    val_blob = bucket.blob(val_dataset_in_storage_path)
-    val_blob.upload_from_filename(cfg.dataset.val_file_name)
     
 
     

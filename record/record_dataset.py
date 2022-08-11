@@ -1,5 +1,5 @@
 from kfp.components import InputPath, OutputPath, create_component_from_func
-from config import RECORD_IMAGE, RECORD_COM_FILE, SECRETS_DICT
+from config import RECORD_IMAGE, RECORD_COM_FILE
 
 
 def record(gs_secret : dict,
@@ -21,7 +21,7 @@ def record(gs_secret : dict,
     from PIL.ImageDraw import Draw as Draw
     
     from pipeline_taeuk4958.utils.utils import NpEncoder
-    from pipeline_taeuk4958.configs.config import Config as pr_Config
+    from pipeline_taeuk4958.configs.config import load_config_in_pipeline
     
     class Record_Dataset():
         """
@@ -240,19 +240,7 @@ def record(gs_secret : dict,
                 else:
                     self.train_dataset["images"].append(tmp_images_dict)
     
-    
-    def load_config():  
-        cfg_pyformat_path = cfg_path + ".py"        # cfg_pyformat_path : {wiorkspace}/inputs/cfg/data.py
-                                                    # can't command 'mv' 
-        # change format to .py
-        with open(cfg_path, "r") as f:
-            data = f.read()
-        with open(cfg_pyformat_path, "w") as f:
-            f.write(data)       # 
-        f.close()
 
-        return pr_Config.fromfile(cfg_pyformat_path)    # cfg_pyformat_path : must be .py format   
-        
     
     def set_client_secret():
         client_secrets_path = os.path.join(os.getcwd(), cfg.gs.client_secrets)
@@ -270,7 +258,7 @@ def record(gs_secret : dict,
                     
     
     if __name__=="__main__":                
-        cfg = load_config()
+        cfg = load_config_in_pipeline(cfg_path)
         
         
         ## download dataset from google cloud stroage bucket by dvc
@@ -296,5 +284,4 @@ def record(gs_secret : dict,
   
 record_op = create_component_from_func(func = record,
                                         base_image = RECORD_IMAGE,
-                                        output_component_file=RECORD_COM_FILE,
-                                        annotations = SECRETS_DICT)
+                                        output_component_file=RECORD_COM_FILE)
