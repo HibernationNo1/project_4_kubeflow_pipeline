@@ -2,10 +2,9 @@ from kfp.components import InputPath, OutputPath, create_component_from_func
 from config import RECORD_IMAGE, RECORD_COM_FILE
 
 
-def record(gs_secret : dict,
-            cfg_path: InputPath("dict"),
-            train_dataset_path: OutputPath("dict"),
-            val_dataset_path: OutputPath("dict")):   
+def record(gs_sc : dict, cfg_path: InputPath("dict"),
+           train_dataset_path: OutputPath("dict"),
+           val_dataset_path: OutputPath("dict")):   
     """
     cfg_path : {wiorkspace}/inputs/cfg/data
     """    
@@ -22,6 +21,8 @@ def record(gs_secret : dict,
     
     from pipeline_taeuk4958.utils.utils import NpEncoder
     from pipeline_taeuk4958.configs.config import load_config_in_pipeline
+    from pipeline_taeuk4958.cloud.gs import get_client_secrets
+    
     
     class Record_Dataset():
         """
@@ -244,6 +245,13 @@ def record(gs_secret : dict,
     
     def set_client_secret():
         client_secrets_path = os.path.join(os.getcwd(), cfg.gs.client_secrets)
+        
+        gs_secret = get_client_secrets()
+        print(f"gs_secret : \n {gs_secret} \n ")
+        
+        print(f"gs_sc : \n {gs_sc}\n ")
+        
+        
         
         # save client_secrets
         json.dump(gs_secret, open(client_secrets_path, "w"), indent=4)   

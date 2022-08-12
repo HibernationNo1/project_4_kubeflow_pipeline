@@ -4,13 +4,12 @@ from kfp.components import InputPath, create_component_from_func
 
 from config import LOAD_DATA_IMAGE, LOAD_DATA_COM_FILE
 
-def download_dataset(gs_secret : dict,
-                     cfg_path: InputPath("dict")):
+def download_dataset(cfg_path: InputPath("dict")):
     
     import json
     import os
     from pipeline_taeuk4958.configs.config import load_config_in_pipeline
-    from pipeline_taeuk4958.cloud.gs import set_gs_credentials
+    from pipeline_taeuk4958.cloud.gs import gs_credentials
     from google.cloud import storage
     
 
@@ -32,7 +31,9 @@ def download_dataset(gs_secret : dict,
     
     if __name__=="__main__":
         cfg = load_config_in_pipeline(cfg_path)
-        set_gs_credentials(cfg.gs.client_secrets, gs_secret)
+        
+        gs_credentials(cfg.gs.client_secrets)
+        
                            
         download_dataset(cfg)
   
