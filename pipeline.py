@@ -13,7 +13,68 @@ from train.load_dataset import download_dataset_op
 
 from config import (USERNAME, PASSWORD, NAMESPACE, HOST,   
                     PIPELINE_PAC, PIPELINE_DISCRIPTION , EXPERIMENT_NAME, RUN_NAME)
-    
+
+from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
+
+@dsl.pipeline(name="hibernation_project")
+def project_pipeline(input_mode : str, input_dict : dict, gs_sc : dict):
+    client_sc_name = "client-secrets"
+    ev_gs_type = V1EnvVar(name ='type', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'type')))
+    ev_gs_project_id = V1EnvVar(name ='project_id', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'project_id')))
+    ev_gs_private_key_id = V1EnvVar(name ='private_key_id', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'private_key_id')))
+    ev_gs_private_key = V1EnvVar(name ='private_key', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'private_key')))
+    ev_gs_client_email = V1EnvVar(name ='client_email', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'client_email')))
+    ev_gs_client_id = V1EnvVar(name ='client_id', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'client_id')))
+    ev_gs_auth_uri = V1EnvVar(name ='auth_uri', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'auth_uri')))
+    ev_gs_token_uri = V1EnvVar(name ='token_uri', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'token_uri')))
+    ev_gs_auth_provider_x509_cert_url = V1EnvVar(name ='auth_provider_x509_cert_url', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'auth_provider_x509_cert_url')))
+    ev_gs_client_x509_cert_url = V1EnvVar(name ='client_x509_cert_url', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'client_x509_cert_url')))
+
+    _set_config_op = set_config_op(input_dict) \
+            .add_env_variable(ev_gs_type) \
+            .add_env_variable(ev_gs_project_id) \
+            .add_env_variable(ev_gs_private_key_id) \
+            .add_env_variable(ev_gs_private_key) \
+            .add_env_variable(ev_gs_client_email) \
+            .add_env_variable(ev_gs_client_id) \
+            .add_env_variable(ev_gs_auth_uri) \
+            .add_env_variable(ev_gs_token_uri) \
+            .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
+            .add_env_variable(ev_gs_client_x509_cert_url)     
+                                                                                     
+    with dsl.Condition(input_mode == "record") : 	
+        _record_op = record_op(gs_sc, _set_config_op.outputs['config']) \
+            .add_env_variable(ev_gs_type) \
+            .add_env_variable(ev_gs_project_id) \
+            .add_env_variable(ev_gs_private_key_id) \
+            .add_env_variable(ev_gs_private_key) \
+            .add_env_variable(ev_gs_client_email) \
+            .add_env_variable(ev_gs_client_id) \
+            .add_env_variable(ev_gs_auth_uri) \
+            .add_env_variable(ev_gs_token_uri) \
+            .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
+            .add_env_variable(ev_gs_client_x509_cert_url) 
+            
+        _save_dataset_op = save_dataset_op(_set_config_op.outputs['config'], _record_op.outputs['train_dataset'], _record_op.outputs['val_dataset']) \
+            .add_env_variable(ev_gs_type) \
+            .add_env_variable(ev_gs_project_id) \
+            .add_env_variable(ev_gs_private_key_id) \
+            .add_env_variable(ev_gs_private_key) \
+            .add_env_variable(ev_gs_client_email) \
+            .add_env_variable(ev_gs_client_id) \
+            .add_env_variable(ev_gs_auth_uri) \
+            .add_env_variable(ev_gs_token_uri) \
+            .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
+            .add_env_variable(ev_gs_client_x509_cert_url) 
+
+        
+    with dsl.Condition(input_mode == "train") :
+        _download_dataset_op = download_dataset_op(_set_config_op.outputs['config'])
+        
+        pass
+         
+         
+            
 def connet_client():   
     session = requests.Session()
     response = session.get(HOST)
@@ -89,7 +150,7 @@ def get_params(args, input_dict):
     with open(secrets_path, "r") as f:
         client_secrets_dict = json.load(f)
         
-    params_dict = {'input_mode': args.mode, 'input_dict': input_dict, 'gs_secret' : client_secrets_dict}
+    params_dict = {'input_mode': args.mode, 'input_dict': input_dict, "gs_sc" : client_secrets_dict}
         
     return params_dict
    
@@ -142,37 +203,7 @@ def parse_args():
     input_dict = vars(args)
     
     return args, input_dict
-
-from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
-
-@dsl.pipeline(name="hibernation_project")
-def project_pipeline(input_mode : str, input_dict : dict, gs_secret : dict):
-    secret_name = "test-secret-01"
-    _set_config_op = set_config_op(input_dict).add_env_variable(V1EnvVar(
-                                                                name ='AWS_ACCESS_KEY_ID', 
-                                                                value_from= V1EnvVarSource(
-                                                                            secret_key_ref=V1SecretKeySelector(
-                                                                                            name=secret_name, 
-                                                                                            key = 'AWS_ACCESS_KEY_ID')))) \
-                                               .add_env_variable(V1EnvVar(
-                                                                name ='AWS_SECRET_ACCESS_KEY', 
-                                                                value_from= V1EnvVarSource(
-                                                                            secret_key_ref=V1SecretKeySelector(
-                                                                                            name=secret_name, 
-                                                                                            key = 'AWS_SECRET_ACCESS_KEY'))))                             
-                                                                            
-    
-    
-    with dsl.Condition(input_mode == "record") : 	
-        _record_op = record_op(gs_secret, _set_config_op.outputs['config'])
-        _save_dataset_op = save_dataset_op(gs_secret, _set_config_op.outputs['config'], _record_op.outputs['train_dataset'], _record_op.outputs['val_dataset'])
-        
-    with dsl.Condition(input_mode == "train") :
-        _download_dataset_op = download_dataset_op(gs_secret, _set_config_op.outputs['config'])
-        
-        pass
-         
-        
+       
         
 if __name__=="__main__":      
 

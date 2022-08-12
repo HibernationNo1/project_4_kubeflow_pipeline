@@ -13,13 +13,7 @@ def set_config(args: dict, config_path: OutputPath("dict"), ) :
     pipeline_taeuk4958_config_path ='/usr/local/lib/python3.8/site-packages/pipeline_taeuk4958/configs'
     cfg_file_path = os.path.join(pipeline_taeuk4958_config_path, args['cfg'])        
     cfg = Config.fromfile(cfg_file_path)                # cfg_file_path : must be .py format
-    
-    import subprocess
-    talk_1 = "echo $AWS_ACCESS_KEY_ID"
-    talk_2 = "echo $AWS_SECRET_ACCESS_KEY"
-    subprocess.call([talk_1], shell=True)
-    subprocess.call([talk_2], shell=True)
-    exit()
+        
     if args['p_name'] is not None : cfg.pipeline.pipeline_name = args['p_name']
     if args['p_version'] is not None : cfg.pipeline.pipeline_version = args['p_version']
     
