@@ -247,6 +247,13 @@ def record(gs_sc : dict, cfg_path: InputPath("dict"),
         client_secrets_path = os.path.join(os.getcwd(), cfg.gs.client_secrets)
         
         gs_secret = get_client_secrets()
+        
+        print(f"os.environ['private_key'] : {os.environ['private_key']}\n ")
+        
+        import subprocess
+        subprocess.call(['echo $private_key'], shell=True)
+        
+        print(f"-------------")
         print(f"gs_secret : \n {gs_secret} \n ")
         
         print(f"gs_sc : \n {gs_sc}\n ")
