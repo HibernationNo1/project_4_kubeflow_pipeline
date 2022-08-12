@@ -3,8 +3,7 @@ from kfp.components import InputPath, create_component_from_func
 
 from config import SAVE_GS_IMAGE, SAVE_GS_COM_FILE
 
-def save_dataset(gs_secret : dict,
-                 cfg_path: InputPath("dict"),
+def save_dataset(cfg_path: InputPath("dict"),
                  train_dataset_path: InputPath("dict"),
                  val_dataset_path: InputPath("dict")):
     
@@ -12,7 +11,7 @@ def save_dataset(gs_secret : dict,
     import os
     from pipeline_taeuk4958.utils.utils import NpEncoder
     from pipeline_taeuk4958.configs.config import load_config_in_pipeline
-    from pipeline_taeuk4958.cloud.gs import set_gs_credentials
+    from pipeline_taeuk4958.cloud.gs import gs_credentials
     
     from google.cloud import storage
         
@@ -32,10 +31,6 @@ def save_dataset(gs_secret : dict,
         
         return train_dataset_in_storage_path, val_dataset_in_storage_path
 
-
-    
-        
-        
         
     def save_dataset_gs(cfg, train_dataset_path, val_dataset_path):        
         storage_client = storage.Client()
@@ -51,18 +46,13 @@ def save_dataset(gs_secret : dict,
         
     if __name__=="__main__":
         cfg = load_config_in_pipeline(cfg_path)
-        set_gs_credentials(cfg.gs.client_secrets, gs_secret)
         
+        gs_credentials(cfg.gs.client_secrets)
         train_dataset_path, val_dataset_path = load_recorded_dataset(cfg)
         
         save_dataset_gs(cfg, train_dataset_path, val_dataset_path)
     
     
-
-    
-    
-    
-
 
 save_dataset_op  = create_component_from_func(func =save_dataset,
                                               base_image = SAVE_GS_IMAGE,        
