@@ -3,7 +3,7 @@ from kfp.components import InputPath, OutputPath, create_component_from_func
 from config import RECORD_IMAGE, RECORD_COM_FILE
 
 
-def record(gs_sc : dict, cfg_path: InputPath("dict"),
+def record(cfg_path: InputPath("dict"),
            train_dataset_path: OutputPath("dict"),
            val_dataset_path: OutputPath("dict")):   
     """
@@ -248,37 +248,6 @@ def record(gs_sc : dict, cfg_path: InputPath("dict"),
         client_secrets_path = os.path.join(os.getcwd(), cfg.gs.client_secrets)
         
         gs_secret = get_client_secrets()
-        
-        print(f"os.environ['private_key'] : {os.environ['private_key']}\n ")
-        print(f"len(os.environ['private_key']) : {len(os.environ['private_key'])}")
-        
-        flag = False
-        private_key = []
-        for arp in os.environ['private_key']:
-            if arp == '\\':
-                private_key.append[arp]
-                flag = True
-                continue
-            
-            if arp == 'n' and flag == True:
-                private_key.pop(-1)
-                flag = False
-                continue
-            
-            private_key.append[arp]
-                 
-        print(f"private_key : \n {private_key} \n")
-            
-        
-        import subprocess
-        subprocess.call(['echo $private_key'], shell=True)
-        
-        print(f"-------------")
-        print(f"gs_secret : \n {gs_secret} \n ")
-        
-        print(f"gs_sc : \n {gs_sc}\n ")
-        
-        exit()
         
         # save client_secrets
         json.dump(gs_secret, open(client_secrets_path, "w"), indent=4)   

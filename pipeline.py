@@ -17,7 +17,7 @@ from config import (USERNAME, PASSWORD, NAMESPACE, HOST,
 from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
 
 @dsl.pipeline(name="hibernation_project")
-def project_pipeline(input_mode : str, input_dict : dict, gs_sc : dict):
+def project_pipeline(input_mode : str, input_dict : dict):
     client_sc_name = "client-secrets"
     ev_gs_type = V1EnvVar(name ='type', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'type')))
     ev_gs_project_id = V1EnvVar(name ='project_id', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'project_id')))
@@ -30,6 +30,7 @@ def project_pipeline(input_mode : str, input_dict : dict, gs_sc : dict):
     ev_gs_auth_provider_x509_cert_url = V1EnvVar(name ='auth_provider_x509_cert_url', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'auth_provider_x509_cert_url')))
     ev_gs_client_x509_cert_url = V1EnvVar(name ='client_x509_cert_url', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'client_x509_cert_url')))
 
+    
     _set_config_op = set_config_op(input_dict) \
             .add_env_variable(ev_gs_type) \
             .add_env_variable(ev_gs_project_id) \
@@ -43,7 +44,7 @@ def project_pipeline(input_mode : str, input_dict : dict, gs_sc : dict):
             .add_env_variable(ev_gs_client_x509_cert_url)     
                                                                                      
     with dsl.Condition(input_mode == "record") : 	
-        _record_op = record_op(gs_sc, _set_config_op.outputs['config']) \
+        _record_op = record_op(_set_config_op.outputs['config']) \
             .add_env_variable(ev_gs_type) \
             .add_env_variable(ev_gs_project_id) \
             .add_env_variable(ev_gs_private_key_id) \
@@ -145,12 +146,8 @@ def run_pipeline(client, experiment_id, pipeline_id, params_dict):
         
         
 def get_params(args, input_dict):
-    secrets_path = os.path.join(os.getcwd(), args.client_secrets)
-    if not os.path.isfile(secrets_path): raise OSError(f"{secrets_path} is not exist!")
-    with open(secrets_path, "r") as f:
-        client_secrets_dict = json.load(f)
-        
-    params_dict = {'input_mode': args.mode, 'input_dict': input_dict, "gs_sc" : client_secrets_dict}
+            
+    params_dict = {'input_mode': args.mode, 'input_dict': input_dict}
         
     return params_dict
    
@@ -197,9 +194,7 @@ def parse_args():
                         help= "directory name. version of model to be store in google cloud storage.")
     parser.add_argument('--d_version_t', type = str, help = 'version of recorded dataset in google cloud storage.')
     
-
     args = parser.parse_args()
-    
     input_dict = vars(args)
     
     return args, input_dict

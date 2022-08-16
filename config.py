@@ -9,16 +9,16 @@ NAMESPACE = "kubeflow-user-example-com"
 HOST =  "http://0b87-1-214-32-67.ngrok.io"     # "http://192.168.0.167:80"       
 
 # docker images
-SETUP_IMAGE = 'hibernation4958/record:0.3'
+SETUP_IMAGE = 'hibernation4958/record:0.4'
 SETUP_COM_FILE = None                   # "set_config.component.yaml"
 
-RECORD_IMAGE = 'hibernation4958/record:0.3'
+RECORD_IMAGE = 'hibernation4958/record:0.4'
 RECORD_COM_FILE = None                  # "record.component.yaml"
 
 SAVE_GS_IMAGE = RECORD_IMAGE            # 'hibernation4958/for_save.0.1'
 SAVE_GS_COM_FILE = None                 # "save_dataset.component.yaml"
 
-LOAD_DATA_IMAGE = "hibernation4958/0812:0.1"
+LOAD_DATA_IMAGE = "hibernation4958/0812:0.2"
 LOAD_DATA_COM_FILE = None               # 
 
 
@@ -30,11 +30,11 @@ RUN_NAME = "test_run"
 
 
 """
-docker build record -t hibernation4958/record:0.3
-docker push hibernation4958/record:0.3
+docker build record -t hibernation4958/record:0.4
+docker push hibernation4958/record:0.4
 
-docker build train -t hibernation4958/0812:0.1
-docker push hibernation4958/0812:0.1
+docker build train -t hibernation4958/0812:0.2
+docker push hibernation4958/0812:0.2
 
 
 docker pull registry:latest
