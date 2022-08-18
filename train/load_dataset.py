@@ -2,7 +2,9 @@
 import kfp
 from kfp.components import InputPath, create_component_from_func
 
-from config import LOAD_DATA_IMAGE, LOAD_DATA_COM_FILE
+from config import pipeline_config
+pl_cfg = pipeline_config
+
 
 def download_dataset(cfg_path: InputPath("dict")):
     
@@ -46,5 +48,5 @@ def download_dataset(cfg_path: InputPath("dict")):
     
   
 download_dataset_op = create_component_from_func(func = download_dataset,
-                                        base_image = LOAD_DATA_IMAGE,
-                                        output_component_file= LOAD_DATA_COM_FILE)
+                                        base_image = pl_cfg.LOAD_DATA_IMAGE,
+                                        output_component_file= pl_cfg.LOAD_DATA_COM_FILE)

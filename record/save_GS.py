@@ -1,7 +1,8 @@
 import kfp
 from kfp.components import InputPath, create_component_from_func
 
-from config import SAVE_GS_IMAGE, SAVE_GS_COM_FILE
+from config import pipeline_config
+plcfg = pipeline_config
 
 def save_dataset(cfg_path: InputPath("dict"),
                  train_dataset_path: InputPath("dict"),
@@ -55,5 +56,5 @@ def save_dataset(cfg_path: InputPath("dict"),
     
 
 save_dataset_op  = create_component_from_func(func =save_dataset,
-                                              base_image = SAVE_GS_IMAGE,        
-                                              output_component_file=SAVE_GS_COM_FILE)
+                                              base_image = plcfg.SAVE_GS_IMAGE,        
+                                              output_component_file=plcfg.SAVE_GS_COM_FILE)

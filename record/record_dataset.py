@@ -1,6 +1,7 @@
 from re import L
 from kfp.components import InputPath, OutputPath, create_component_from_func
-from config import RECORD_IMAGE, RECORD_COM_FILE
+from config import pipeline_config
+pl_cfg = pipeline_config
 
 
 def record(cfg_path: InputPath("dict"),
@@ -287,5 +288,5 @@ def record(cfg_path: InputPath("dict"),
 
   
 record_op = create_component_from_func(func = record,
-                                        base_image = RECORD_IMAGE,
-                                        output_component_file=RECORD_COM_FILE)
+                                        base_image = pl_cfg.RECORD_IMAGE,
+                                        output_component_file= pl_cfg.RECORD_COM_FILE)

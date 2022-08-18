@@ -1,7 +1,8 @@
 from genericpath import exists
 from kfp.components import OutputPath, create_component_from_func
-from config import SETUP_IMAGE, SETUP_COM_FILE  
-        
+from config import pipeline_config 
+pl_cfg = pipeline_config       
+
 
 def set_config(args: dict, config_path: OutputPath("dict"), ) :
 
@@ -14,7 +15,7 @@ def set_config(args: dict, config_path: OutputPath("dict"), ) :
     cfg_file_path = os.path.join(pipeline_taeuk4958_config_path, args['cfg'])        
     cfg = Config.fromfile(cfg_file_path)                # cfg_file_path : must be .py format
         
-    if args['p_name'] is not None : cfg.pipeline.pipeline_name = args['p_name']
+    cfg.pipeline.pipeline_name = args['p_name']
     if args['p_version'] is not None : cfg.pipeline.pipeline_version = args['p_version']
     
     if args['mode'] == "record":
@@ -38,8 +39,8 @@ def set_config(args: dict, config_path: OutputPath("dict"), ) :
      
     cfg.dump(config_path)                               # save to config_path : {wiorkspace}/outputs/set_config/data
     
-    
+
 set_config_op = create_component_from_func(func = set_config,
-                                        base_image = SETUP_IMAGE,
-                                        output_component_file= SETUP_COM_FILE)
+                                        base_image = pl_cfg.SETCONFIG_IMAGE,
+                                        output_component_file= pl_cfg.SETCONFIG_COM_FILE)
 
