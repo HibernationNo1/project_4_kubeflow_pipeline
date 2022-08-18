@@ -11,8 +11,7 @@ from record.record_dataset import record_op
 from record.save_GS import save_dataset_op
 from train.load_dataset import download_dataset_op
 
-from config import (USERNAME, PASSWORD, NAMESPACE, HOST,   
-                    PIPELINE_PAC, PIPELINE_DISCRIPTION , EXPERIMENT_NAME, RUN_NAME)
+from config import pipeline_config
 
 from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
 
@@ -76,40 +75,40 @@ def project_pipeline(input_mode : str, input_dict : dict):
          
          
             
-def connet_client():   
+def connet_client(pl_cfg):   
     session = requests.Session()
-    response = session.get(HOST)
+    response = session.get(pl_cfg.HOST)
 
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    data = {"login": USERNAME, "password": PASSWORD}
+    data = {"login": pl_cfg.USERNAME, "password": pl_cfg.PASSWORD}
     session.post(response.url, headers=headers, data=data)                              
     session_cookie = session.cookies.get_dict()["authservice_session"]  
 
     # client에 접속
     client = kfp.Client(
-        host=f"{HOST}/pipeline",
-        namespace=f"{NAMESPACE}",
+        host=f"{pl_cfg.HOST}/pipeline",
+        namespace=f"{pl_cfg.NAMESPACE}",
         cookies=f"authservice_session={session_cookie}",
     )
     return client
 
 
-def upload_pipeline(client, args):
-    pipeline_path = os.path.join(os.getcwd(), PIPELINE_PAC)
-    if not os.path.isfile(pipeline_path) : raise OSError(f"{pipeline_path} is not exist!")
+def upload_pipeline(client, args, pl_cfg):
+    pipeline_path = os.path.join(os.getcwd(), pl_cfg.PIPELINE_PAC)
+    if not os.path.isfile(pipeline_path) : raise OSError(f" {pipeline_path} is not exist! ")
     
-    if client.get_pipeline_id(args.p_name) == None:
-        print("\n Upload initial version pipeline named {args.p_name}!")
+    if client.get_pipeline_id(pl_cfg.PIPELINE_NAME) == None:
+        print(f"\n Upload initial version pipeline named {pl_cfg.PIPELINE_NAME}!",end = " " )
         client.upload_pipeline(pipeline_package_path= pipeline_path,
-                            pipeline_name= args.p_name,
-                            description= PIPELINE_DISCRIPTION)
-        
-        pipeline_id = client.get_pipeline_id(args.p_name)
+                            pipeline_name= pl_cfg.PIPELINE_NAME,
+                            description= pl_cfg.PIPELINE_DISCRIPTION)
+        print("seccess!")
+        pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
     else: 
-        pipeline_id = client.get_pipeline_id(args.p_name)
+        pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
         pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id, page_size = 50)
         
         versions = []  
@@ -117,22 +116,33 @@ def upload_pipeline(client, args):
             versions.append(pipelince_versions.versions[pipeline_index].name) 
       
         
-        if args.p_version in versions: raise TypeError(f"{args.p_version} version of {args.p_name} is exist!")
+        if args.p_version in versions: raise TypeError(f" {args.p_version} version of {pl_cfg.PIPELINE_NAME} is exist! ")
                 
-        print(f"\n Upload pipeline {args.p_version} version named {args.p_name}!")
+        print(f"\n Upload pipeline {args.p_version} version named {pl_cfg.PIPELINE_NAME} : ", end = " ")
         client.upload_pipeline_version(pipeline_package_path= pipeline_path,
                                     pipeline_version_name = args.p_version,
                                     pipeline_id = pipeline_id,
-                                    description = PIPELINE_DISCRIPTION)      
+                                    description = pl_cfg.PIPELINE_DISCRIPTION)    
+        print("seccess!")  
         
         
     return pipeline_id  
+
+def get_experiment(client, pl_cfg) : 
+        list_experiments = client.list_experiments(page_size = 50)
+        if list_experiments.total_size == None:
+            experiment = client.create_experiment(name = pl_cfg.EXPERIMENT_NAME)
+        else:
+            experiment = client.get_experiment(experiment_name= pl_cfg.EXPERIMENT_NAME, namespace= pl_cfg.NAMESPACE)
+        
+        experiment_id = experiment.id
+        return experiment_id
     
 
-def run_pipeline(client, experiment_id, pipeline_id, params_dict):
+def run_pipeline(client, experiment_id, pipeline_id, params_dict, run_name):
     exec_run = client.run_pipeline(
             experiment_id = experiment_id,
-            job_name = RUN_NAME,
+            job_name = run_name,
             pipeline_id = pipeline_id,
             params = params_dict
             )
@@ -142,7 +152,7 @@ def run_pipeline(client, experiment_id, pipeline_id, params_dict):
 
 
     completed_run = client.wait_for_run_completion(run_id=run_id, timeout=600)
-    print(f"status of {RUN_NAME} : {completed_run.run.status}")
+    print(f"status of {run_name} : {completed_run.run.status}")
         
         
 def get_params(args, input_dict):
@@ -153,10 +163,9 @@ def get_params(args, input_dict):
    
     
 
-def parse_args():
+def parse_args(pl_cfg):
     parser = argparse.ArgumentParser(description="Change structure from comments to custom dataset in json file format.")    
     
-    parser.add_argument("--p_name", required = True, help="name of pipeline")    
     parser.add_argument("--p_version", type = str, required = True, help="version of pipeline")    
     
     parser.add_argument('--mode', required = True, choices=['record', 'train', 'test'])
@@ -196,32 +205,45 @@ def parse_args():
     
     args = parser.parse_args()
     input_dict = vars(args)
+    input_dict['p_name'] = pl_cfg.PIPELINE_NAME
+    
+    
     
     return args, input_dict
        
-        
+# python pipeline.py --mode record --cfg record_config.py --d_version 0.1 --p_version 0.1
+# python pipeline.py --mode train --cfg train_config.py --d_version_t 0.1 --p_name train_test --p_version 0.13 
 if __name__=="__main__":      
 
-    args, input_dict = parse_args()    
+    pl_cfg = pipeline_config() 
+    args, input_dict = parse_args(pl_cfg)       
 
     print("\n comile pipeline")
     kfp.compiler.Compiler().compile(
         project_pipeline,
-        f"./{PIPELINE_PAC}"
+        f"./{pl_cfg.PIPELINE_PAC}"
         )
 
     print("\n connet_client")
-    client = connet_client()
+    client = connet_client(pl_cfg)
     
-    pipeline_id = upload_pipeline(client, args)
+    experiment_id = get_experiment(client, pl_cfg)
+   
+    if pl_cfg.RUN_EXIST_PIPELINE:
+        print(f" get pipeline: {pl_cfg.PIPELINE_NAME}.{args.p_version} id ")
+        pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
+    else:
+        pipeline_id = upload_pipeline(client, args, pl_cfg)
     
     print("\n get experiment")
-    info_experiment = client.get_experiment(experiment_name= EXPERIMENT_NAME, namespace= NAMESPACE)
-    experiment_id = info_experiment.id
-   
+    
+    
+    
+    
+    
     
     params_dict = get_params(args, input_dict)
-    run_pipeline(client, experiment_id, pipeline_id, params_dict)
+    run_pipeline(client, experiment_id, pipeline_id, params_dict, pl_cfg.RUN_NAME)
     
     
     
