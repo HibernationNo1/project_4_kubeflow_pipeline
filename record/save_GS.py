@@ -1,8 +1,8 @@
 import kfp
 from kfp.components import InputPath, create_component_from_func
 
-from config import pipeline_config
-plcfg = pipeline_config
+from pipeline_config import Pipeline_Config
+pl_cfg = Pipeline_Config
 
 def save_dataset(cfg_path: InputPath("dict"),
                  train_dataset_path: InputPath("dict"),
@@ -22,13 +22,15 @@ def save_dataset(cfg_path: InputPath("dict"),
             train_dataset = json.load(f)
         train_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.train_file_name)
         json.dump(train_dataset, open(train_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
-        train_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.train_file_name}' 
+        train_dataset_in_storage_path = f'{cfg.dataset_name}/{cfg.dataset.train_file_name}' 
+        
+        
         
         with open(val_dataset_path, "r", encoding='utf-8') as f:
             val_dataset = json.load(f)
         val_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.val_file_name)
         json.dump(val_dataset, open(val_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
-        val_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.val_file_name}'
+        val_dataset_in_storage_path = f'{cfg.dataset_name}/{cfg.dataset.val_file_name}'
         
         return train_dataset_in_storage_path, val_dataset_in_storage_path
 
@@ -56,5 +58,5 @@ def save_dataset(cfg_path: InputPath("dict"),
     
 
 save_dataset_op  = create_component_from_func(func =save_dataset,
-                                              base_image = plcfg.SAVE_GS_IMAGE,        
-                                              output_component_file=plcfg.SAVE_GS_COM_FILE)
+                                              base_image = pl_cfg.SAVE_GS_IMAGE,        
+                                              output_component_file=pl_cfg.SAVE_GS_COM_FILE)
