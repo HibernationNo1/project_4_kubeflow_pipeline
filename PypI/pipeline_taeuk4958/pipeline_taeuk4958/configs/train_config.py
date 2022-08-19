@@ -1,11 +1,10 @@
+
 mode = "labelme"
 
 pipeline = dict(
     pipeline_name = 'train',
     pipeline_version = "0.1"
 )
-
-
 
 gs = dict(
     client_secrets = "client_secrets.json",
@@ -23,8 +22,3 @@ train = dict(
     finetun = True,
     model_version = '0.0.1'
 )
-
-cfg = {"pipeline" : pipeline,
-       'gs' : gs,
-       'dataset' : dataset,
-       'train' : train}

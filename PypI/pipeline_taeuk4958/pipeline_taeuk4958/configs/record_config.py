@@ -24,8 +24,11 @@ gs = dict(
     recoded_dataset_version = "test_0.1"
     )
 
+data_dir = "dataset"
 dataset = dict(
-    dataset_dir = "dataset",
+    anns_dir = f"{data_dir}/anns",
+    anns_config_path = f"{data_dir}/config.json",
+    dataset_dir = f"{data_dir}/dataset",
     info = dict(description = 'Hibernation Custom Dataset',
                 url = ' ',
                 version = '0.0.1',
@@ -41,9 +44,3 @@ dataset = dict(
     val_file_name = 'val_dataset.json'
                 )
 
-
-cfg = {"pipeline" : pipeline ,
-       'mode' : mode,
-       'options' : options,
-       'gs' : gs,
-       'dataset' : dataset}
