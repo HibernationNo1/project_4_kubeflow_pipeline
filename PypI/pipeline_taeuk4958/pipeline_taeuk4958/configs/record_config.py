@@ -24,11 +24,10 @@ gs = dict(
     recoded_dataset_version = "test_0.1"
     )
 
-data_dir = "dataset"
+dataset_name = "dataset"
 dataset = dict(
-    anns_dir = f"{data_dir}/anns",
-    anns_config_path = f"{data_dir}/config.json",
-    dataset_dir = f"{data_dir}/dataset",
+    anns_dir = f"{dataset_name}/anns",
+    anns_config_path = f"{dataset_name}/config.json",
     info = dict(description = 'Hibernation Custom Dataset',
                 url = ' ',
                 version = '0.0.1',
