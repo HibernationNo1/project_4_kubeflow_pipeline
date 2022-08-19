@@ -1,18 +1,21 @@
 
-import kfp
-from kfp.components import InputPath, create_component_from_func
+from kfp.components import InputPath, create_component_from_func, OutputPath
 
-from config import pipeline_config
-pl_cfg = pipeline_config
+from pipeline_config import Pipeline_Config
+pl_cfg = Pipeline_Config
 
 
-def download_dataset(cfg_path: InputPath("dict")):
+def download_dataset(cfg_path: InputPath("dict"),
+                     train_dataset_path: OutputPath("dict"),
+                     val_dataset_path: OutputPath("dict"),):
     
     import json
     import os
     from pipeline_taeuk4958.configs.config import load_config_in_pipeline
+    from pipeline_taeuk4958.utils.utils import NpEncoder
     from pipeline_taeuk4958.cloud.gs import gs_credentials
     from google.cloud import storage
+    
     
 
     def download_dataset(cfg):
@@ -37,12 +40,21 @@ def download_dataset(cfg_path: InputPath("dict")):
         gs_credentials(cfg.gs.client_secrets)
         
                            
-        download_dataset(cfg)
+        download_dataset(cfg)       # download train, val dataset.json from google cloud storage
   
         
         train_dataset_path = os.path.join(os.getcwd(), cfg.dataset.train_file_name)
         with open(train_dataset_path, "r", encoding='utf-8') as f:
             train_dataset = json.load(f)
+        
+        val_dataset_path = os.path.join(os.getcwd(), cfg.dataset.val_file_name)
+        with open(val_dataset_path, "r", encoding='utf-8') as f:
+            val_dataset = json.load(f)
+            
+                # save recorded dataset
+        json.dump(train_dataset, open(train_dataset_path, "w"), indent=4, cls = NpEncoder)
+        json.dump(val_dataset, open(val_dataset_path, "w"), indent=4, cls = NpEncoder)
+        
         
         
     

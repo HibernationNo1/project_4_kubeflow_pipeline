@@ -1,7 +1,7 @@
 from re import L
 from kfp.components import InputPath, OutputPath, create_component_from_func
-from config import pipeline_config
-pl_cfg = pipeline_config
+from pipeline_config import Pipeline_Config
+pl_cfg = Pipeline_Config
 
 
 def record(cfg_path: InputPath("dict"),
@@ -30,9 +30,10 @@ def record(cfg_path: InputPath("dict"),
         """
 
         """
-        def __init__(self, cfg, dataset_list):
+        def __init__(self, cfg, dataset_list, data_anns_config):
             self.cfg = cfg
             self.dataset_list = dataset_list
+            self.data_anns_config = data_anns_config
             
             self.train_dataset = dict(info = {}, 
                                 licenses = [],
@@ -102,6 +103,10 @@ def record(cfg_path: InputPath("dict"),
                 self.train_dataset['info']['contributor'] =  self.cfg.dataset.info.contributor
                 self.train_dataset['info']['data_created']=  self.cfg.dataset.info.data_created
                 self.train_dataset['info']['for_what']= "train"
+                self.train_dataset['info']['ann_version']= self.data_anns_config['version']             # ann_version
+                self.train_dataset['info']['ann_description']= self.data_anns_config['descriptoin']     # ann_description
+                
+                
             elif mode == "val":
                 self.val_dataset['info']['description'] =  self.cfg.dataset.info.description
                 self.val_dataset['info']['url']         =  self.cfg.dataset.info.url
@@ -109,7 +114,9 @@ def record(cfg_path: InputPath("dict"),
                 self.val_dataset['info']['year']        =  self.cfg.dataset.info.year
                 self.val_dataset['info']['contributor'] =  self.cfg.dataset.info.contributor
                 self.val_dataset['info']['data_created']=  self.cfg.dataset.info.data_created
-                self.val_dataset['info']['for_what']= "va;"
+                self.val_dataset['info']['for_what']= "val"
+                self.val_dataset['info']['ann_version']= self.data_anns_config['version']           # ann_version
+                self.val_dataset['info']['ann_description']= self.data_anns_config['descriptoin']   # ann_description 
                 
 
         def get_licenses(self, mode):            
@@ -244,48 +251,51 @@ def record(cfg_path: InputPath("dict"),
                     self.train_dataset["images"].append(tmp_images_dict)
     
 
-    
-    def set_client_secret():
+    def get_anns(cfg):
+        # set client secret for dvc pull
         client_secrets_path = os.path.join(os.getcwd(), cfg.gs.client_secrets)
-        
         gs_secret = get_client_secrets()
         
-        # save client_secrets
         json.dump(gs_secret, open(client_secrets_path, "w"), indent=4)   
-        remote_bucket = f"dvc remote add -d -f bikes gs://{cfg.gs.ann_bucket_name}"
-        credentials = f"dvc remote modify --local bikes credentialpath '{client_secrets_path}'" 
+        remote_bucket_command = f"dvc remote add -d -f bikes gs://{cfg.gs.ann_bucket_name}"
+        credentials_command = f"dvc remote modify --local bikes credentialpath '{client_secrets_path}'" 
       
-        subprocess.call([remote_bucket], shell=True)
-        subprocess.call([credentials], shell=True)
-
+        subprocess.call([remote_bucket_command], shell=True)
+        subprocess.call([credentials_command], shell=True)
         subprocess.call(["dvc pull"], shell=True)           # download dataset from GS by dvc
-   
-                    
+        
+        # get annotations
+        anns_dir = os.path.join(os.getcwd(), cfg.dataset.anns_dir)
+        anns_list = glob.glob(f"{anns_dir}/*.json")    
+        if len(anns_list)==0 : raise OSError("Failed download dataset!!")
+        print(f"\n number of annotations : {len(anns_list)} \n")
+        
+        anns_config_path = os.path.join(os.getcwd(), cfg.dataset.anns_config_path)
+        with open(anns_config_path, "r", encoding='utf-8') as f:
+            anns_config = json.load(f)    
+            
+        return anns_list, anns_config
+     
     
     if __name__=="__main__":                
-        cfg = load_config_in_pipeline(cfg_path)
-        
+        cfg = load_config_in_pipeline(cfg_path) 
         
         ## download dataset from google cloud stroage bucket by dvc
         dvc_path = os.path.join(os.getcwd(), 'dataset.dvc')             # check file exist (downloaded from git repo with git clone )
-        if not os.path.isfile(dvc_path): raise OSError(f"{dvc_path}")
+        if not os.path.isfile(dvc_path): raise OSError(f"{dvc_path}")    
         
-        set_client_secret()
-        
-        data_dir = os.path.join(os.getcwd(), cfg.dataset.dataset_dir)
-        dataset_list = glob.glob(f"{data_dir}/*.json")    
-        if len(dataset_list)==0 : raise OSError("Failed download dataset!!")
-        print(f"\n number of annotations : {len(dataset_list)} \n")
+        anns_list, anns_config = get_anns(cfg)      
         
         
+        print(f"anns_config : {anns_config}")
         ##  get dataset
-        labelme_instance = Record_Dataset(cfg, dataset_list)
+        labelme_instance = Record_Dataset(cfg, anns_list, anns_config)
         train_dataset, val_dataset = labelme_instance.get_dataset()
-        
-        # save recorded dataset
+
         json.dump(train_dataset, open(train_dataset_path, "w"), indent=4, cls = NpEncoder)
         json.dump(val_dataset, open(val_dataset_path, "w"), indent=4, cls = NpEncoder)
-
+        
+        
   
 record_op = create_component_from_func(func = record,
                                         base_image = pl_cfg.RECORD_IMAGE,
