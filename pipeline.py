@@ -13,8 +13,15 @@ from pipeline_utils import (connet_client,get_experiment, upload_pipeline, get_p
 
 from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
 
+
+from test_.test_op import test_container_op    
+@dsl.pipeline(name="test")
+def test(input_mode : str, input_args : dict): 
+    test_container_op_ = test_container_op()
+
 @dsl.pipeline(name="hibernation_project")
-def project_pipeline(input_mode : str, input_args : dict):
+def project_pipeline(input_mode : str, input_args : dict):    
+    
     client_sc_name = "client-secrets"
     ev_gs_type = V1EnvVar(name ='type', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'type')))
     ev_gs_project_id = V1EnvVar(name ='project_id', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'project_id')))
@@ -28,7 +35,7 @@ def project_pipeline(input_mode : str, input_args : dict):
     ev_gs_client_x509_cert_url = V1EnvVar(name ='client_x509_cert_url', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'client_x509_cert_url')))
     
         
-    _set_config_op = set_config_op(input_args) 
+    _set_config_op = set_config_op(input_args).nex
                       
     with dsl.Condition(input_mode == "record") : 	
         _record_op = record_op(_set_config_op.outputs['config']) \
@@ -98,9 +105,8 @@ def parse_args(pl_cfg):
     
     parser.add_argument('--model_vers', 
                         type = str,
-                        default= 0.1,
+                        default= '0.0.1',
                         help= "directory name. version of model to be store in google cloud storage.")
-    parser.add_argument('--d_version_t', type = str, help = 'version of recorded dataset in google cloud storage.')
         
     args = parser.parse_args()
     input_args = vars(args)
@@ -110,15 +116,19 @@ def parse_args(pl_cfg):
     return args, input_args
        
 # python pipeline.py --mode record --cfg record_config.py --d_version 0.1 --p_version 0.2
-# python pipeline.py --mode train --cfg train_config.py --d_version_t 0.1 --p_name train_test --p_version 0.13 
+# python pipeline.py --mode train --cfg train_config.py --p_version 0.1
 if __name__=="__main__":      
 
     pl_cfg = Pipeline_Config()              # get config
     args, input_args = parse_args(pl_cfg)   # get args, input_args    
 
     print("\n compile pipeline")             
+    # kfp.compiler.Compiler().compile(
+    #     project_pipeline,
+    #     f"./{pl_cfg.PIPELINE_PAC}"
+    #     )
     kfp.compiler.Compiler().compile(
-        project_pipeline,
+        test,
         f"./{pl_cfg.PIPELINE_PAC}"
         )
 

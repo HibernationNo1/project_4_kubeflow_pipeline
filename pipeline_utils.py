@@ -11,22 +11,40 @@ def get_params(args, input_dict):
 
 def get_pipeline_id(pl_cfg, args, client):
     if pl_cfg.RUN_EXIST_PIPELINE:                                       # if you want version updata of pipeline (modified pipeline)
-        print(f" get pipeline: {pl_cfg.PIPELINE_NAME}.{args.p_version} id ")
+        print(f" \n get pipeline: {pl_cfg.PIPELINE_NAME}.{args.p_version} id ")
         pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
+        
+        list_pipeline_name = []
+        list_pipelines = client.list_pipelines(page_size = 50)  	
+        
+        for pipeline_index in range(list_pipelines.total_size):
+            list_pipeline_name.append(list_pipelines.pipelines[pipeline_index].name) 
+        
+
+        if pl_cfg.PIPELINE_NAME not in list_pipeline_name:
+            pipeline_id = upload_pipeline(client, args, pl_cfg)
+            return pipeline_id
+        
         pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id, page_size = 50)
         
         versions = []  
         for pipeline_index in range(pipelince_versions.total_size):
             versions.append(pipelince_versions.versions[pipeline_index].name) 
             
+        
+        
         if args.p_version not in versions:                              
             print(f" RUN_EXIST_PIPELINE is True but [version:{args.p_version}] is not exist.")
             print(f" upload {pl_cfg.PIPELINE_NAME} new version : {args.p_version}")
             pipeline_id = upload_pipeline(client, args, pl_cfg)
+            return pipeline_id
             
-    else: pipeline_id = upload_pipeline(client, args, pl_cfg)           
+    else: 
+        pipeline_id = upload_pipeline(client, args, pl_cfg) 
+    
+    return pipeline_id          
 
-    return pipeline_id
+    
     
 
 def run_pipeline(client, experiment_id, pipeline_id, params_dict, run_name):
@@ -66,7 +84,7 @@ def upload_pipeline(client, args, pl_cfg):
         
         if args.p_version in versions: raise TypeError(f" {args.p_version} version of {pl_cfg.PIPELINE_NAME} is exist! ")
                 
-        print(f"\n Upload pipeline {args.p_version} version named {pl_cfg.PIPELINE_NAME} : ", end = " ")
+        print(f"\n Upload pipeline | version: {args.p_version}, name: {pl_cfg.PIPELINE_NAME} : ", end = " ")
         client.upload_pipeline_version(pipeline_package_path= pipeline_path,            # pipeline version updata
                                     pipeline_version_name = args.p_version,
                                     pipeline_id = pipeline_id,

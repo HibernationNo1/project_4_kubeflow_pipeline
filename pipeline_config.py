@@ -8,13 +8,13 @@ class Pipeline_Config():
     USERNAME = "winter4958@gmail.com"                  # "user@example.com"
     PASSWORD = "project_pipeline"                          # "12341234"
     NAMESPACE = "project-pipeline-1"        # "kubeflow-user-example-com"
-    HOST =  "http://8e7a-1-214-32-67.ngrok.io"     # "http://192.168.0.167:80"       
+    HOST =  "http://52ba-1-214-32-67.jp.ngrok.io"     # "http://192.168.0.167:80"       
 
     ### docker images, component file 
-    SETCONFIG_IMAGE = 'hibernation4958/record_dataset:0.4'
+    SETCONFIG_IMAGE = 'hibernation4958/train:0.1'
     SETCONFIG_COM_FILE = None                   # "set_config.component.yaml"
 
-    RECORD_IMAGE = 'hibernation4958/record_dataset:0.4'
+    RECORD_IMAGE = 'hibernation4958/train_dataset:0.4'
     RECORD_COM_FILE = None                      # "record.component.yaml"
 
     SAVE_GS_IMAGE = RECORD_IMAGE                # 'hibernation4958/for_save.0.1'
@@ -29,7 +29,7 @@ class Pipeline_Config():
 
     ### pipeline
     # pipeline
-    PIPELINE_NAME = "project_test"
+    PIPELINE_NAME = "train"
     PIPELINE_PAC = "mmdet_project.yaml"
     PIPELINE_DISCRIPTION = "project"
     
@@ -40,14 +40,21 @@ class Pipeline_Config():
     
     # run
     RUN_NAME = "project"
+    
+    test_image = 'hibernation4958/test_4:0.1'
+    comfile = None
 
 
 """
+docker build . -t hibernation4958/test_4:0.1
+docker push hibernation4958/test_4:0.1
+
 docker build record -t hibernation4958/record_dataset:0.4
 docker push hibernation4958/record_dataset:0.4
 
-docker build train -t hibernation4958/train:0.2
-docker push hibernation4958/train:0.2
+docker build train -t hibernation4958/train_7:0.1 
+docker push hibernation4958/train_7:0.1
+
 
 
 docker pull registry:latest
