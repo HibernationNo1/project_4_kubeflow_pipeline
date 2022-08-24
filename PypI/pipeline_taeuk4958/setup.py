@@ -2,7 +2,7 @@ import os
 from setuptools import setup, find_packages
 
 # python setup.py bdist_wheel
-# twine upload dist/pipeline_taeuk4958-1.2.3-py3-none-any.whl
+# twine upload dist/pipeline_taeuk4958-1.2.9-py3-none-any.whl
 
 version_file = os.path.join(os.getcwd(), 'pipeline_taeuk4958', 'version.py')             # version이 명시된 file
 

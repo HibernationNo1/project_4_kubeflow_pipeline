@@ -51,10 +51,10 @@ test_pipeline = [
 
 dataset_type = 'CustomDataset'        
 
-data_root = 'data'
-data_category = 'paprika'
 train_dataset_json = 'train_dataset.json'
 val_dataset_json = 'val_dataset.json'
+org_images_dir_path = "org_images"
+test_images_dir_path = "test_images"
 
 get_result_ann = False
 
@@ -63,19 +63,19 @@ data = dict(
     workers_per_gpu=1, 
     train=dict(
         type=dataset_type,
-        ann_file=data_root + "/train/" + data_category + "/" + train_dataset_json,    
-        img_prefix=data_root  + "/train/" + data_category + "/",              
+        ann_file= train_dataset_json,                  # recoded dataset path
+        img_prefix= org_images_dir_path,               # org image dir path
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + "/val/" + data_category + "/" + val_dataset_json,      # TODO
-        img_prefix=data_root  + "/val/" + data_category + "/",               
+        ann_file=val_dataset_json,      # TODO
+        img_prefix= org_images_dir_path,               
         pipeline=val_pipeline),
     test=dict(
         batch_size = 10,
         type=dataset_type,
-        ann_file= None,                                                          # work_dir/model_dir/dataset.json
-        img_prefix=data_root  + "/test/" + data_category + "/",                 # test할 image의 dir        
+        ann_file= None,                                   
+        img_prefix= test_images_dir_path,                 # test할 image의 dir        
         pipeline=test_pipeline))
 evaluation = dict(metric=['bbox', 'segm'])      # choise in ['bbox', 'segm']
 
