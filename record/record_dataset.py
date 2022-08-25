@@ -296,7 +296,7 @@ def record(cfg_path: InputPath("dict"),
         json.dump(val_dataset, open(val_dataset_path, "w"), indent=4, cls = NpEncoder)
         
         
-  
+print(f"record base_image : {pl_cfg.RECORD_IMAGE}")  
 record_op = create_component_from_func(func = record,
                                         base_image = pl_cfg.RECORD_IMAGE,
                                         output_component_file= pl_cfg.RECORD_COM_FILE)

@@ -1,5 +1,5 @@
-ARG PYTORCH="1.6.0"
-ARG CUDA="10.1"
+ARG PYTORCH="1.9.0"
+ARG CUDA="10.2"
 ARG CUDNN="7"   
 
 FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel	
@@ -15,12 +15,12 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/
 RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub
 
 # install custom package
-RUN pip install pipeline_taeuk4958==1.2.9
+RUN pip install pipeline_taeuk4958==1.3.2
 RUN pip install mmdet_taeuk4958==1.0.1
 
 # Install MMCV
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools
-RUN pip install --no-cache-dir mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu101/torch1.6.0/index.html
+RUN pip install --no-cache-dir mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu102/torch1.10.0/index.html
 
 RUN apt-get update && apt-get install -y git
 
@@ -29,10 +29,5 @@ WORKDIR project_dataset/
 
 RUN pip install google-cloud-storage
 RUN pip install opencv-python-headless==4.6.0.66
-
-
-
- 
-
 RUN pip install Pillow
 

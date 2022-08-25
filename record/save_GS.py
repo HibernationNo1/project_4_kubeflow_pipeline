@@ -56,7 +56,7 @@ def save_dataset(cfg_path: InputPath("dict"),
         save_dataset_gs(cfg, train_dataset_path, val_dataset_path)
     
     
-
+print(f"save_dataset base_image : {pl_cfg.SAVE_GS_IMAGE}")  
 save_dataset_op  = create_component_from_func(func =save_dataset,
                                               base_image = pl_cfg.SAVE_GS_IMAGE,        
                                               output_component_file=pl_cfg.SAVE_GS_COM_FILE)
