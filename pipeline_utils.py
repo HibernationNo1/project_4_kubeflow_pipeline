@@ -2,16 +2,46 @@ import kfp
 import os
 import requests
 
-def get_params(args, input_dict):
+from pipeline_taeuk4958.configs.config import Config
+
+def get_params(args, cfg_name, cfg_dict):
             
-    params_dict = {'input_mode': args.mode, 'input_args': input_dict}
+    params_dict = {'input_mode': args.mode, 'cfg_name': cfg_name, 'cfg_dict' : cfg_dict}
         
     return params_dict
 
 
+def set_config(args):
+    
+    config_py_path = os.path.join(os.getcwd(), 'config', args.cfg)
+
+    cfg_dict, _ = Config._file2dict(config_py_path, None, True)        # local에 있는 config가져오기
+    
+    cfg_dict['pipeline'].pipeline_name = args.p_name
+    if args.pipeline_v is not None : cfg_dict['pipeline'].pipeline_version = args.pipeline_v
+    
+    if args.mode == "record":
+        if args.proportion_val is not None : cfg_dict['options']['proportion_val'] = args.proportion_val
+        if args.dataset is not None : cfg_dict['dataset']['dataset_dir'] = args.dataset
+        
+        if args.client_secrets is not None : cfg_dict['gs']['client_secrets'] = args.client_secrets
+        if args.ann_bk_name is not None : cfg_dict['gs']['ann_bucket_name'] = args.ann_bk_name
+        if args.dataset_bk_name is not None : cfg_dict['gs']['recoded_dataset_bucket_name'] = args.dataset_bk_name
+        if args.dataset_v is not None : cfg_dict['gs']['recoded_dataset_version'] = args.dataset_v
+    
+    elif args.mode == "train":
+
+        if args.train_json is not None : cfg_dict['train_dataset_json'] = args.train_json
+        if args.val_json is not None : cfg_dict['val_dataset_json'] = args.val_json
+        if args.validate : cfg_dict['train.validate'] = True
+        if args.finetun : cfg_dict['train']['finetun'] = True
+        if args.model_v is not None : cfg_dict['train']['model_version'] = args.model_v
+    
+    return cfg_dict
+
 def get_pipeline_id(pl_cfg, args, client):
     if pl_cfg.RUN_EXIST_PIPELINE:                                       # if you want version updata of pipeline (modified pipeline)
-        print(f" \n get pipeline: {pl_cfg.PIPELINE_NAME}.{args.p_version} id ")
+        print(f" \n get pipeline: {pl_cfg.PIPELINE_NAME}.{args.pipeline_v} id ")
         pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
         
         list_pipeline_name = []
@@ -33,9 +63,9 @@ def get_pipeline_id(pl_cfg, args, client):
             
         
         
-        if args.p_version not in versions:                              
-            print(f" RUN_EXIST_PIPELINE is True but [version:{args.p_version}] is not exist.")
-            print(f" upload {pl_cfg.PIPELINE_NAME} new version : {args.p_version}")
+        if args.pipeline_v not in versions:                              
+            print(f" RUN_EXIST_PIPELINE is True, but [version:{args.pipeline_v}] is not exist.")
+            print(f" upload {pl_cfg.PIPELINE_NAME} new version : {args.pipeline_v}")
             pipeline_id = upload_pipeline(client, args, pl_cfg)
             return pipeline_id
             
@@ -82,11 +112,11 @@ def upload_pipeline(client, args, pl_cfg):
         for pipeline_index in range(pipelince_versions.total_size):
             versions.append(pipelince_versions.versions[pipeline_index].name) 
         
-        if args.p_version in versions: raise TypeError(f" {args.p_version} version of {pl_cfg.PIPELINE_NAME} is exist! ")
+        if args.pipeline_v in versions: raise TypeError(f" {args.pipeline_v} version of {pl_cfg.PIPELINE_NAME} is exist! ")
                 
-        print(f"\n Upload pipeline | version: {args.p_version}, name: {pl_cfg.PIPELINE_NAME} : ", end = " ")
+        print(f"\n Upload pipeline | version: {args.pipeline_v}, name: {pl_cfg.PIPELINE_NAME} : ", end = " ")
         client.upload_pipeline_version(pipeline_package_path= pipeline_path,            # pipeline version updata
-                                    pipeline_version_name = args.p_version,
+                                    pipeline_version_name = args.pipeline_v,
                                     pipeline_id = pipeline_id,
                                     description = pl_cfg.PIPELINE_DISCRIPTION)    
         print("seccess!")  
@@ -97,6 +127,7 @@ def upload_pipeline(client, args, pl_cfg):
 def get_experiment(client, pl_cfg) : 
     list_experiments = client.list_experiments(page_size = 50)
     if list_experiments.total_size == None:
+        print(f"There no experiment. create experiment | name: {pl_cfg.EXPERIMENT_NAME}")
         experiment = client.create_experiment(name = pl_cfg.EXPERIMENT_NAME)
     else:
         experiment = client.get_experiment(experiment_name= pl_cfg.EXPERIMENT_NAME, namespace= pl_cfg.NAMESPACE)
