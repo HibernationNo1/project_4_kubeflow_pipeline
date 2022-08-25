@@ -28,7 +28,37 @@ DELETE_KEY = '_delete_'
 DEPRECATION_KEY = '_deprecation_'
 RESERVED_KEYS = ['filename', 'text', 'pretty_text']
 
-
+def merge_config(org_cfg, from_cfg, flag = None):    
+    """
+        org_cfg : original config
+        from_cfg : original config에 merge하고자 하는 config
+    """
+    if flag == "init": 
+        if not (isinstance(org_cfg, dict) and isinstance(from_cfg, dict)):
+            raise TypeError(f" org_cfg and from_cfg type must be dict. \n org_cfg type: {type(org_cfg)}, from_cfg type: {type(from_cfg)}")
+    
+        
+    
+    if type(from_cfg) != type(org_cfg): raise TypeError(f" 'from_cfg' map must be same as 'org_cfg' map \nfrom_dict: {from_cfg}\norg_cfg : {org_cfg}")
+        
+    if isinstance(org_cfg, dict):
+        org_dict_keys_list = list(org_cfg.keys())
+        from_dict_keys_list = list(from_cfg.keys())
+    
+        for from_key in from_dict_keys_list: 
+            if from_key not in org_dict_keys_list:      # from_cfg의 특정 key가 org_cfg에 없는 경우
+                org_cfg[from_key] = from_cfg[from_key]  # org_cfg에 from_cfg의 key:value 추가
+            else:                                                                           # from_cfg의 특정 key가 org_cfg에 있는 경우
+                org_cfg[from_key] = merge_config(org_cfg[from_key], from_cfg[from_key])     # 해당 key값에 merge
+    
+    elif isinstance(org_cfg, list):
+        for from_ele in from_cfg:
+            if from_ele not in org_cfg:         # from_cfg의 특정 요소가 org_cfg에 없을 경우
+                org_cfg.append(from_ele)        # org_cfg에 from_cfg의 요소 추가
+            # from_ele 가 list 또는 dict일 때 해당 요소의 map이 org_cfg의 특정 요소와 비슷하지만 부분적으로 다른건 상정 안함. 
+            # 부분적으로 다른 요소는 그냥 통째로 append 
+            
+    return org_cfg
 
 def load_config_in_pipeline(cfg_path):
     if not cfg_path.endswith('.py'):
@@ -242,7 +272,7 @@ class Config:
         return cfg
 
     @staticmethod
-    def _file2dict(filename, use_predefined_variables=True):
+    def _file2dict(filename, json_dict = None, use_predefined_variables=True):
         filename = osp.abspath(osp.expanduser(filename))
 
         if not osp.isfile(filename):
@@ -288,6 +318,9 @@ class Config:
             # close temp file
             temp_config_file.close()
 
+        if json_dict is not None: 
+            cfg_dict = merge_config(cfg_dict, json_dict, "init")
+            
         # check deprecation information
         if DEPRECATION_KEY in cfg_dict:
             deprecation_info = cfg_dict.pop(DEPRECATION_KEY)
@@ -398,12 +431,12 @@ class Config:
         return b
 
     @staticmethod
-    def fromfile(filename,
+    def fromfile(filename, cfg_dict = True,
                  use_predefined_variables=True,
                  import_custom_modules=True):
         if isinstance(filename, Path):
             filename = str(filename)
-        cfg_dict, cfg_text = Config._file2dict(filename,
+        cfg_dict, cfg_text = Config._file2dict(filename, cfg_dict,
                                                use_predefined_variables)
         if import_custom_modules and cfg_dict.get('custom_imports', None):
             import_modules_from_strings(**cfg_dict['custom_imports'])
