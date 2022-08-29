@@ -4,14 +4,14 @@ from kfp.components import InputPath, create_component_from_func
 from pipeline_config import Pipeline_Config
 pl_cfg = Pipeline_Config
 
-def save_dataset(cfg_path: InputPath("dict"),
+def save_dataset(cfg_dict : dict,
                  train_dataset_path: InputPath("dict"),
                  val_dataset_path: InputPath("dict")):
     
     import json
     import os
     from pipeline_taeuk4958.utils.utils import NpEncoder
-    from pipeline_taeuk4958.configs.config import load_config_in_pipeline
+    from pipeline_taeuk4958.configs.config import Config
     from pipeline_taeuk4958.cloud.gs import gs_credentials
     
     from google.cloud import storage
@@ -22,7 +22,7 @@ def save_dataset(cfg_path: InputPath("dict"),
             train_dataset = json.load(f)
         train_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.train_file_name)
         json.dump(train_dataset, open(train_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
-        train_dataset_in_storage_path = f'{cfg.dataset_name}/{cfg.dataset.train_file_name}' 
+        train_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.train_file_name}' 
         
         
         
@@ -30,7 +30,7 @@ def save_dataset(cfg_path: InputPath("dict"),
             val_dataset = json.load(f)
         val_dataset_to_upload = os.path.join(os.getcwd(), cfg.dataset.val_file_name)
         json.dump(val_dataset, open(val_dataset_to_upload, "w"), indent = 4, cls = NpEncoder)
-        val_dataset_in_storage_path = f'{cfg.dataset_name}/{cfg.dataset.val_file_name}'
+        val_dataset_in_storage_path = f'{cfg.gs.recoded_dataset_version}/{cfg.dataset.val_file_name}'
         
         return train_dataset_in_storage_path, val_dataset_in_storage_path
 
@@ -48,7 +48,11 @@ def save_dataset(cfg_path: InputPath("dict"),
         
         
     if __name__=="__main__":
-        cfg = load_config_in_pipeline(cfg_path)
+        config_file_path = os.path.join(os.getcwd(), cfg_dict['cfg_name'])
+        with open(config_file_path, 'w') as f:
+            f.write('\n')
+        
+        cfg = Config.fromfile(config_file_path, cfg_dict['cfg_dict'])
         
         gs_credentials(cfg.gs.client_secrets)
         train_dataset_path, val_dataset_path = load_recorded_dataset(cfg)

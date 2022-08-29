@@ -4,12 +4,10 @@ from pipeline_config import Pipeline_Config
 pl_cfg = Pipeline_Config
 
 
-def record(cfg_path: InputPath("dict"),
+def record(cfg_dict : dict,
            train_dataset_path: OutputPath("dict"),
            val_dataset_path: OutputPath("dict")):   
-    """
-    cfg_path : {wiorkspace}/inputs/cfg/data
-    """    
+
     
     import json
     import subprocess
@@ -22,7 +20,7 @@ def record(cfg_path: InputPath("dict"),
     from PIL.ImageDraw import Draw as Draw
     
     from pipeline_taeuk4958.utils.utils import NpEncoder
-    from pipeline_taeuk4958.configs.config import load_config_in_pipeline
+    from pipeline_taeuk4958.configs.config import Config
     from pipeline_taeuk4958.cloud.gs import get_client_secrets
     
     
@@ -103,8 +101,8 @@ def record(cfg_path: InputPath("dict"),
                 self.train_dataset['info']['contributor'] =  self.cfg.dataset.info.contributor
                 self.train_dataset['info']['data_created']=  self.cfg.dataset.info.data_created
                 self.train_dataset['info']['for_what']= "train"
-                self.train_dataset['info']['ann_version']= self.data_anns_config['version']             # ann_version
-                self.train_dataset['info']['ann_description']= self.data_anns_config['descriptoin']     # ann_description
+                self.train_dataset['info']['ann_version']= self.data_anns_config['ann_version']             # ann_version
+                self.train_dataset['info']['ann_description']= self.data_anns_config['ann_description']     # ann_description
                 
                 
             elif mode == "val":
@@ -115,8 +113,8 @@ def record(cfg_path: InputPath("dict"),
                 self.val_dataset['info']['contributor'] =  self.cfg.dataset.info.contributor
                 self.val_dataset['info']['data_created']=  self.cfg.dataset.info.data_created
                 self.val_dataset['info']['for_what']= "val"
-                self.val_dataset['info']['ann_version']= self.data_anns_config['version']           # ann_version
-                self.val_dataset['info']['ann_description']= self.data_anns_config['descriptoin']   # ann_description 
+                self.val_dataset['info']['ann_version']= self.data_anns_config['ann_version']           # ann_version
+                self.val_dataset['info']['ann_description']= self.data_anns_config['ann_description']   # ann_description 
                 
 
         def get_licenses(self, mode):            
@@ -253,6 +251,7 @@ def record(cfg_path: InputPath("dict"),
 
     def get_anns(cfg):
         # set client secret for dvc pull
+              
         client_secrets_path = os.path.join(os.getcwd(), cfg.gs.client_secrets)
         gs_secret = get_client_secrets()
         
@@ -278,7 +277,11 @@ def record(cfg_path: InputPath("dict"),
      
     
     if __name__=="__main__":                
-        cfg = load_config_in_pipeline(cfg_path) 
+        config_file_path = os.path.join(os.getcwd(), cfg_dict['cfg_name'])
+        with open(config_file_path, 'w') as f:
+            f.write('\n')
+        
+        cfg = Config.fromfile(config_file_path, cfg_dict['cfg_dict'])
         
         ## download dataset from google cloud stroage bucket by dvc
         dvc_path = os.path.join(os.getcwd(), 'dataset.dvc')             # check file exist (downloaded from git repo with git clone )
@@ -289,7 +292,7 @@ def record(cfg_path: InputPath("dict"),
         
         print(f"anns_config : {anns_config}")
         ##  get dataset
-        labelme_instance = Record_Dataset(cfg, anns_list, anns_config)
+        labelme_instance = Record_Dataset(cfg, anns_list, anns_config) 
         train_dataset, val_dataset = labelme_instance.get_dataset()
 
         json.dump(train_dataset, open(train_dataset_path, "w"), indent=4, cls = NpEncoder)
