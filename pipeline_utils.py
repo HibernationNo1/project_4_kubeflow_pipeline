@@ -5,20 +5,22 @@ import requests
 from pipeline_taeuk4958.configs.config import Config
 
 def get_params(args, cfg_name, cfg_dict):
-            
-    params_dict = {'input_mode': args.mode, 'cfg_name': cfg_name, 'cfg_dict' : cfg_dict}
-        
+    
+    cfg = {'cfg_name': cfg_name, 'cfg_dict' : cfg_dict}
+    params_dict = {'input_mode': args.mode, 'cfg': cfg}
     return params_dict
 
 
-def set_config(args):
+def set_config(args, pl_cfg):
     
     config_py_path = os.path.join(os.getcwd(), 'config', args.cfg)
 
     cfg_dict, _ = Config._file2dict(config_py_path, None, True)        # local에 있는 config가져오기
     
-    cfg_dict['pipeline'].pipeline_name = args.p_name
-    if args.pipeline_v is not None : cfg_dict['pipeline'].pipeline_version = args.pipeline_v
+    cfg_dict['pipeline']['pipeline_name'] = args.pipeline_n
+    pl_cfg.PIPELINE_NAME = args.pipeline_n
+    
+    if args.pipeline_v is not None : cfg_dict['pipeline']['pipeline_version'] = args.pipeline_v
     
     if args.mode == "record":
         if args.proportion_val is not None : cfg_dict['options']['proportion_val'] = args.proportion_val
@@ -28,6 +30,7 @@ def set_config(args):
         if args.ann_bk_name is not None : cfg_dict['gs']['ann_bucket_name'] = args.ann_bk_name
         if args.dataset_bk_name is not None : cfg_dict['gs']['recoded_dataset_bucket_name'] = args.dataset_bk_name
         if args.dataset_v is not None : cfg_dict['gs']['recoded_dataset_version'] = args.dataset_v
+        
     
     elif args.mode == "train":
 
@@ -36,6 +39,7 @@ def set_config(args):
         if args.validate : cfg_dict['train.validate'] = True
         if args.finetun : cfg_dict['train']['finetun'] = True
         if args.model_v is not None : cfg_dict['train']['model_version'] = args.model_v
+        
     
     return cfg_dict
 
@@ -98,7 +102,7 @@ def upload_pipeline(client, args, pl_cfg):
     if not os.path.isfile(pipeline_path) : raise OSError(f" {pipeline_path} is not exist! ")
     
     if client.get_pipeline_id(pl_cfg.PIPELINE_NAME) == None:                
-        print(f"\n Upload initial version pipeline named {pl_cfg.PIPELINE_NAME}!",end = " " )           
+        print(f"\n Upload initial version pipeline named [{pl_cfg.PIPELINE_NAME}]!",end = " " )           
         client.upload_pipeline(pipeline_package_path= pipeline_path,            # upload new pipeline
                             pipeline_name= pl_cfg.PIPELINE_NAME,
                             description= pl_cfg.PIPELINE_DISCRIPTION)

@@ -11,20 +11,20 @@ class Pipeline_Config():
     HOST =  "http://localhost:2222"     # "http://192.168.0.167:80"       
 
     ### docker images, component file 
-    SETCONFIG_IMAGE = 'hibernation4958/train_4:0.1'
-    SETCONFIG_COM_FILE = None                   # "set_config.component.yaml"
-
-    RECORD_IMAGE = 'hibernation4958/record_dataset:0.1'
+    RECORD_IMAGE = 'hibernation4958/record_dataset_1:0.2'
     RECORD_COM_FILE = None                      # "record.component.yaml"
 
     SAVE_GS_IMAGE = RECORD_IMAGE                # 'hibernation4958/for_save.0.1'
     SAVE_GS_COM_FILE = None                     # "save_dataset.component.yaml"
 
-    LOAD_DATA_IMAGE = "hibernation4958/train_4:0.1"
+    LOAD_DATA_IMAGE = "hibernation4958/train_5:0.1"
     LOAD_DATA_COM_FILE = None                   # "load_dataset.component.yaml"
     
     TRAIN_IMAGES = LOAD_DATA_IMAGE
     TRAIN_COM_FILE = None                       # "train.component.yaml"
+    
+    CHECK_IMAGE = LOAD_DATA_IMAGE
+    CHECK_COM_FILE = None                   # "set_config.component.yaml"
 
 
     ### pipeline
@@ -45,11 +45,11 @@ class Pipeline_Config():
 """
 
 
-docker build record -t hibernation4958/record_dataset:0.1
-docker push hibernation4958/record_dataset:0.1
+docker build record -t hibernation4958/record_dataset_1:0.2
+docker push hibernation4958/record_dataset_1:0.2
 
-docker build train -t hibernation4958/train_4:0.1
-docker push hibernation4958/train_4:0.1
+docker build train -t hibernation4958/train_5:0.1
+docker push hibernation4958/train_5:0.1
 
 
 
