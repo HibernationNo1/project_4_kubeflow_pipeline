@@ -51,10 +51,10 @@ test_pipeline = [
 
 dataset_type = 'CustomDataset'        
 
-train_dataset_json = 'train_dataset.json'
-val_dataset_json = 'val_dataset.json'
-org_images_dir_path = "org_images"
-test_images_dir_path = "test_images"
+
+
+
+test_images_dir_path = "test_images"    # TODO
 
 get_result_ann = False
 
@@ -63,13 +63,13 @@ data = dict(
     workers_per_gpu=1, 
     train=dict(
         type=dataset_type,
-        ann_file= train_dataset_json,                  # recoded dataset path
-        img_prefix= org_images_dir_path,               # org image dir path
+        ann_file= None,                  # recoded dataset path     set in train component code
+        img_prefix= None,               # org image dir path
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=val_dataset_json,      # TODO
-        img_prefix= org_images_dir_path,               
+        ann_file=None,     
+        img_prefix= None,               
         pipeline=val_pipeline),
     test=dict(
         batch_size = 10,

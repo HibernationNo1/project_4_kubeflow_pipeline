@@ -12,25 +12,12 @@ base_list = [
 _base_ = base_list
 
 
-mode = "labelme"
 
-pipeline = dict(
-    pipeline_name = 'train',
-    pipeline_version = "0.1"
-)
-
-gs = dict(
-    client_secrets = "client_secrets.json",
-    recoded_dataset_bucket_name = "pipeline_taeuk4958",
-    )
-
-
-train = dict(
-    validate = False,
-    finetun = True,
-    model_version = '0.0.1'
-)
-
+validate = False,
+finetun = True,
+model_version = 'time',
+seed = None,
+deterministic = True
 device = 'cuda:0'
 
 pretrained ='https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_tiny_patch4_window7_224.pth'
