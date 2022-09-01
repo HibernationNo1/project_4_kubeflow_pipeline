@@ -1,6 +1,7 @@
 import kfp
 import os
 import requests
+import warnings
 
 from pipeline_taeuk4958.configs.config import Config
 
@@ -12,11 +13,10 @@ def get_params(args, cfg_name, cfg_dict):
 
 
 def set_config(args, pl_cfg):
-    
     config_py_path = os.path.join(os.getcwd(), 'config', args.cfg)
 
-    cfg_dict, _ = Config._file2dict(config_py_path, None, True)        # local에 있는 config가져오기
-    
+    cfg_dict, _ = Config._file2dict(config_py_path, None, True)        # local에 있는 config가져오기    
+    # config를 componunt에 전달하기 위해서는 custom class type이 아닌 dict type으로 전달해야 한다.
     cfg_dict['pipeline']['pipeline_name'] = args.pipeline_n
     pl_cfg.PIPELINE_NAME = args.pipeline_n
     
@@ -32,13 +32,22 @@ def set_config(args, pl_cfg):
         if args.dataset_v is not None : cfg_dict['gs']['recoded_dataset_version'] = args.dataset_v
         
     
-    elif args.mode == "train":
-
-        if args.train_json is not None : cfg_dict['train_dataset_json'] = args.train_json
-        if args.val_json is not None : cfg_dict['val_dataset_json'] = args.val_json
+    elif args.mode == "train":        
         if args.validate : cfg_dict['train.validate'] = True
-        if args.finetun : cfg_dict['train']['finetun'] = True
-        if args.model_v is not None : cfg_dict['train']['model_version'] = args.model_v
+        if args.finetun : cfg_dict['finetun'] = True
+        
+        cfg_dict['model_version'] = args.model_v
+        cfg_dict['seed'] = args.seed
+        cfg_dict['deterministic'] = args.deterministic
+        
+        
+        
+        
+        # only support single GPU mode in non-distributed training.
+        cfg_dict['gpu_ids'] = [0]
+        
+        
+            
         
     
     return cfg_dict
