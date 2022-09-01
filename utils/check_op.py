@@ -20,11 +20,13 @@ def status_check(input_mode : str, cfg_dict : dict) :
     
     if input_mode == "train":
         import torch
-        print(f"torch.__version__ : {torch.__version__}")
+        import mmcv
+        print(f"\n torch.__version__ : {torch.__version__}")
         assert torch.cuda.is_available(), f"\n cuda is unavailable!"
+        print(f" mmcv.__version__ : {mmcv.__version__}")
     
     
-    assert pipeline_taeuk4958.__version__ == "1.3.2", f"\n package pipeline_taeuk4958 version invalid version! \n installed version:{pipeline_taeuk4958.__version__}"
+    assert pipeline_taeuk4958.__version__ == "1.3.3", f"\n package pipeline_taeuk4958 version invalid version! \n installed version:{pipeline_taeuk4958.__version__}"
     print(f"pipeline_taeuk4958.__version__ : {pipeline_taeuk4958.__version__}")
     
     assert isinstance(cfg, Config), f"\n config got wrong type: {type(cfg)}, expected pipeline_taeuk4958"
