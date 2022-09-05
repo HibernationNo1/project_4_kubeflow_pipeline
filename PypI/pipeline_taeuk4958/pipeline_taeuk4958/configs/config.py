@@ -46,6 +46,17 @@ def merge_config(org_cfg, from_cfg, flag = None):
         from_dict_keys_list = list(from_cfg.keys())
     
         for from_key in from_dict_keys_list: 
+            if from_key in ["img_scale", "betas", 'out_indices', 'out_indices']:
+                org_cfg[from_key] = tuple(from_cfg[from_key])       
+                continue
+            if from_key == "workflow":
+                tmp_list = []
+                for flow in from_cfg[from_key]:
+                    tmp_list.append(tuple(flow))
+                
+                org_cfg[from_key] = tmp_list
+                continue
+                
             if from_key not in org_dict_keys_list:      # from_cfg의 특정 key가 org_cfg에 없는 경우
                 org_cfg[from_key] = from_cfg[from_key]  # org_cfg에 from_cfg의 key:value 추가
             else:                                                                           # from_cfg의 특정 key가 org_cfg에 있는 경우
@@ -57,7 +68,17 @@ def merge_config(org_cfg, from_cfg, flag = None):
                 org_cfg.append(from_ele)        # org_cfg에 from_cfg의 요소 추가
             # from_ele 가 list 또는 dict일 때 해당 요소의 map이 org_cfg의 특정 요소와 비슷하지만 부분적으로 다른건 상정 안함. 
             # 부분적으로 다른 요소는 그냥 통째로 append 
-            
+    
+    elif isinstance(org_cfg, tuple):
+        tmp_list = []
+        for org_ele in org_cfg:             # tuple인 경우 append가 안되기 때문에 임시 list에 org_cfg를 전부 append한 후 
+            tmp_list.append(org_ele)
+        
+        for from_ele in from_cfg:
+            if from_ele not in org_cfg:     # 이어서 임시 list에 from_cfg또한 append한다.     
+                tmp_list.append(from_ele)       
+        org_cfg = tuple(tmp_list)           # 그리고 해당 임시 list를 tuple로 변환
+
     return org_cfg
 
 def load_config_in_pipeline(cfg_path):
