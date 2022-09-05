@@ -4,6 +4,6 @@ import warnings
 
 from .formatting import *
 
-warnings.warn('DeprecationWarning: mmdet_taeuk4958.datasets.pipelines.formating will be '
+warnings.warn('DeprecationWarning: mmdet.datasets.pipelines.formating will be '
               'deprecated, please replace it with '
-              'mmdet_taeuk4958.datasets.pipelines.formatting.')
+              'mmdet.datasets.pipelines.formatting.')

@@ -145,7 +145,7 @@ class CustomDataset(Dataset):
             
         # processing pipeline
         self.pipeline = Compose(pipeline)
-       
+
         
 
     def __len__(self):

@@ -82,6 +82,7 @@ class Resize:
                  backend='cv2',
                  interpolation='bilinear',
                  override=False):
+        
         if img_scale is None:
             self.img_scale = None
         else:
@@ -89,6 +90,8 @@ class Resize:
                 self.img_scale = img_scale
             else:
                 self.img_scale = [img_scale]
+            
+           
             assert mmcv.is_list_of(self.img_scale, tuple)
 
         if ratio_range is not None:
