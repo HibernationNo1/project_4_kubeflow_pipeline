@@ -1,6 +1,6 @@
-ARG PYTORCH="1.9.0"
-ARG CUDA="10.2"
-ARG CUDNN="7"   
+ARG PYTORCH="1.11.0"
+ARG CUDA="11.3"
+ARG CUDNN="8"   
 
 FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel	
 
@@ -20,11 +20,11 @@ WORKDIR project_dataset/
 
 # Install MMCV
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools
-RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu102/torch1.9.0/index.html
+RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
 
 # install custom package
-RUN pip install pipeline_taeuk4958==1.3.3
-RUN pip install mmdet_taeuk4958==1.0.1
+RUN pip install pipeline_taeuk4958==1.3.10
+RUN pip install mmdet_taeuk4958==1.0.9
 
 RUN pip install dvc[gs]
 RUN pip install google-cloud-storage

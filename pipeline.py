@@ -1,3 +1,4 @@
+from xmlrpc.client import boolean
 import kfp
 import kfp.dsl as dsl
  
@@ -100,7 +101,7 @@ def parse_args(pl_cfg):
     parser.add_argument('--dataset_v', type = str, 
                         help = 'version of recorded dataset to be store in google cloud storage.        support mode: record, train')
     
-
+    parser.add_argument('--epo', type= int, help= "mode-train: max epoch, \n mode-test : model name in .pth format,  usually epoch number")
     parser.add_argument( '--validate', default=False, action="store_true",
                         help= 'whether do evaluate the checkpoint during training.      support mode: train')
     parser.add_argument( '--finetun', default=False, action="store_true",
@@ -113,25 +114,22 @@ def parse_args(pl_cfg):
     parser.add_argument('--deterministic', action='store_true',
                         help='whether to set deterministic options for CUDNN backend.       support mode: train')
     
-
-    
-        
     
     args = parser.parse_args()
     input_args = vars(args)
     
-    
     return args, input_args
        
 # python pipeline.py --mode record --cfg record_config.py --dataset_v 0.1 --pipeline_n recode_1 --pipeline_v 0.1
-# python pipeline.py --mode train --cfg swin_maskrcnn.py --pipeline_n train_1 --pipeline_v 0.1
+# python pipeline.py --mode train --cfg swin_maskrcnn.py --pipeline_n train --pipeline_v 0.1
 if __name__=="__main__":      
 
     pl_cfg = Pipeline_Config()              # get config
     args, input_args = parse_args(pl_cfg)   # get args, input_args    
 
-    cfg_dict = set_config(args, pl_cfg)        
-
+    cfg_dict, tuple_flag = set_config(args, pl_cfg)
+    
+    
     print("\n compile pipeline")             
     kfp.compiler.Compiler().compile(
         project_pipeline,
@@ -146,7 +144,7 @@ if __name__=="__main__":
     
     pipeline_id = get_pipeline_id(pl_cfg, args, client)     # get experiment id by create pipeline or updata pipeline version
     
-    params_dict = get_params(args, args.cfg, cfg_dict)              # parameters for pipeline run
+    params_dict = get_params(args, args.cfg, cfg_dict, tuple_flag)              # parameters for pipeline run
     run_pipeline(client, experiment_id, pipeline_id, params_dict, pl_cfg.RUN_NAME)
     
     

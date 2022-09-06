@@ -107,7 +107,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    check : 기본 CUDA container 실행
 
    ```
-   $ sudo docker run --rm --gpus all nvidia/cuda:10.1-devel-ubuntu18.04 nvidia-smi
+   $ sudo docker run --rm --gpus all nvidia/cuda:11.3.1-base-ubuntu20.04 nvidia-smi
    ```
 
    > cuda와 ubuntu version에 대한tag는 [docker hub-nvidia](https://hub.docker.com/r/nvidia/cuda/tags)에서 검색 후 결정
@@ -157,16 +157,16 @@ $ minikube version
 
 공식](https://kubernetes.io/ko/docs/tasks/tools/install-kubectl-linux/)
 
-최신 릴리스 다운로드
+특정 릴리스 다운로드(1.20.11)
 
 ```
-$ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+$ sudo curl -LO https://dl.k8s.io/release/v1.20.11/bin/linux/amd64/kubectl
 ```
 
 바이너리 검증
 
 ```
-$ curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+$ curl -LO "https://dl.k8s.io/v1.20.11/bin/linux/amd64/kubectl.sha256"
 $ echo "$(<kubectl.sha256)  kubectl" | sha256sum --check
 ```
 
@@ -194,6 +194,15 @@ $ kubectl version --client
 >
 > 위 처럼 떠도 정상 (kubenetes server와 client의 version이 모두 출력하는 과정에서, host에서 kubenetes server를 생성하지 않았기 때문에 뜨는 문구)
 >
+> - `bash: /usr/bin/kubectl: No such file or directory` 라는 문구가 뜨면
+>
+>   ```
+>   $ bash
+>   ```
+>
+>   
+
+
 
 
 
@@ -201,11 +210,12 @@ $ kubectl version --client
 
 ```
 $ minikube start --driver=none \
-  --kubernetes-version=v1.19.3  \
+  --kubernetes-version=v1.20.11 \
   --extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key \
   --extra-config=apiserver.service-account-issuer=kubernetes.default.svc
 ```
 
+- `--kubernetes-version=v1.20.11 ` : kubectl 설치 시 특정한 version
 - `--extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key` : kubeflow를 사용하기 위한 flag
 - `--extra-config=apiserver.service-account-issuer=kubernetes.default.svc`  : kubeflow를 사용하기 위한 flag
 
@@ -225,6 +235,21 @@ $ minikube start --driver=none \
 
 
 check
+
+```
+$ minikube status
+```
+
+```
+minikube
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+```
+
+
 
 ```
 $ kubectl get namespace
@@ -287,7 +312,7 @@ kubectl get pods -A
    > ubuntu   1
    > ```
    >
-   > 위 처럼 1이 보여야 한다.
+   > 위 처럼 1이 보여야 한다. (몇 초 가량 지나야함)
 
 2. check use GPU at pod
 
@@ -305,7 +330,7 @@ kubectl get pods -A
    spec:
      containers:
      - name: gpu-container
-       image: nvidia/cuda:10.2-runtime
+       image: nvidia/cuda:11.3-runtime
        command:
          - "/bin/sh"
          - "-c"
@@ -323,8 +348,9 @@ kubectl get pods -A
 
    ```
    $ kubectl create -f gpu-container.yaml
+   $ kubectl logs gpu
    ```
-
+   
    ```
    Thu Aug 25 00:45:45 2022       
    +-----------------------------------------------------------------------------+
@@ -418,7 +444,7 @@ Version: {KustomizeVersion:3.2.0 GitCommit:a3103f1e62ddb5b696daa3fd359bb6f2e8333
    1. automatically install
 
       ```
-      $ build example | kubectl apply -f -; do echo "Retrying to apply resources"; sleep 10; done
+      $ while ! kustomize build example | kubectl apply -f -; do echo "Retrying to apply resources"; sleep 10; done
       ```
 
    2. manually install
@@ -630,8 +656,6 @@ Version: {KustomizeVersion:3.2.0 GitCommit:a3103f1e62ddb5b696daa3fd359bb6f2e8333
 
 
 
-#### set GPU
-
 
 
 
@@ -795,6 +819,15 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
 
 ## start
 
+```
+minikube start --driver=none \
+  --kubernetes-version=v1.19.3  \
+  --extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key \
+  --extra-config=apiserver.service-account-issuer=kubernetes.default.svc
+```
+
+
+
 ### access dashboard
 
 - port-forward 
@@ -923,17 +956,17 @@ $ ngrok config add-authtoken {token값}
 
 #### External-IP
 
-1. **istio-ingressgateway 의 type이 `LoadBalancer` 임을 확인**
+**istio-ingressgateway 의 spec.type이 `LoadBalancer` 임을 확인**
 
-   `nodeport`라 되어있으면 변경 필요
+`nodeport`라 되어있으면 변경 필요
 
-   ```
-   $ kubectl edit service -n istio-system istio-ingressgateway
-   ```
+```
+$ kubectl edit service -n istio-system istio-ingressgateway
+```
 
-   
 
-2. **get `External-IP`** 
+
+1. **get `External-IP`** 
 
    아직은 `External-IP`이 `<pending> `일 것임
 
@@ -948,7 +981,7 @@ $ ngrok config add-authtoken {token값}
 
    1. enable **MetalLB**
 
-      `metallb ` 확인
+      minikube의 addons중 `metallb ` 확인
 
       ```
       $ minikube addons list
@@ -985,13 +1018,20 @@ $ ngrok config add-authtoken {token값}
       - `-- Enter Load Balancer Start IP` ,` -- Enter Load Balancer End IP` : **192.168.0.240** 부터 **192.168.0.249** 사이의 Host IP주소 할당
 
         > 너무 많이 할당하면 기존에 회사에서 사설 IP를 받아 쓰던 내부망 client들과 충돌이 있을 우려가 생기므로 조심
+        
+        ```
+        -- Enter Load Balancer Start IP: 192.168.0.240
+        -- Enter Load Balancer End IP: 192.168.0.249
+        ```
+        
+        
 
       
 
    3. check `EXTERNAL-IP`
 
       ```
-      $ kubectl get service -n istio-system istio-ingressgatewa
+      $ kubectl get service -n istio-system istio-ingressgateway
       ```
 
       ```
@@ -1003,7 +1043,7 @@ $ ngrok config add-authtoken {token값}
 
    
 
-3. **access from client**
+2. **access from client**
 
    1. configure port poward
 

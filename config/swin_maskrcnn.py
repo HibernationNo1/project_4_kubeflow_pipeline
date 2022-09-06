@@ -1,6 +1,3 @@
-
-
-
 base_list = [
     'swin_maskrcnn/mask_rcnn_r50_fpn.py',     # 'swin_maskrcnn/mask_rcnn_r50_fpn.py"
     'swin_maskrcnn/dataset_config.py',     # 'swin_maskrcnn/dataset_config.py'
@@ -13,10 +10,10 @@ _base_ = base_list
 
 
 
-validate = False,
-finetun = True,
-model_version = 'time',
-seed = None,
+validate = False
+finetun = True
+model_version = 'time'
+seed = None
 deterministic = True
 device = 'cuda:0'
 
