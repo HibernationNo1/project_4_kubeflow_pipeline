@@ -61,40 +61,11 @@ def merge_config(org_cfg, from_cfg, flag = None):
                 org_cfg[from_key] = from_cfg[from_key]  # org_cfg에 from_cfg의 key:value 추가
             else:                                                                           # from_cfg의 특정 key가 org_cfg에 있는 경우
                 org_cfg[from_key] = merge_config(org_cfg[from_key], from_cfg[from_key])     # 해당 key값에 merge
-    
-    elif isinstance(org_cfg, list):
-        for from_ele in from_cfg:
-            if from_ele not in org_cfg:         # from_cfg의 특정 요소가 org_cfg에 없을 경우
-                org_cfg.append(from_ele)        # org_cfg에 from_cfg의 요소 추가
-            # from_ele 가 list 또는 dict일 때 해당 요소의 map이 org_cfg의 특정 요소와 비슷하지만 부분적으로 다른건 상정 안함. 
-            # 부분적으로 다른 요소는 그냥 통째로 append 
-    
-    elif isinstance(org_cfg, tuple):
-        tmp_list = []
-        for org_ele in org_cfg:             # tuple인 경우 append가 안되기 때문에 임시 list에 org_cfg를 전부 append한 후 
-            tmp_list.append(org_ele)
-        
-        for from_ele in from_cfg:
-            if from_ele not in org_cfg:     # 이어서 임시 list에 from_cfg또한 append한다.     
-                tmp_list.append(from_ele)       
-        org_cfg = tuple(tmp_list)           # 그리고 해당 임시 list를 tuple로 변환
-
+    else:
+        org_cfg = from_cfg      # 아예 교체한다.
+     
     return org_cfg
 
-def load_config_in_pipeline(cfg_path):
-    if not cfg_path.endswith('.py'):
-        cfg_pyformat_path = cfg_path + ".py"        # cfg_pyformat_path : {wiorkspace}/inputs/cfg/data.py
-                                                    # can't command 'mv' 
-    
-    # change format to .py
-    with open(cfg_path, "r") as f:
-        data = f.read()
-    with open(cfg_pyformat_path, "w") as f:
-        f.write(data)       
-    f.close()
-    
-    return Config.fromfile(cfg_pyformat_path)       # cfg_pyformat_path : must be .py format   
-    
 
 
 def import_modules_from_strings(imports, allow_failed_imports=False):
