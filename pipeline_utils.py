@@ -5,9 +5,9 @@ import warnings
 
 from pipeline_taeuk4958.configs.config import Config
 
-def get_params(args, cfg_name, cfg_dict):
+def get_params(args, cfg_name, cfg_dict, tuple_flag):
     
-    cfg = {'cfg_name': cfg_name, 'cfg_dict' : cfg_dict}
+    cfg = {'cfg_name': cfg_name, 'cfg_dict' : cfg_dict, 'tuple_flag' : tuple_flag}
     params_dict = {'input_mode': args.mode, 'cfg': cfg}
     return params_dict
 
@@ -15,10 +15,11 @@ def get_params(args, cfg_name, cfg_dict):
 def set_config(args, pl_cfg):
     config_py_path = os.path.join(os.getcwd(), 'config', args.cfg)
 
-    cfg_dict, _ = Config._file2dict(config_py_path, None, True)        # local에 있는 config가져오기    
+    cfg_dict, _ = Config._file2dict(config_py_path, None, True)        # local에 있는 config가져오기   
+     
     # config를 componunt에 전달하기 위해서는 custom class type이 아닌 dict type으로 전달해야 한다.
-    cfg_dict['pipeline']['pipeline_name'] = args.pipeline_n
-    pl_cfg.PIPELINE_NAME = args.pipeline_n
+    cfg_dict['pipeline']['pipeline_name'] = pl_cfg.PIPELINE_NAME = args.pipeline_n
+    cfg_dict['mode'] = args.mode
     
     if args.pipeline_v is not None : cfg_dict['pipeline']['pipeline_version'] = args.pipeline_v
     
@@ -35,22 +36,20 @@ def set_config(args, pl_cfg):
     elif args.mode == "train":        
         if args.validate : cfg_dict['train.validate'] = True
         if args.finetun : cfg_dict['finetun'] = True
+        if args.epo is not None: cfg_dict['runner']['max_epochs'] = args.epo        
         
         cfg_dict['model_version'] = args.model_v
         cfg_dict['seed'] = args.seed
         cfg_dict['deterministic'] = args.deterministic
-        
-        
-        
-        
+
         # only support single GPU mode in non-distributed training.
         cfg_dict['gpu_ids'] = [0]
         
-        
-            
-        
+    tuple_flag = get_tuple_key(cfg_dict)
     
-    return cfg_dict
+ 
+    
+    return cfg_dict, tuple_flag
 
 def get_pipeline_id(pl_cfg, args, client):
     if pl_cfg.RUN_EXIST_PIPELINE:                                       # if you want version updata of pipeline (modified pipeline)
@@ -168,3 +167,37 @@ def connet_client(pl_cfg):
         cookies=f"authservice_session={session_cookie}",
     )
     return client
+
+
+def get_tuple_key(cfg):     # config안에서 tuple type인 key 또는 idx를 반환
+    if isinstance(cfg, dict):
+        tmp_dict = {}
+        for key in list(cfg.keys()):
+            is_tuple = get_tuple_key(cfg[key]) 
+            
+            if is_tuple :
+                tmp_dict[key] = is_tuple
+            else: continue
+
+        
+        return tmp_dict     
+    elif isinstance(cfg, tuple):
+        return True
+    
+    elif isinstance(cfg, list):
+        tmp_list = []
+        for i, ele in enumerate(cfg):       # list에 tuple이 포함되어 있는 경우
+            is_tuple = get_tuple_key(ele)
+            if isinstance(is_tuple, dict):
+                tmp_list.append(is_tuple)
+            elif isinstance(is_tuple, bool) and is_tuple:
+                tmp_list.append(i)      
+            
+            
+            else: continue
+            
+        
+        if len(tmp_list) == 0: return False
+        return tmp_list
+    
+    else: return False
