@@ -13,7 +13,6 @@ def compat_cfg(cfg):
     fields.
     """
     cfg = copy.deepcopy(cfg)
-    cfg = compat_imgs_per_gpu(cfg)  # 해당없음. TODO 적용해보기
     cfg = compat_loader_args(cfg)   # TODO 해당되는 사항 이해하기
     if cfg.mode == "train":
         cfg = compat_runner_args(cfg)   # runner(epoch)에 관한 config확인
@@ -35,21 +34,7 @@ def compat_runner_args(cfg):
     return cfg
 
 
-def compat_imgs_per_gpu(cfg):
-    cfg = copy.deepcopy(cfg)
-    if 'imgs_per_gpu' in cfg.data:
-        warnings.warn('"imgs_per_gpu" is deprecated in MMDet V2.0. '
-                      'Please use "samples_per_gpu" instead')
-        if 'samples_per_gpu' in cfg.data:
-            warnings.warn(
-                f'Got "imgs_per_gpu"={cfg.data.imgs_per_gpu} and '
-                f'"samples_per_gpu"={cfg.data.samples_per_gpu}, "imgs_per_gpu"'
-                f'={cfg.data.imgs_per_gpu} is used in this experiments')
-        else:
-            warnings.warn('Automatically set "samples_per_gpu"="imgs_per_gpu"='
-                          f'{cfg.data.imgs_per_gpu} in this experiments')
-        cfg.data.samples_per_gpu = cfg.data.imgs_per_gpu
-    return cfg
+
 
 
 def compat_loader_args(cfg):
@@ -64,7 +49,7 @@ def compat_loader_args(cfg):
         cfg.data['test_dataloader'] = ConfigDict()
 
     # special process for train_dataloader
-    if 'samples_per_gpu' in cfg.data:   # 해당됨
+    if 'samples_per_gpu' in cfg.data:  
         samples_per_gpu = cfg.data.pop('samples_per_gpu')
         assert 'samples_per_gpu' not in \
                cfg.data.train_dataloader, ('`samples_per_gpu` are set '

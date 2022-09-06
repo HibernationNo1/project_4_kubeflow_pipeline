@@ -12,7 +12,7 @@ from torch.utils.cpp_extension import (BuildExtension, CppExtension,
 
 
 # python setup.py bdist_wheel
-# twine upload dist/mmdet_taeuk4958-1.0.5-py3-none-any.whl
+# twine upload dist/mmdet_taeuk4958-1.0.8-py3-none-any.whl
 
 version_file = os.path.join(os.getcwd(), 'mmdet_taeuk4958', 'version.py')             # version이 명시된 file
 

@@ -300,11 +300,8 @@ class Resize:
         """
 
         
-        
-        
-        
         if 'scale' not in results:
-            if 'scale_factor' in results:                
+            if 'scale_factor' in results:   
                 img_shape = results['img'].shape[:2]
                 scale_factor = results['scale_factor']
                 assert isinstance(scale_factor, float)
@@ -312,6 +309,7 @@ class Resize:
                     [int(x * scale_factor) for x in img_shape][::-1])
             else:
                 self._random_scale(results)
+         
         else:
             if not self.override:
                 assert 'scale_factor' not in results, (
