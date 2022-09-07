@@ -5,32 +5,27 @@ from pipeline_config import Pipeline_Config
 pl_cfg = Pipeline_Config
 
 
-def download_dataset(cfg_dict : dict,                      
-                     train_dataset_path: OutputPath("dict"),
-                     val_dataset_path: OutputPath("dict"),):
+def download_dataset(cfg_dict : dict):
     
     import json
     import os
     import subprocess
     import glob
     import time 
-    from pipeline_taeuk4958.configs.config import Config 
+    from pipeline_taeuk4958.configs.utils import load_config 
     from pipeline_taeuk4958.cloud.gs import gs_credentials, get_client_secrets
     from google.cloud import storage
     
     
-    from mmcv.utils import get_logger
+    from mmcv.utils import get_logger, get_git_hash
+    from mmdet_taeuk4958 import __version__
     from mmdet_taeuk4958.utils import collect_env, get_device
-    from mmdet_taeuk4958.apis import init_random_seed, set_random_seed
+    from mmdet_taeuk4958.apis import init_random_seed, set_random_seed, train_detector
     from mmdet_taeuk4958.datasets import build_dataset
+    from mmdet_taeuk4958.models import build_detector
     
-    def get_config():
-        config_file_path = os.path.join(os.getcwd(), cfg_dict['cfg_name'])
-        with open(config_file_path, 'w') as f:
-            f.write('\n')
- 
-        return Config.fromfile(config_file_path, cfg_dict['cfg_dict'])           
-
+    TIME_STAMP = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+    
     def download_record(cfg):
         storage_client = storage.Client()
         bucket = storage_client.get_bucket(cfg.gs.recoded_dataset_bucket_name)
@@ -74,9 +69,9 @@ def download_dataset(cfg_dict : dict,
         anns_config_path = os.path.join(os.getcwd(), cfg.gs.anns_config_path)
         with open(anns_config_path, "r", encoding='utf-8') as f:
             anns_config = json.load(f)   
-            
-        cfg.data.train.img_prefix = anns_dir    
-        cfg.data.val.img_prefix = anns_dir
+        
+        imgs_dir = os.path.join(os.getcwd(), cfg.gs.imgs_dir)
+        cfg.data.train.img_prefix = cfg.data.val.img_prefix = imgs_dir    
             
         return anns_list, anns_config, cfg
     
@@ -87,64 +82,94 @@ def download_dataset(cfg_dict : dict,
         
         with open(train_dataset_path, "r", encoding='utf-8') as f:
             train_dataset = json.load(f) 
+        cfg.data.train.ann_file = train_dataset_path
+        
         with open(val_dataset_path, "r", encoding='utf-8') as f:
             val_dataset = json.load(f) 
+        cfg.data.val.ann_file = val_dataset_path  
 
         dataset_num, ann_num= len(train_dataset['images']) + len(val_dataset['images']), len(anns_list)
        
         assert dataset_num == ann_num, f"\n Invalid annotations or dataset loaded. \n number of dataset: {dataset_num}, number of annotations: {ann_num}"
-        assert anns_config['ann_version'] == train_dataset['info']['ann_version'], f"\n Invalid version for training. check dataset or annotations version \n \
-                                                                                    dataset_version: {train_dataset['info']['ann_version']}, anns_config['ann_version']: {anns_config['ann_version']}"
+        assert anns_config['ann_version'] == train_dataset['info']['ann_version'], \
+            f"\n Invalid version for training. check dataset or annotations version \n \
+              dataset_version: {train_dataset['info']['ann_version']}, anns_config['ann_version']: {anns_config['ann_version']}"
         
-        for image_info in train_dataset["images"]:
-            filepath = os.path.join(os.path.join(os.getcwd(), cfg.gs.anns_dir), image_info['file_name'])
-            print(f"filepath : {filepath}")
-            image_info['file_name'] = filepath
-            
+        for image_info_t in train_dataset["images"]:
+            filepath_t = os.path.join(os.path.join(os.getcwd(), cfg.gs.imgs_dir), image_info_t['file_name'])
+            image_info_t['file_name'] = filepath_t
+        for image_info_v in val_dataset["images"]:
+            filepath_v = os.path.join(os.path.join(os.getcwd(), cfg.gs.imgs_dir), image_info_v['file_name'])
+            image_info_v['file_name'] = filepath_v
+        
         return train_dataset, val_dataset, cfg
     
-    
+    def get_logger_set_meta(moder_version, cfg):
+        work_time_dir = os.path.join(os.getcwd(), moder_version)
+        cfg.work_dir = work_time_dir
+        os.makedirs(work_time_dir, exist_ok= True)           
+        
+        log_file = os.path.join(work_time_dir, f'{TIME_STAMP}.log')
+        logger = get_logger(name= cfg.pipeline.pipeline_name, log_file=log_file, log_level=cfg.log_level) 
+        
+        # log env info      
+        env_info_dict = collect_env()
+        env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
+        dash_line = '-' * 60 + '\n'
+        logger.info(f'\nEnvironment info:\n{dash_line}{env_info}\n{dash_line}\n')          # delete '#' if you want print Environment info  
+        
+        cfg.device = get_device() 
+        meta = dict()
+        meta['env_info'] = env_info
+        meta['config'] = cfg.pretty_text
+        
+        seed = init_random_seed(cfg.seed, device=cfg.device)
+        logger.info(f'\nSet random seed to {seed}, '
+                f'deterministic: {cfg.deterministic}\n')
+        
+        set_random_seed(seed, deterministic=cfg.deterministic)
+        cfg.seed = seed
+        meta['seed'] = seed
+        meta['exp_name'] = cfg_dict['cfg_name']
+        return logger, meta
     
     if __name__=="__main__":
-        cfg = get_config()
+        cfg = load_config(cfg_dict)
+  
         gs_credentials(cfg.gs.client_secrets)       # set client secrets
         train_dataset, val_dataset, cfg = download_dataset(cfg)
-    
-        def get_logger_set_meta(work_dir_gs_storage, cfg):
-            timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
-            log_file = os.path.join(work_dir_gs_storage, f'{cfg.model_version}.log')
-            logger = get_logger(name= cfg.pipeline.pipeline_name, log_file=log_file, log_level=cfg.log_level) 
-            
-            # log env info      
-            env_info_dict = collect_env()
-            env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
-            dash_line = '-' * 60 + '\n'
-            logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)          # delete '#' if you want print Environment info  
-            
-            cfg.device = get_device() 
-            meta = dict()
-            meta['env_info'] = env_info
-            meta['config'] = cfg.pretty_text
-            
-            seed = init_random_seed(cfg.seed, device=cfg.device)
-            logger.info(f'Set random seed to {seed}, '
-                    f'deterministic: {cfg.deterministic}')
-            
-            set_random_seed(seed, deterministic=cfg.deterministic)
-            cfg.seed = seed
-            meta['seed'] = seed
-            meta['exp_name'] = cfg_dict['cfg_name']
-            return logger, meta, timestamp, cfg
         
-        work_dir_gs_storage = os.path.join(cfg.gs.model_bucket_name, cfg.model_version)
-        logger, meta, timestamp, cfg = get_logger_set_meta(work_dir_gs_storage, cfg)
+        logger, meta = get_logger_set_meta(cfg.model_version, cfg)
         
-        print(f"\n cfg.data : {cfg.data}")
-        # datasets = [build_dataset(cfg.data.train)]      # <class 'mmdet.datasets.custom.CocoDataset'>
-    
-    
+   
+        datasets = [build_dataset(cfg.data.train)]      # <class 'mmdet.datasets.custom.CocoDataset'>
+ 
         
+        if cfg.model.type =='MaskRCNN' :
+            cfg.model.roi_head.bbox_head.num_classes = len(datasets[0].CLASSES)
+            cfg.model.roi_head.mask_head.num_classes = len(datasets[0].CLASSES)   
+            
+        model = build_detector(cfg.model, train_cfg=cfg.get('train_cfg'), test_cfg=cfg.get('test_cfg'))
         
+        if cfg.finetun is not None:  # fine tuning
+            model.init_weights()
+        
+        if cfg.checkpoint_config is not None:   
+            # save mmdet version, config file content and class names in
+            # checkpoints as meta data
+            cfg.checkpoint_config.meta = dict(
+                mmdet_version=__version__ + get_git_hash()[:7],
+                CLASSES=datasets[0].CLASSES)
+                        
+        # train_detector
+        train_detector(
+            model,
+            datasets,
+            cfg,
+            distributed= False,      
+            validate= cfg.validate ,
+            timestamp= TIME_STAMP,
+            meta=meta)
         
         
     
