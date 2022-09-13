@@ -3,6 +3,8 @@ pipeline = dict(
     pipeline_version = "0.1"
 )
 
+dataset_name = "dataset"
+
 gs = dict(
     client_secrets = "client_secrets.json",
     ann_bucket_name = "dataset_tesuk4958",
@@ -11,8 +13,10 @@ gs = dict(
     recoded_dataset_version = "0.1",
     train_file_name = 'train_dataset.json',
     val_file_name = 'val_dataset.json',
-    anns_dir = "dataset/anns",
-    anns_config_path = "dataset/config.json",
+    imgs_dir = f"{dataset_name}/images",
+    anns_dir = f"{dataset_name}/anns",
+    anns_config_path = f"{dataset_name}/config.json",
+    
     )
 
 

@@ -4,7 +4,7 @@ from pipeline_config import Pipeline_Config
 pl_cfg = Pipeline_Config    
 
 
-def status_check(input_mode : str, cfg_dict : dict) :
+def check_status(input_mode : str, cfg_dict : dict) :
     
     
     import os    
@@ -35,7 +35,7 @@ def status_check(input_mode : str, cfg_dict : dict) :
     
     
 print(f"set_config base_image : {pl_cfg.CHECK_IMAGE}")
-status_check_op = create_component_from_func(func = status_check,
+check_status_op = create_component_from_func(func = check_status,
                                         base_image = pl_cfg.CHECK_IMAGE,
                                         output_component_file= pl_cfg.CHECK_COM_FILE)
 

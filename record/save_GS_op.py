@@ -1,4 +1,3 @@
-import kfp
 from kfp.components import InputPath, create_component_from_func
 
 from pipeline_config import Pipeline_Config

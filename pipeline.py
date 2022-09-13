@@ -5,10 +5,11 @@ import kfp.dsl as dsl
 import argparse
 import time
 
-from utils.check_op import status_check_op
+from utils.check_op import check_status_op
 from record.record_dataset_op import record_op
 from record.save_GS_op import save_dataset_op
-from train.load_dataset_op import download_dataset_op
+
+from train.train_op import train_op
 
 from pipeline_config import Pipeline_Config
 from pipeline_utils import (connet_client,get_experiment, get_params, run_pipeline, get_pipeline_id, set_config)
@@ -32,7 +33,7 @@ def project_pipeline(input_mode : str, cfg: dict):
     ev_gs_client_x509_cert_url = V1EnvVar(name ='client_x509_cert_url', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'client_x509_cert_url')))
     
         
-    _status_check_op = status_check_op(input_mode, cfg)        
+    _status_check_op = check_status_op(input_mode, cfg)        
                       
     with dsl.Condition(input_mode == "record") : 	    
         _record_op = record_op(cfg).after(_status_check_op) \
@@ -62,7 +63,7 @@ def project_pipeline(input_mode : str, cfg: dict):
 
         
     with dsl.Condition(input_mode == "train") :
-        _download_dataset_op = download_dataset_op(cfg).after(_status_check_op) \
+        _train_op = train_op(cfg).after(_status_check_op) \
             .add_env_variable(ev_gs_type) \
             .add_env_variable(ev_gs_project_id) \
             .add_env_variable(ev_gs_private_key_id) \
@@ -73,6 +74,7 @@ def project_pipeline(input_mode : str, cfg: dict):
             .add_env_variable(ev_gs_token_uri) \
             .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
             .add_env_variable(ev_gs_client_x509_cert_url) 
+        
         
         pass
          
