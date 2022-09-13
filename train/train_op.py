@@ -1,17 +1,17 @@
 
-from kfp.components import create_component_from_func, OutputPath
+from kfp.components import create_component_from_func
 
 from pipeline_config import Pipeline_Config
 pl_cfg = Pipeline_Config
 
 
-def download_dataset(cfg_dict : dict):
+def train(cfg_dict : dict):
     
     import json
     import os
     import subprocess
     import glob
-    import time 
+    import time
     from pipeline_taeuk4958.configs.utils import load_config 
     from pipeline_taeuk4958.cloud.gs import gs_credentials, get_client_secrets
     from google.cloud import storage
@@ -24,7 +24,6 @@ def download_dataset(cfg_dict : dict):
     from mmdet_taeuk4958.datasets import build_dataset
     from mmdet_taeuk4958.models import build_detector
     
-    TIME_STAMP = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     
     def download_record(cfg):
         storage_client = storage.Client()
@@ -101,15 +100,13 @@ def download_dataset(cfg_dict : dict):
         for image_info_v in val_dataset["images"]:
             filepath_v = os.path.join(os.path.join(os.getcwd(), cfg.gs.imgs_dir), image_info_v['file_name'])
             image_info_v['file_name'] = filepath_v
-        
-        return train_dataset, val_dataset, cfg
+ 
     
-    def get_logger_set_meta(moder_version, cfg):
-        work_time_dir = os.path.join(os.getcwd(), moder_version)
-        cfg.work_dir = work_time_dir
-        os.makedirs(work_time_dir, exist_ok= True)           
+    def get_logger_set_meta(cfg):
+        cfg.work_dir = os.path.join(os.getcwd(), cfg.model_version)
+        os.makedirs(cfg.work_dir, exist_ok= True)           
         
-        log_file = os.path.join(work_time_dir, f'{TIME_STAMP}.log')
+        log_file = os.path.join(cfg.work_dir, f'{cfg.model_version}.log')
         logger = get_logger(name= cfg.pipeline.pipeline_name, log_file=log_file, log_level=cfg.log_level) 
         
         # log env info      
@@ -131,20 +128,20 @@ def download_dataset(cfg_dict : dict):
         cfg.seed = seed
         meta['seed'] = seed
         meta['exp_name'] = cfg_dict['cfg_name']
-        return logger, meta
+        return logger, log_file, meta
+   
+   
     
     if __name__=="__main__":
         cfg = load_config(cfg_dict)
-  
         gs_credentials(cfg.gs.client_secrets)       # set client secrets
-        train_dataset, val_dataset, cfg = download_dataset(cfg)
+        download_dataset(cfg)
         
-        logger, meta = get_logger_set_meta(cfg.model_version, cfg)
+        logger, log_file_path, meta = get_logger_set_meta(cfg)
         
    
         datasets = [build_dataset(cfg.data.train)]      # <class 'mmdet.datasets.custom.CocoDataset'>
  
-        
         if cfg.model.type =='MaskRCNN' :
             cfg.model.roi_head.bbox_head.num_classes = len(datasets[0].CLASSES)
             cfg.model.roi_head.mask_head.num_classes = len(datasets[0].CLASSES)   
@@ -160,7 +157,8 @@ def download_dataset(cfg_dict : dict):
             cfg.checkpoint_config.meta = dict(
                 mmdet_version=__version__ + get_git_hash()[:7],
                 CLASSES=datasets[0].CLASSES)
-                        
+        
+        start_time = str(time.strftime('%Y%m%d_%H%M%S', time.localtime()))
         # train_detector
         train_detector(
             model,
@@ -168,12 +166,36 @@ def download_dataset(cfg_dict : dict):
             cfg,
             distributed= False,      
             validate= cfg.validate ,
-            timestamp= TIME_STAMP,
+            timestamp= start_time,
             meta=meta)
         
+        gs_dir = cfg.model_version
+        
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(cfg.gs.model_bucket_name)
+        
+        print(f"os.listdir(cfg.work_dir) : {os.listdir(cfg.work_dir)}")
+
+        assert os.path.isfile(log_file_path)
+        log_blob = bucket.blob(f"{gs_dir}/log_file.log")
+        log_blob.upload_from_filename(log_file_path)
+        
+        log_json = os.path.join(os.getcwd(), cfg.work_dir, start_time) + ".log.json"
+        assert os.path.isfile(log_json)
+        jsonlog_blob = bucket.blob(f"{gs_dir}/train.log.json")
+        jsonlog_blob.upload_from_filename(log_json)
+        
+        
+        
+        model_list = glob.glob(f"{cfg.work_dir}/*.pth")  
+        for model_file in model_list:
+            model_blob = bucket.blob(f"{gs_dir}/{model_file.split('/')[-1]}")
+            model_blob.upload_from_filename(model_file)
         
     
-print(f"download_dataset base_image : {pl_cfg.LOAD_DATA_IMAGE}")    
-download_dataset_op = create_component_from_func(func = download_dataset,
+        
+    
+print(f"train base_image : {pl_cfg.LOAD_DATA_IMAGE}")    
+train_op = create_component_from_func(func = train,
                                         base_image = pl_cfg.LOAD_DATA_IMAGE,
                                         output_component_file= pl_cfg.LOAD_DATA_COM_FILE)
