@@ -68,6 +68,25 @@
 
    `Hello from Docker!` 이 포함된 출력문이 나오면 된것
 
+6. 권한 설정
+
+   root user가 아닌, host의 기본 user에게도 권한을 주기 위해 
+
+   새로운 터미널 띄운 후 
+
+   ```
+   $ sudo usermod -a -G docker $USER
+   $ sudo service docker restart
+   ```
+
+   이후 logout(또는 reboot)후 다시 login
+
+   ```
+   $ docker ps
+   ```
+
+   
+
 
 
 #### NVIDIA DOCKER
@@ -155,18 +174,18 @@ $ minikube version
 
 #### kubectl
 
-공식](https://kubernetes.io/ko/docs/tasks/tools/install-kubectl-linux/)
+[공식](https://kubernetes.io/ko/docs/tasks/tools/install-kubectl-linux/)
 
-특정 릴리스 다운로드(1.20.11)
+특정 release 다운로드(1.20.11) (release확인은 [여기](https://kubernetes.io/releases/) 에서)
 
 ```
-$ sudo curl -LO https://dl.k8s.io/release/v1.20.11/bin/linux/amd64/kubectl
+$ sudo curl -LO https://dl.k8s.io/release/v1.23.10/bin/linux/amd64/kubectl
 ```
 
 바이너리 검증
 
 ```
-$ curl -LO "https://dl.k8s.io/v1.20.11/bin/linux/amd64/kubectl.sha256"
+$ curl -LO "https://dl.k8s.io/v1.23.10/bin/linux/amd64/kubectl.sha256"
 $ echo "$(<kubectl.sha256)  kubectl" | sha256sum --check
 ```
 
@@ -200,7 +219,6 @@ $ kubectl version --client
 >   $ bash
 >   ```
 >
->   
 
 
 
@@ -210,12 +228,12 @@ $ kubectl version --client
 
 ```
 $ minikube start --driver=none \
-  --kubernetes-version=v1.20.11 \
+  --kubernetes-version=v1.23.10 \
   --extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key \
   --extra-config=apiserver.service-account-issuer=kubernetes.default.svc
 ```
 
-- `--kubernetes-version=v1.20.11 ` : kubectl 설치 시 특정한 version
+- `--kubernetes-version ` : kubectl 설치 시 특정한 version
 - `--extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key` : kubeflow를 사용하기 위한 flag
 - `--extra-config=apiserver.service-account-issuer=kubernetes.default.svc`  : kubeflow를 사용하기 위한 flag
 
@@ -330,7 +348,7 @@ kubectl get pods -A
    spec:
      containers:
      - name: gpu-container
-       image: nvidia/cuda:11.3-runtime
+       image: nvidia/cuda:11.3.1-runtime-ubuntu20.04
        command:
          - "/bin/sh"
          - "-c"
@@ -1082,3 +1100,60 @@ $ kubectl edit service -n istio-system istio-ingressgateway
       browser에 `http://localhost:2222` 입력 시 kubeflow dashboard사용 사능
 
    
+
+
+
+
+
+## uninstall
+
+
+
+1. delete docker container
+
+   ```
+   $ docker rm -f $(docker ps -aq
+   ```
+
+2. delete docker images
+
+   ```
+   $ docker rmi $(docker images -q)
+   ```
+
+3. delete minikube
+
+   ```
+   $ minikube stop
+   $ minikube delete
+   ```
+
+   > minikube를 통해 실행되던 cluster를 삭제. minikube자체를 삭제한것이 아님.
+   >
+   > error
+   >
+   > - `env: ‘kubeadm’: No such file or directory`
+   >
+   >   이런 경우 minikube의 prifiles를 전부 삭제
+   >
+   >   ```
+   >   $ sudo rm -rf ~/.kube ~/.minikube
+   >   ```
+
+4. delete kubectl 
+
+   `kubectl`, `kubectl.sha256` 가 있는 위치에서 아래 명령어
+
+   ```
+   $ rm -rf kubectl
+   $ rm -rf kubectl.sha256
+   ```
+
+   이후 아래 명령어
+
+   ```
+   $ sudo rm /usr/local/bin/kubectl
+   ```
+
+   
+
