@@ -159,7 +159,9 @@ def connet_client(pl_cfg):
     data = {"login": pl_cfg.USERNAME, "password": pl_cfg.PASSWORD}
     session.post(response.url, headers=headers, data=data)                              
     session_cookie = session.cookies.get_dict()["authservice_session"]  
-
+    
+    print(f"session_cookie : {session_cookie}")
+    exit()
     # access kubeflow dashboard
     client = kfp.Client(
         host=f"{pl_cfg.HOST}/pipeline",
