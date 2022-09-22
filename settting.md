@@ -34,12 +34,16 @@
        lsb-release
    ```
 
+   
+
 2. GPH key추가
 
    ```
    $ sudo mkdir -p /etc/apt/keyrings
    $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
    ```
+
+   
 
 3. repository를 follow하도록 설정
 
@@ -51,16 +55,47 @@
 
    > arm기반의 cpu인 경우 위 명령어 대신 다른 명령어 사용(검색하기)
 
+   
+
 4. install Docker Engine (최신 version)
 
    ```
    $ sudo apt-get update
-   $ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+   $ sudo apt-get install docker-ce docker-ce-cli containerd.io
    ```
 
    > 특정 version의 docker engine을 install하고자 한다면 공식 문서 참고
 
-5. check
+5. Create required directories
+
+   ```
+   $ sudo mkdir -p /etc/systemd/system/docker.service.d
+   ```
+
+   
+
+6. Create daemon json config file
+
+   ```
+   $ sudo tee /etc/docker/daemon.json <<EOF
+   {
+     "exec-opts": ["native.cgroupdriver=systemd"],
+     "log-driver": "json-file",
+     "log-opts": {
+       "max-size": "100m"
+     },
+     "storage-driver": "overlay2"
+   }
+   EOF
+   ```
+
+   ```
+   $ sudo systemctl daemon-reload 
+   ```
+
+   
+
+7. check
 
    ```
    $ sudo docker run hello-world
@@ -68,7 +103,9 @@
 
    `Hello from Docker!` 이 포함된 출력문이 나오면 된것
 
-6. 권한 설정
+   
+
+8. 권한 설정
 
    root user가 아닌, host의 기본 user에게도 권한을 주기 위해 
 
@@ -76,7 +113,8 @@
 
    ```
    $ sudo usermod -a -G docker $USER
-   $ sudo service docker restart
+   $ sudo systemctl restart docker
+   $ sudo systemctl enable docker
    ```
 
    이후 logout(또는 reboot)후 다시 login
@@ -87,7 +125,88 @@
 
    
 
+#### Install Mirantis cri-dockerd
 
+[공식 문서](https://computingforgeeks.com/install-mirantis-cri-dockerd-as-docker-engine-shim-for-kubernetes/)
+
+Docker 엔진의 경우 shim 인터페이스가 필요
+
+Kubernetes용 Docker Engine shim으로 **Mirantis cri-dockerd** 설치
+
+> Kubernetes가 v1.20 이후 컨테이너 런타임으로 Docker를 더 이상 사용하지 않지만 Docker 생성 이미지는 항상 그래왔듯이 모든 런타임과 함께 Kubernetes 클러스터에서 계속 작동된다.
+>
+> **cri-dockerd**를 사용하면 Docker 엔진이 CRI를 준수할 수 있으며, 기본 제공 dockershim에서 외부 dockershim으로 전환하기만 하면 Kubernetes에서 계속 사용할 수 있다.
+
+Mirantis cri-dockerd CRI 소켓 파일 경로는 `/run/cri-dockerd.sock` (Kubernetes 클러스터를 구성할 때 사용)
+
+1. get the latest release version
+
+   ```
+   $ VER=$(curl -s https://api.github.com/repos/Mirantis/cri-dockerd/releases/latest|grep tag_name | cut -d '"' -f 4|sed 's/v//g')
+   $ echo $VER
+   ```
+
+2. download the archive file from [Github cri-dockerd releases](https://github.com/Mirantis/cri-dockerd/releases) page.
+
+   ```
+   $ wget https://github.com/Mirantis/cri-dockerd/releases/download/v${VER}/cri-dockerd-${VER}.amd64.tgz
+   tar xvf cri-dockerd-${VER}.amd64.tgz
+   ```
+
+   Move `cri-dockerd` binary package to `/usr/local/bin` directory
+
+   ```
+   $ sudo mv cri-dockerd/cri-dockerd /usr/local/bin/
+   ```
+
+3. Validate successful installation
+
+   ```
+   $ cri-dockerd --version
+   ```
+
+   ```
+   cri-dockerd 0.2.5 (10797dc)
+   ```
+
+4. Configure systemd
+
+   ```
+   $ wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
+   $ wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
+   $ sudo mv cri-docker.socket cri-docker.service /etc/systemd/system/
+   $ sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+   ```
+
+5. Start and enable the services
+
+   ```
+   $ sudo systemctl daemon-reload
+   $ sudo systemctl enable cri-docker.service
+   $ sudo systemctl enable --now cri-docker.socket
+   ```
+
+6. Confirm the service is now running
+
+   ```
+   $ systemctl status cri-docker.socket
+   ```
+
+   ```
+   ● cri-docker.socket - CRI Docker Socket for the API
+        Loaded: loaded (/etc/systemd/system/cri-docker.socket; enabled; vendor preset: enabled)
+        Active: active (listening) since Tue 2022-09-20 14:01:38 KST; 11s ago
+      Triggers: ● cri-docker.service
+        Listen: /run/cri-dockerd.sock (Stream)
+         Tasks: 0 (limit: 76823)
+        Memory: 116.0K
+        CGroup: /system.slice/cri-docker.socket
+   
+   Sep 20 14:01:38 ubuntu systemd[1]: Starting CRI Docker Socket for the API.
+   Sep 20 14:01:38 ubuntu systemd[1]: Listening on CRI Docker Socket for the API.
+   ```
+
+   
 
 #### NVIDIA DOCKER
 
@@ -102,6 +221,8 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
                sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
                sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
    ```
+
+   > `ubuntu18.04/$(ARCH)` 떠도 20.04에서 정상 작동
 
 2. install nvidia-docker2
 
@@ -123,7 +244,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    
 
-   check : 기본 CUDA container 실행
+   confirm : 기본 CUDA container 실행
 
    ```
    $ sudo docker run --rm --gpus all nvidia/cuda:11.3.1-base-ubuntu20.04 nvidia-smi
@@ -137,21 +258,29 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    $ sudo vi /etc/docker/daemon.json
    ```
 
-   아래처럼 변경
+   아래내용 추가
 
    ```
    {
-       "default-runtime": "nvidia",
-       "runtimes": {
-           "nvidia": {
-               "path": "nvidia-container-runtime",
-               "runtimeArgs": []
-           }
+     "default-runtime": "nvidia",
+     "runtimes": {
+       "nvidia": {
+         "path": "nvidia-container-runtime",
+         "runtimeArgs": []
        }
+     }
    }
    ```
 
+   ```
+   $ sudo systemctl daemon-reload 
+   ```
+
    
+
+   
+
+
 
 ### minikube
 
@@ -176,16 +305,16 @@ $ minikube version
 
 [공식](https://kubernetes.io/ko/docs/tasks/tools/install-kubectl-linux/)
 
-특정 release 다운로드(1.20.11) (release확인은 [여기](https://kubernetes.io/releases/) 에서)
+특정 release 다운로드(1.20.13) (release확인은 [여기](https://kubernetes.io/releases/) 에서)
 
 ```
-$ sudo curl -LO https://dl.k8s.io/release/v1.23.10/bin/linux/amd64/kubectl
+$ sudo curl -LO https://dl.k8s.io/release/v1.22.13/bin/linux/amd64/kubectl
 ```
 
 바이너리 검증
 
 ```
-$ curl -LO "https://dl.k8s.io/v1.23.10/bin/linux/amd64/kubectl.sha256"
+$ curl -LO "https://dl.k8s.io/v1.22.13/bin/linux/amd64/kubectl.sha256"
 $ echo "$(<kubectl.sha256)  kubectl" | sha256sum --check
 ```
 
@@ -218,6 +347,8 @@ $ kubectl version --client
 >   ```
 >   $ bash
 >   ```
+>   
+>   또는 새 터미널에서 실행
 >
 
 
@@ -226,9 +357,24 @@ $ kubectl version --client
 
 #### start minikube
 
+confirm host
+
+```
+$ sudo vim /etc/hosts
+```
+
+아래 두 개가 제대로 존재하는지 확인
+
+```
+127.0.0.1       host.minikube.internal
+192.168.0.107   control-plane.minikube.internal
+```
+
+
+
 ```
 $ minikube start --driver=none \
-  --kubernetes-version=v1.23.10 \
+  --kubernetes-version=v1.22.13 \
   --extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key \
   --extra-config=apiserver.service-account-issuer=kubernetes.default.svc
 ```
@@ -239,16 +385,24 @@ $ minikube start --driver=none \
 
 > error
 >
-> ```
-> Exiting due to HOST_JUJU_LOCK_PERMISSION: Failed to save config: failed to acquire lock for /home/ainsoft/.minikube/profiles/minikube/config.json: {Name:mk2998bbe62a1ef4b160001f97b8d3cac88d028d Clock:{} Delay:500ms Timeout:1m0s Cancel:<nil>}: unable to open /tmp/juju-mk2998bbe62a1ef4b160001f97b8d3cac88d028d: permission denied
-> ```
+> - ```
+>   Exiting due to PROVIDER_NONE_NOT_FOUND: The 'none' provider was not found: running the 'none' driver as a regular user requires sudo permissions
+>   ```
 >
-> 해결방법 
+>   sudo 붙여서 실행
 >
-> ```
-> $ sudo rm -rf /tmp/juju-mk*
-> $ sudo rm -rf /tmp/minikube.*
-> ```
+> - ```
+>   Exiting due to HOST_JUJU_LOCK_PERMISSION: Failed to save config: failed to acquire lock for /home/ainsoft/.minikube/profiles/minikube/config.json: {Name:mk2998bbe62a1ef4b160001f97b8d3cac88d028d Clock:{} Delay:500ms Timeout:1m0s Cancel:<nil>}: unable to open /tmp/juju-mk2998bbe62a1ef4b160001f97b8d3cac88d028d: permission denied
+>   ```
+>
+>   해결방법 
+>
+>   ```
+>   $ sudo rm -rf /tmp/juju-mk*
+>   $ sudo rm -rf /tmp/minikube.*
+>   ```
+>
+>   
 
 
 
@@ -366,8 +520,21 @@ kubectl get pods -A
 
    ```
    $ kubectl create -f gpu-container.yaml
+   $ kubectl get pod gpu -n default
+   ```
+   
+   ```
+   NAME   READY   STATUS              RESTARTS   AGE
+   gpu    0/1     ContainerCreating   0          90s
+   ```
+   
+   > `STATUS : Runniing` 확인 후 아래 명령어 실행
+   
+   ```
    $ kubectl logs gpu
    ```
+   
+   
    
    ```
    Thu Aug 25 00:45:45 2022       
@@ -410,12 +577,22 @@ $ kubectl version
 $ sudo wget https://github.com/kubernetes-sigs/kustomize/releases/download/v3.2.0/kustomize_3.2.0_linux_amd64
 ```
 
-> 만약`.tar.gz` format밖에 없다면 압축 풀고 진행
+> - 4.2.0 설치 시 (**아직까진  kubeflow가 3.2.0외의 version과는 호환되지 않고 있음**)
 >
-> ```
-> $ gzip -d kustomize_v3.2.0_linux_amd64.tar.gz
-> $ tar -xvf kustomize_v3.2.0_linux_amd64.tar
-> ```
+>   releases에서 4.2.0찾은 후 `kustomize_v4.2.0_linux_amd64.tar.gz` 복사 
+>
+>   ```
+>   sudo wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.2.0/kustomize_v4.2.0_linux_amd64.tar.gz
+>   ```
+>
+>   
+>
+>   압축 풀고 진행
+>
+>   ```
+>   $ gzip -d kustomize_v4.2.0_linux_amd64.tar.gz
+>   $ tar -xvf kustomize_v4.2.0_linux_amd64.tar
+>   ```
 
 file의 mode 변경 (실행 가능하도록)
 
@@ -440,6 +617,16 @@ Version: {KustomizeVersion:3.2.0 GitCommit:a3103f1e62ddb5b696daa3fd359bb6f2e8333
 ```
 
 > uninstall : `sudo rm /usr/local/bin/kustomize`
+>
+> - 4.2.0설치 시 `kustomize_3.2.0_linux_amd64` 라는 file 대신 `kustomize` 라는 file 존재
+>
+>   ```
+>   $ sudo chmod +x kustomize
+>   $ sudo mv kustomize /usr/local/bin/kustomize
+>   $ kustomize version
+>   ```
+
+
 
 
 
@@ -747,7 +934,7 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
    $ kubectl -n auth edit cm dex
    ```
 
-   >  vim deiter로 변경
+   >  vim editer로 변경
 
 3. **rollout restart**
 
@@ -839,7 +1026,7 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
 
 ```
 minikube start --driver=none \
-  --kubernetes-version=v1.19.3  \
+  --kubernetes-version=v1.23.10  \
   --extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key \
   --extra-config=apiserver.service-account-issuer=kubernetes.default.svc
 ```
@@ -1017,6 +1204,13 @@ $ kubectl edit service -n istio-system istio-ingressgateway
       $ minikube addons enable metallb
       ```
 
+      ```
+      ❗  metallb is a 3rd party addon and not maintained or verified by minikube maintainers, enable at your own risk.
+          ▪ Using image metallb/speaker:v0.9.6
+          ▪ Using image metallb/controller:v0.9.6
+      🌟  The 'metallb' addon is enabled
+      ```
+
       
 
    2. set IP range
@@ -1112,7 +1306,7 @@ $ kubectl edit service -n istio-system istio-ingressgateway
 1. delete docker container
 
    ```
-   $ docker rm -f $(docker ps -aq
+   $ docker rm -f $(docker ps -aq)
    ```
 
 2. delete docker images
