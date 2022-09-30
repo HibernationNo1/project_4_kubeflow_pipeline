@@ -3,57 +3,8 @@ import json
 import os, os.path as osp
 
 from coco_api import COCO
-from registry import build_from_cfg
-from builder import PIPELINES
+from compose import Compose
 
-
-
-class Compose:
-    def __init__(self, transforms):
-        # pre-processing을 pipleline으로 엮은것을 한 번에 build하여 list에 저장, 반환
-        
-        # processing pipeline
-        self.transforms = []
-        for transform in transforms:
-            if isinstance(transform, dict):
-                transform = build_from_cfg(transform, PIPELINES)
-                self.transforms.append(transform)
-            elif callable(transform):
-                self.transforms.append(transform)
-            else:
-                raise TypeError('transform must be callable or a dict')
-
-
-    def __call__(self, data):
-        """Call function to apply transforms sequentially.
-
-        Args:
-            data (dict): A result dict contains the data to transform.
-
-        Returns:
-        dict: Transformed data.
-        """
-        
-        for transform in self.transforms:
-            data = transform(data)
-            if data is None:
-                return None
-    
-        return data  
-    
-    def __repr__(self):
-        format_string = self.__class__.__name__ + '('
-        for t in self.transforms:
-            str_ = t.__repr__()
-            if 'Compose(' in str_:
-                str_ = str_.replace('\n', '\n    ')
-            format_string += '\n'
-            format_string += f'    {str_}'
-        format_string += '\n)'
-        return format_string
-    
-    
-            
 
 class CustomDataset(Dataset):
     """Custom dataset for detection.
@@ -121,7 +72,7 @@ class CustomDataset(Dataset):
         self.PALETTE = self.get_palette()
         self.data_infos = self.load_annotations(self.ann_file)        
                 
-        # self.pipeline = Compose(pipeline)
+        self.pipeline = Compose(pipeline)
        
 
 
