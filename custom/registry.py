@@ -1,4 +1,6 @@
 import inspect
+import warnings
+from functools import partial
 
 def build_from_cfg(cfg, registry: 'Registry') :
     """Build a module from config dict when it is a class configuration, or
@@ -79,8 +81,6 @@ class Registry:
     """
 
     def __init__(self, name):
-   
-        
         self._name = name
         self._module_dict = dict()
         
@@ -100,9 +100,6 @@ class Registry:
                      f'(name={self._name}, ' \
                      f'items={self._module_dict})'
         return format_str
-
-
-    
 
     @property
     def name(self):
@@ -130,8 +127,6 @@ class Registry:
     def build(self, *args, **kwargs):
         return self.build_func(*args, **kwargs, registry=self)
 
-
-    
     # Example:
     #     >>> INSTANCE = Registry('models')
     #     >>> @INSTANCE.register_module(name = "function name" or None, force=True or False)
@@ -152,9 +147,26 @@ class Registry:
     # >>> class ResNet:
     # >>>     pass
     # >>> backbones.register_module(ResNet)
-    def _register_module(self, module, module_name=None, force=False):
-        """_summary_
+    def register_module(self, name=None, force=False, module=None):
+        if not isinstance(force, bool):
+            raise TypeError(f'force must be a boolean, but got {type(force)}')
+        
+        # use it as a normal method: x.register_module(module=SomeClass)
+        if module is not None:
+            self._register_module(module=module, module_name=name, force=force)
+            return module
 
+        # use it as a decorator: @x.register_module()
+        def _register(module):
+            self._register_module(module=module, module_name=name, force=force)
+            return module
+        
+        return _register
+    
+
+    
+    def _register_module(self, module, module_name=None, force=False):
+        """
         Args:
             module (class): registry에 추가할 class
             module_name (str, optional): 해당 class의 별명 
@@ -167,7 +179,6 @@ class Registry:
         if not inspect.isclass(module) and not inspect.isfunction(module):
             raise TypeError('module must be a class or a function, '
                             f'but got {type(module)}')
-
         
         if module_name is None:
             module_name = module.__name__
@@ -179,4 +190,5 @@ class Registry:
                 raise KeyError(f'{name} is already registered '
                                f'in {self.name}')
             self._module_dict[name] = module
+
 
