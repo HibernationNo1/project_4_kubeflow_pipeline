@@ -2,10 +2,10 @@ import argparse
 import os, os.path as osp
 
 import time
-from config import Config, dict_to_pretty
-from dataset import CustomDataset
-from registry import build_from_cfg  
+from config import Config
 from log import get_logger, collect_env
+from builder import build_model, build_dataset
+import __init__ # 모든 module 및 function import 
 
 # python train.py --cfg configs/swin_maskrcnn.py
 
@@ -25,26 +25,16 @@ def set_config(cfg_path):
     
     return cfg
 
-def build_backbone(cfg):
-    print(dict_to_pretty(cfg))
-    # return build_from_cfg(cfg)
 
-def build_model(cfg_model):
-    assert cfg.get('backbone') is None , 'backbone specified in model field'
     
-    build_backbone(cfg_model.backbone)
-    
-    
-    # return build_from_cfg(cfg_model)
         
     
 if __name__ == "__main__":
-    
+ 
 
     args = parse_args()
     cfg = set_config(args.cfg)
     
-
     result_dir = osp.join(os.getcwd(), cfg.result) 
     os.makedirs(result_dir, exist_ok= True)
     
@@ -60,14 +50,14 @@ if __name__ == "__main__":
     env_info_dict = collect_env()
     env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
     dash_line = '-' * 60 + '\n'
-    logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
-    logger.info(f'Config:\n{cfg.pretty_text}')
+    # logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
+    # logger.info(f'Config:\n{cfg.pretty_text}')
     
     
-    datasets = CustomDataset(**cfg.data.train)
+    
+    datasets = build_dataset(cfg.data.train)
     num_classes = datasets.CLASSES
-    
-   
+
     assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
     model = build_model(cfg.model)
 
