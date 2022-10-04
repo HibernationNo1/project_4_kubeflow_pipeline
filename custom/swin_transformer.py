@@ -2,13 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 import warnings
 import math
 from copy import deepcopy
 
 from utils import to_2tuple 
-from base_module import BaseModule
+from base_module import BaseModule, ModuleList
 from builder import BACKBONES
 
 TORCH_VERSION = torch.__version__
@@ -47,15 +46,11 @@ class SwinTransformer(BaseModule):
             value. Default: True
         qk_scale (float | None, optional): Override default qk scale of
             head_dim ** -0.5 if set. Default: None.
-        patch_norm (bool): If add a norm layer for patch embed and patch
-            merging. Default: True.
         drop_rate (float): Dropout rate. Defaults: 0.
         attn_drop_rate (float): Attention dropout rate. Default: 0.
         drop_path_rate (float): Stochastic depth rate. Defaults: 0.1.
         use_abs_pos_embed (bool): If True, add absolute position embedding to
             the patch embedding. Defaults: False.
-        act_cfg (dict): Config dict for activation layer.
-            Default: dict(type='LN').
         norm_cfg (dict): Config dict for normalization layer at
             output of backone. Defaults: dict(type='LN').
         with_cp (bool, optional): Use checkpoint or not. Using checkpoint
@@ -85,12 +80,9 @@ class SwinTransformer(BaseModule):
                  out_indices=(0, 1, 2, 3),
                  qkv_bias=True,
                  qk_scale=None,
-                 patch_norm=True,
                  drop_rate=0.,
                  attn_drop_rate=0.,
                  drop_path_rate=0.1,
-                 act_cfg=dict(type='GELU'),
-                 norm_cfg=dict(type='LN'),
                  with_cp=False,
                  convert_weights=False,
                  frozen_stages=-1,
@@ -108,24 +100,19 @@ class SwinTransformer(BaseModule):
                 f'but got {len(pretrain_img_size)}'
                 
         
-        
-        print(f"init_cfg :{init_cfg}")
-        print(f"SwinTransformer : {SwinTransformer}     @@@@@@@@")
         super(SwinTransformer, self).__init__(init_cfg=init_cfg)
-        exit()
+        
+    
         num_layers = len(depths)
         self.out_indices = out_indices
 
-        assert strides[0] == patch_size, 'Use non-overlapping patch embed.'
-        
+        assert strides[0] == patch_size,  'Use non-overlapping patch embed.'
         
         self.patch_embed = PatchEmbed(
             in_channels=in_channels,
             embed_dims=embed_dims,
-            conv_type='Conv2d',
             kernel_size=patch_size,
             stride=strides[0],
-            norm_cfg=norm_cfg if patch_norm else None,
             init_cfg=None)
         
         self.drop_after_pos = nn.Dropout(p=drop_rate) 
@@ -136,7 +123,7 @@ class SwinTransformer(BaseModule):
             x.item() for x in torch.linspace(0, drop_path_rate, total_depth)
         ]     
         
-        self.stages = []
+        self.stages = ModuleList()
         
         in_channels = embed_dims
         for i in range(num_layers):
@@ -145,10 +132,10 @@ class SwinTransformer(BaseModule):
                     in_channels=in_channels,
                     out_channels=2 * in_channels,
                     stride=strides[i + 1],
-                    norm_cfg=norm_cfg if patch_norm else None,
                     init_cfg=None)
             else:
                 downsample = None  # 마지막 layer은 downsample 없이
+            
             
             stage = SwinBlockSequence(
                 embed_dims=in_channels,
@@ -162,18 +149,19 @@ class SwinTransformer(BaseModule):
                 attn_drop_rate=attn_drop_rate,
                 drop_path_rate=dpr[sum(depths[:i]):sum(depths[:i + 1])],
                 downsample=downsample,
-                act_cfg=act_cfg,
-                norm_cfg=norm_cfg,
                 with_cp=with_cp,
                 init_cfg=None)  
             self.stages.append(stage) 
+           
             if downsample:  in_channels = downsample.out_channels
         self.num_features = [int(embed_dims * 2**i) for i in range(num_layers)]
         
         for i in out_indices:
-            layer = nn.LayerNorm(self.num_features[i])[1]
+            layer = nn.LayerNorm(self.num_features[i])
             layer_name = f'norm{i}'
             self.add_module(layer_name, layer)
+        
+        
         
             
 
@@ -195,8 +183,6 @@ class SwinBlockSequence(BaseModule):
             rate. Default: 0.
         downsample (BaseModule | None, optional): The downsample operation
             module. Default: None.
-        act_cfg (dict, optional): The config dict of activation function.
-            Default: dict(type='GELU').
         norm_cfg (dict, optional): The config dict of normalization.
             Default: dict(type='LN').
         with_cp (bool, optional): Use checkpoint or not. Using checkpoint
@@ -218,8 +204,6 @@ class SwinBlockSequence(BaseModule):
                  attn_drop_rate=0.,
                  drop_path_rate=0.,
                  downsample=None,
-                 act_cfg=dict(type='GELU'),
-                 norm_cfg=dict(type='LN'),
                  with_cp=False,
                  init_cfg=None):
         super().__init__(init_cfg=init_cfg)
@@ -230,7 +214,8 @@ class SwinBlockSequence(BaseModule):
         else:
             drop_path_rates = [deepcopy(drop_path_rate) for _ in range(depth)]
         
-        self.blocks = []
+        self.blocks = ModuleList()  # 그냥 list()를 사용하면 SwinBlockSequence의 instance변수는 self.blocks를 반환하지 않는다.
+        
         
         for i in range(depth):
             block = SwinBlock(
@@ -244,12 +229,11 @@ class SwinBlockSequence(BaseModule):
                 drop_rate=drop_rate,
                 attn_drop_rate=attn_drop_rate,
                 drop_path_rate=drop_path_rates[i],
-                act_cfg=act_cfg,
-                norm_cfg=norm_cfg,
                 with_cp=with_cp,
                 init_cfg=None)
             self.blocks.append(block)
             
+        
         self.downsample = downsample
         
 
@@ -267,8 +251,6 @@ class SwinBlock(BaseModule):
         drop_rate (float, optional): Dropout rate. Default: 0.
         attn_drop_rate (float, optional): Attention dropout rate. Default: 0.
         drop_path_rate (float, optional): Stochastic depth rate. Default: 0.
-        act_cfg (dict, optional): The config dict of activation function.
-            Default: dict(type='GELU').
         norm_cfg (dict, optional): The config dict of normalization.
             Default: dict(type='LN').
         with_cp (bool, optional): Use checkpoint or not. Using checkpoint
@@ -289,8 +271,6 @@ class SwinBlock(BaseModule):
                  drop_rate=0.,
                  attn_drop_rate=0.,
                  drop_path_rate=0.,
-                 act_cfg=dict(type='GELU'),
-                 norm_cfg=dict(type='LN'),
                  with_cp=False,
                  init_cfg=None):
 
@@ -310,8 +290,9 @@ class SwinBlock(BaseModule):
             qk_scale=qk_scale,
             attn_drop_rate=attn_drop_rate,
             proj_drop_rate=drop_rate,
-            dropout_layer=dict(type='DropPath', drop_prob=drop_path_rate),
+            drop_prob = drop_path_rate,
             init_cfg=None)
+
         
         self.norm2 = nn.LayerNorm(embed_dims, eps = 1e-05)
         self.ffn = FFN(
@@ -319,10 +300,10 @@ class SwinBlock(BaseModule):
             feedforward_channels=feedforward_channels,
             num_fcs=2,
             ffn_drop=drop_rate,
-            drop_path_rate = drop_path_rate,
-            act_cfg=act_cfg,
+            drop_path_rate = drop_path_rate,  
             add_identity=True,
             init_cfg=None)
+        
 
 
 
@@ -337,8 +318,6 @@ class FFN(BaseModule):
             Defaults: 1024.
         num_fcs (int, optional): The number of fully-connected layers in
             FFNs. Default: 2.
-        act_cfg (dict, optional): The activation config for FFNs.
-            Default: dict(type='ReLU')
         ffn_drop (float, optional): Probability of an element to be
             zeroed in FFN. Default 0.0.
         add_identity (bool, optional): Whether to add the
@@ -354,12 +333,10 @@ class FFN(BaseModule):
                  embed_dims=256,
                  feedforward_channels=1024,
                  num_fcs=2,
-                 act_cfg=dict(type='ReLU', inplace=True),
                  ffn_drop=0.,
                  drop_path_rate=0.0,
                  add_identity=True,
-                 init_cfg=None,
-                 **kwargs):
+                 init_cfg=None):
         super().__init__(init_cfg)
 
         assert num_fcs >= 2, 'num_fcs should be no less ' \
@@ -367,8 +344,7 @@ class FFN(BaseModule):
         self.embed_dims = embed_dims
         self.feedforward_channels = feedforward_channels
         self.num_fcs = num_fcs
-        self.act_cfg = act_cfg
-        self.activate = nn.GELU()
+        self.activate = nn.GELU()       # or nn.ReLU(inplace=True)
         
         
         
@@ -617,7 +593,6 @@ class PatchMerging(BaseModule):
                  padding='corner',
                  dilation=1,
                  bias=False,
-                 norm_cfg=dict(type='LN'),
                  init_cfg=None):
         super().__init__(init_cfg=init_cfg)
         self.in_channels = in_channels
