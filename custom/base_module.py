@@ -3,20 +3,24 @@ from abc import ABCMeta
 from re import M
 from typing import Optional, List, Union, Dict
 from collections import defaultdict
-import torch.nn as nn
+from typing import Iterable
+import warnings
 import numpy as np
 from logging import FileHandler
 import torch.nn as nn
-import warnings
+
 
 from utils import get_logger
+        
+        
 
 class BaseModule(nn.Module, metaclass=ABCMeta):
     """Base module for all modules in openmmlab.
-
+        각 layer에 대해 parameter initialization를 수행
+        
     ``BaseModule`` is a wrapper of ``torch.nn.Module`` with additional
-    functionality of parameter initialization. Compared with
-    ``torch.nn.Module``, ``BaseModule`` mainly adds three attributes.
+    functionality of parameter initialization. 
+    Compared with ``torch.nn.Module``, ``BaseModule`` mainly adds three attributes.
 
     - ``init_cfg``: the config to control the initialization.
     - ``init_weights``: The function of parameter initialization and recording
@@ -542,4 +546,19 @@ class XavierInit(BaseInit):
                f'distribution={self.distribution}, bias={self.bias}'
         return info
     
-    
+
+class ModuleList(BaseModule, nn.ModuleList):
+    """ ModuleList in openmmlab.
+        layer를 class내에서 정의 후 list()로 감싸면 해당 class의 instance는 layer를 반환하지 않는다.
+        하지만 ModuleList를 통해 layer를 감싸면 해당 class의 instance는 layer를 반환하게 되며 
+        instance별로 layer list를 관리할 수 있다.
+    Args:
+        modules (iterable, optional): an iterable of modules to add.
+        init_cfg (dict, optional): Initialization config dict.
+    """
+
+    def __init__(self,
+                 modules: Optional[Iterable] = None,
+                 init_cfg: Optional[dict] = None):
+        BaseModule.__init__(self, init_cfg)
+        nn.ModuleList.__init__(self, modules)
