@@ -1,6 +1,5 @@
 import inspect
-import warnings
-from functools import partial
+
 
 def build_from_cfg(cfg, registry: 'Registry') :
     """Build a module from config dict when it is a class configuration, or
@@ -31,6 +30,7 @@ def build_from_cfg(cfg, registry: 'Registry') :
             f'type must be a str type, but got {type(obj_type)}')
         
     obj_cls = registry.get(obj_type)
+    print(f"obj_cls : {obj_cls}")
     if obj_cls is None:
         raise KeyError(
             f'{obj_type} is not in the {registry.name} registry')
@@ -41,7 +41,6 @@ def build_from_cfg(cfg, registry: 'Registry') :
         # Normal TypeError does not print class name.
         
         raise type(e)(f'{obj_cls.__name__}: {e}')
-    
     
     
 class Registry:
