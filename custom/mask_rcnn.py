@@ -2,7 +2,7 @@
 from builder import build_backbone, MODELS
 from base_module import BaseModule, ModuleList
 
-from torch.nn import nn
+import torch.nn as nn
 
 class ConvModule(nn.Module):
     """A conv block that bundles conv/norm/activation layers.
@@ -84,7 +84,11 @@ class ConvModule(nn.Module):
         self.act_cfg = act_cfg
         self.inplace = inplace
         self.with_spectral_norm = with_spectral_norm
+        print(f"padding_mode ; {padding_mode}")
+        
         self.with_explicit_padding = padding_mode not in official_padding_mode
+        print(f"self.with_explicit_padding : {self.with_explicit_padding}")
+        exit()
         self.order = order
         assert isinstance(self.order, tuple) and len(self.order) == 3
         assert set(order) == {'conv', 'norm', 'act'}
@@ -96,6 +100,8 @@ class ConvModule(nn.Module):
             bias = not self.with_norm
         self.with_bias = bias
 
+        print(f"self.with_explicit_padding : {self.with_explicit_padding}")
+        exit()
         if self.with_explicit_padding:
             pad_cfg = dict(type=padding_mode)
             self.padding_layer = build_padding_layer(pad_cfg, padding)
