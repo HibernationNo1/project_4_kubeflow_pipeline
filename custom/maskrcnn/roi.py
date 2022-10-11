@@ -5,8 +5,9 @@ from torch.nn.modules.utils import _pair
 from base_module import BaseModule, ModuleList
 from coder import DeltaXYWHBBoxCoder
 from loss import CrossEntropyLoss, L1Loss
+from assigner import MaxIoUAssigner
 from maskrcnn.rpn import ConvModule
-
+from utils.sampler import RandomSampler
 
 if torch.__version__ == 'parrots':
     TORCH_VERSION = torch.__version__
@@ -28,29 +29,39 @@ class RoIHead(BaseModule):
                  mask_head=None,        # FCNMaskHead
                  train_cfg=None,
                  test_cfg=None,
-                 pretrained=None,
                  init_cfg=None):
         super(RoIHead, self).__init__(init_cfg)
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         
-        if bbox_head is not None:
-            self.init_bbox_head(bbox_roi_extractor, bbox_head)
-        
-        
-        if mask_head is not None:
-            self.init_mask_head(mask_roi_extractor, mask_head)
-            
+        if bbox_head is not None: self.init_bbox_head(bbox_roi_extractor, bbox_head)        
+        if mask_head is not None:  self.init_mask_head(mask_roi_extractor, mask_head)
         self.init_assigner_sampler()
-        
+    
+    @property
+    def with_bbox(self):
+        """bool: whether the RoI head contains a `bbox_head`"""
+        return hasattr(self, 'bbox_head') and self.bbox_head is not None
+
+    @property
+    def with_mask(self):
+        """bool: whether the RoI head contains a `mask_head`"""
+        return hasattr(self, 'mask_head') and self.mask_head is not None
+
+    @property
+    def with_shared_head(self):
+        """bool: whether the RoI head contains a `shared_head`"""
+        return hasattr(self, 'shared_head') and self.shared_head is not None
+    
+       
     def init_assigner_sampler(self):
         """Initialize assigner and sampler."""
         self.bbox_assigner = None
         self.bbox_sampler = None
         if self.train_cfg:
-            self.bbox_assigner = build_assigner(self.train_cfg.assigner)        # 여기서부터
-            self.bbox_sampler = build_sampler(
-                self.train_cfg.sampler, context=self)
+            
+            self.bbox_assigner = MaxIoUAssigner(**self.train_cfg.assigner)        # 여기서부터
+            self.bbox_sampler = RandomSampler(**self.train_cfg.sampler)
             
     
     def init_bbox_head(self, bbox_roi_extractor, bbox_head):
@@ -69,6 +80,8 @@ class RoIHead(BaseModule):
             self.mask_roi_extractor = self.bbox_roi_extractor
    
         self.mask_head = FCNMaskHead(**mask_head)
+        
+    # TODO
 
 
 class FCNMaskHead(BaseModule):
@@ -300,8 +313,7 @@ class Shared2FCBBoxHead(BaseModule):
             self.fc_reg = nn.Linear( in_features=in_channels, out_features=out_dim_reg)
         
         self.debug_imgs = None
-        if init_cfg is None:
-            
+        if init_cfg is None:    # model initialize시 사용할 임의의 config
             self.init_cfg = []
             if self.with_cls:
                 self.init_cfg += [
