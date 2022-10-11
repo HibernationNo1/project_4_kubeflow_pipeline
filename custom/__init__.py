@@ -2,5 +2,5 @@
 import builder
 import compose
 import swin_transformer
-import registry
-import mask_rcnn
+import utils.registry as registry
+from maskrcnn import maskrcnn

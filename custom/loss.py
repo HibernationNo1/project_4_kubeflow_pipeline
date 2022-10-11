@@ -323,7 +323,8 @@ class CrossEntropyLoss(nn.Module):
         self.loss_weight = loss_weight
         self.class_weight = class_weight
         self.ignore_index = ignore_index
-
+        self.avg_non_ignore = avg_non_ignore
+        
         if self.use_sigmoid:
             self.cls_criterion = binary_cross_entropy
         elif self.use_mask:

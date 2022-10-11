@@ -1,6 +1,6 @@
 import numpy as np
 
-from registry import Registry, build_from_cfg
+from utils.registry import Registry, build_from_cfg
 
 PIPELINES = Registry('pipeline')
 
