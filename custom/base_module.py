@@ -9,7 +9,7 @@ import numpy as np
 from logging import FileHandler
 import torch.nn as nn
 
-from utils import get_logger
+from utils.log import create_logger, get_logger
         
         
 
@@ -35,7 +35,6 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
     def __init__(self, init_cfg: Optional[dict] = None):
         """Initialize BaseModule, inherited from `torch.nn.Module`"""
         super().__init__()
-
         self._is_init = False
         self.init_cfg = copy.deepcopy(init_cfg)
 
@@ -69,28 +68,26 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
             # so it will be updated when parameters are modified at any level of the model.
             for sub_module in self.modules():
                 sub_module._params_init_info = self._params_init_info
-     
-        # logger를 가져온다. 
-        # TODO : initialized logger를 따로 선언하기
-        logger = get_logger()
+
+        logger = create_logger(log_name = "initialization")
 
         module_name = self.__class__.__name__
         if not self._is_init:
-            if self.init_cfg:
+            if self.init_cfg:   # initializatiom대상 layer들만 init   
                 logger.info(f'initialize {module_name} with init_cfg {self.init_cfg}')
                 
                 # 실질적으로 initialization을 수행하는 function
                 initialize(self, self.init_cfg)
- 
-                # prevent the parameters of the pre-trained model from being overwritten by the `init_weights`
-                if self.init_cfg['type'] == 'Pretrained':
-                    return
+
+                if isinstance(self.init_cfg, dict):
+                    # prevent the parameters of the pre-trained model from being overwritten by the `init_weights`
+                    if self.init_cfg['type'] == 'Pretrained':
+                        return
 
             for module in self.children():
-                
                 # update init infomation
                 if hasattr(module, 'init_weights'):
-                    module.init_weights()
+                    module.init_weights()       # module별로 init_weights 수행 
                     # users may overload the `init_weights`
                     assert hasattr(module,'_params_init_info'), f'Can not find `_params_init_info` in {module}'
                     
@@ -114,8 +111,6 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
                         if module._params_init_info[param]['tmp_mean_value'] != mean_value:
                             module._params_init_info[param]['init_info'] = init_info
                             module._params_init_info[param]['tmp_mean_value'] = mean_value
-                    
-
             self._is_init = True
         else:
             warnings.warn(f'init_weights of {self.__class__.__name__} has '
@@ -133,13 +128,13 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
         `initialization.log.json` in workdir.
         """
 
-        logger = get_logger()
+        logger = get_logger(name = "initialization")
 
         with_file_handler = False
         # dump the information to the logger file if there is a `FileHandler`
         for handler in logger.handlers:
             if isinstance(handler, FileHandler):
-                handler.stream.write(
+                handler.stream.write(f"{'-'*60}\n"\
                     'Name of parameter - Initialization information\n')
                 for name, param in self.named_parameters():
                     handler.stream.write(
@@ -201,11 +196,14 @@ def _initialize(module: nn.Module, cfg: Dict, wholemodule: bool = False):
     # TODO : initialization algorithm을 추가해서 type의 개수가 늘어나면 registry로 관리
     # TODO : cfg.type == Pretrained  도 추가하기
     from initialization import NormalInit, XavierInit
-    if cfg.type =='Normal':
-        func = NormalInit(cfg.distribution)
-    elif cfg.type =='Xavier':
-        func = XavierInit(cfg.distribution)
-        
+    
+    cp_cfg = copy.deepcopy(cfg)
+    init_type = cp_cfg.pop('type')
+    if init_type =='Normal':
+        func = NormalInit(**cp_cfg)
+    elif init_type =='Xavier':
+        func = XavierInit(**cp_cfg)
+    
     
     # wholemodule : override(재정의) 할 때 사용
     func.wholemodule = wholemodule
@@ -236,7 +234,6 @@ def _initialize_override(module: nn.Module, override: Union[Dict, List],
         elif 'type' not in cp_override.keys():
             raise ValueError(
                 f'`override` need "type" key, but got {cp_override}')
-
         if hasattr(module, name):
             _initialize(getattr(module, name), cp_override, wholemodule=True)
         else:
