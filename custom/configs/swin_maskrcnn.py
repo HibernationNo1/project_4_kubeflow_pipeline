@@ -28,7 +28,8 @@ model = dict(
         drop_path_rate=0.2,
         out_indices=(0, 1, 2, 3),
         with_cp=False,
-        convert_weights=True,
+        convert_weights=True,       # weight initialization할 때 각 layer앞에 backbone이름을 붙이는 flag // False이여도 상관없음
+                                    # if True : patch_embed.projection.weight >> backbone.patch_embed.projection.weight
         init_cfg=dict(type='Pretrained', checkpoint=pretrained)),       # fine tuning
     neck=dict(in_channels=[96, 192, 384, 768]))
 
