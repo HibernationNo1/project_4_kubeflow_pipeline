@@ -6,10 +6,12 @@ import subprocess
 import cv2
 import os.path as osp
 import torch
-
+import time
+import os
 
 logger_initialized: dict = {}       # 어디서든 호출할 수 있도록 global선언
 log_recorder: dict = {}         
+log_info: dict = {}
 # Example
 # >>> from log import log_recorder
 # >>>    logger = log_recorder[f'{log_name}']
@@ -17,6 +19,26 @@ log_recorder: dict = {}
 
 TORCH_VERSION = torch.__version__
 
+def set_logger_info(path, log_level):
+    timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+    log_info['timestamp'] = timestamp
+    
+    result_dir = osp.join(path, timestamp)
+    log_info['result_dir'] = result_dir
+    
+    log_info['log_level'] = log_level
+    os.makedirs(result_dir, exist_ok= True)
+
+def create_logger(log_name = None):
+    if log_name is None: 
+        return get_logger()
+    elif log_name in list(logger_initialized.keys()):
+        return get_logger(name=log_name)
+    log_file = os.path.join(log_info['result_dir'], f'{log_name}.log')
+    get_logger(name=log_name, log_file=log_file, log_level=log_info['log_level'])        
+    logger = log_recorder[log_name]
+    return logger
+    
 
 def is_rocm_pytorch():
     is_rocm = False
@@ -136,7 +158,7 @@ def get_logger(name, log_file=None, log_level=logging.INFO, file_mode='w'):
         logging.Logger: The expected logger.
     """
     logger = logging.getLogger(name)
-    if name in logger_initialized:
+    if name in logger_initialized:       
         return logger
     # handle hierarchical names
     # e.g., logger "a" is initialized, then logger "a.b" will skip the
@@ -180,6 +202,17 @@ def get_logger(name, log_file=None, log_level=logging.INFO, file_mode='w'):
     logger_initialized[name] = True
 
     log_recorder[name] = logger
+    
+# simplefy
+# def get_logger(name = None):
+#     if name is None:    # get logger at index 0
+#         logger_names = list(logger_initialized.keys())
+#         logger_name = logger_names[0] if logger_names else "default"
+#     else:
+#         logger_name = name
+    
+#     logger = log_recorder[logger_name]
+#     return logger
     
 
 
