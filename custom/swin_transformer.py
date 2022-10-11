@@ -2,16 +2,72 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import warnings
+
 import math
 from copy import deepcopy
 
-from utils import to_2tuple 
+from utils.utils import to_2tuple
+from utils.log import get_logger
+from utils.checkpoint import CheckpointLoader   
 from base_module import BaseModule, ModuleList
 from builder import BACKBONES
+from initialization import trunc_normal_init, constant_init
 
 TORCH_VERSION = torch.__version__
 
+def swin_converter(ckpt):
+    
+    new_ckpt = dict()
+
+    def correct_unfold_reduction_order(x):
+        out_channel, in_channel = x.shape
+        x = x.reshape(out_channel, 4, in_channel // 4)
+        x = x[:, [0, 2, 1, 3], :].transpose(1,
+                                            2).reshape(out_channel, in_channel)
+        return x
+
+    def correct_unfold_norm_order(x):
+        in_channel = x.shape[0]
+        x = x.reshape(4, in_channel // 4)
+        x = x[[0, 2, 1, 3], :].transpose(0, 1).reshape(in_channel)
+        return x
+
+    for k, v in ckpt.items():
+        if k.startswith('head'):
+            continue
+        elif k.startswith('layers'):
+            new_v = v
+            if 'attn.' in k:
+                new_k = k.replace('attn.', 'attn.w_msa.')
+            elif 'mlp.' in k:
+                if 'mlp.fc1.' in k:
+                    new_k = k.replace('mlp.fc1.', 'ffn.layers.0.0.')
+                elif 'mlp.fc2.' in k:
+                    new_k = k.replace('mlp.fc2.', 'ffn.layers.1.')
+                else:
+                    new_k = k.replace('mlp.', 'ffn.')
+            elif 'downsample' in k:
+                new_k = k
+                if 'reduction.' in k:
+                    new_v = correct_unfold_reduction_order(v)
+                elif 'norm.' in k:
+                    new_v = correct_unfold_norm_order(v)
+            else:
+                new_k = k
+            new_k = new_k.replace('layers', 'stages', 1)
+        elif k.startswith('patch_embed'):
+            new_v = v
+            if 'proj' in k:
+                new_k = k.replace('proj', 'projection')
+            else:
+                new_k = k
+        else:
+            new_v = v
+            new_k = k
+
+        new_ckpt['backbone.' + new_k] = new_v
+
+    return new_ckpt
 
 @BACKBONES.register_module()
 class SwinTransformer(BaseModule):
@@ -66,7 +122,7 @@ class SwinTransformer(BaseModule):
         init_cfg (dict, optional): The Config for initialization.
             Defaults to None.
     """
-
+    # absolute position embedding 사용 안함(delete)
     def __init__(self,
                  pretrain_img_size=224,
                  in_channels=3,
@@ -162,7 +218,64 @@ class SwinTransformer(BaseModule):
             self.add_module(layer_name, layer)
         
         
-        
+    def init_weights(self):
+        logger = get_logger(name = "initialization")
+       
+        if self.init_cfg is None:
+            logger.warn(f'No pre-trained weights for {self.__class__.__name__}, training start from scratch')
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    trunc_normal_init(m, std=.02, bias=0.)
+                elif isinstance(m, nn.LayerNorm):
+                    constant_init(m, 1.0)
+        else:
+            assert 'checkpoint' in self.init_cfg, f'Only support ' \
+                                                  f'specify `Pretrained` in ' \
+                                                  f'`init_cfg` in ' \
+                                                  f'{self.__class__.__name__} '
+            # ckpt(dict): pre trained model의 각 layer에 대한 weight and bias 
+            ckpt = CheckpointLoader.load_checkpoint(filename = self.init_cfg.checkpoint, map_location='cpu', logger=logger)                                                  
+            _state_dict = ckpt['model'] 
+            if self.convert_weights:        # _state_dict는 각 layer에 backbone이 명시됨
+                # supported loading weight from original repo,
+                _state_dict = swin_converter(_state_dict) 
+            
+            state_dict = dict()
+            for k, v in _state_dict.items():
+                if k.startswith('backbone.'):
+                    # layer에 backbone이 명시된 경우 'backborn'단어만 이름에서 delete
+                    state_dict[k[9:]] = v
+
+            # strip prefix of state_dict
+            if list(state_dict.keys())[0].startswith('module.'):
+                # layer에 'module'이 명시된 경우 'module'단어만 이름에서 delete
+                state_dict = {k[7:]: v for k, v in state_dict.items()}
+
+            # interpolate position bias table if needed
+            relative_position_bias_table_keys = [
+                k for k in state_dict.keys()
+                if 'relative_position_bias_table' in k
+            ]
+            for table_key in relative_position_bias_table_keys:
+                table_pretrained = state_dict[table_key]
+                table_current = self.state_dict()[table_key]
+                L1, nH1 = table_pretrained.size()
+                L2, nH2 = table_current.size()
+                if nH1 != nH2:  
+                    logger.warning(f'Error in loading {table_key}, pass')
+                elif L1 != L2:  
+                    # resizing
+                    S1 = int(L1**0.5)
+                    S2 = int(L2**0.5)
+                    table_pretrained_resized = F.interpolate(
+                        table_pretrained.permute(1, 0).reshape(1, nH1, S1, S1),
+                        size=(S2, S2),
+                        mode='bicubic')
+                    state_dict[table_key] = table_pretrained_resized.view(
+                        nH2, L2).permute(1, 0).contiguous()
+                
+            # load state_dict (nn.module)
+            self.load_state_dict(state_dict, False)
             
 
 class SwinBlockSequence(BaseModule):
