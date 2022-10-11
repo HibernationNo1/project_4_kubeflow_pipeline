@@ -1,10 +1,10 @@
 import argparse
 import os, os.path as osp
+import numpy as np
 
-import time
-from config import Config
-from log import get_logger, collect_env
-from builder import build_model, build_dataset
+from utils.config import Config
+from utils.log import set_logger_info, create_logger, collect_env
+from builder import build_model, build_dataset, build_dataloader, build_dp
 import __init__ # 모든 module 및 function import 
 
 # python train.py --cfg configs/swin_maskrcnn.py
@@ -23,6 +23,7 @@ def set_config(cfg_path):
     config_file_path = osp.join(os.getcwd(), cfg_path)
     cfg = Config.fromfile(config_file_path)
     
+    cfg.seed = np.random.randint(2**31)
     return cfg
 
 
@@ -35,16 +36,8 @@ if __name__ == "__main__":
     args = parse_args()
     cfg = set_config(args.cfg)
     
-    result_dir = osp.join(os.getcwd(), cfg.result) 
-    os.makedirs(result_dir, exist_ok= True)
-    
-    
-    timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
-    log_file = os.path.join(result_dir, f'{timestamp}.log')
-    log_name = 'project_pipeline'
-    get_logger(name=log_name, log_file=log_file, log_level=cfg.log_level)        
-    from log import log_recorder
-    logger = log_recorder[log_name]
+    set_logger_info(osp.join(os.getcwd(), cfg.result), cfg.log_level)
+    logger = create_logger('enviroments')
     
     # log env info      
     env_info_dict = collect_env()
@@ -54,11 +47,31 @@ if __name__ == "__main__":
     # logger.info(f'Config:\n{cfg.pretty_text}')
     
     
+    dataset = build_dataset(cfg.data.train)
+    cfg.model.roi_head.bbox_head.num_classes = len(dataset.CLASSES) # TODO: MaskRCNN이 아닌 경우도 상정하기
+    cfg.model.roi_head.mask_head.num_classes = len(dataset.CLASSES)    
     
-    datasets = build_dataset(cfg.data.train)
-    num_classes = datasets.CLASSES
 
     assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
     model = build_model(cfg.model)
+    
+    if cfg.pretrained is not None:
+        model.init_weights()
+    
+    if cfg.checkpoint_config is not None:   pass # TODO 
+    
+    logger = create_logger('train')
 
+    train_loader_cfg = dict(
+        batch_size=cfg.data.samples_per_gpu,
+        num_workers=cfg.data.workers_per_gpu,
+        num_gpus = 1,
+        dist = False,
+        seed = cfg.seed,
+        runner_type = cfg.runner['type'],    # TODO 무조건 EpochBasedRunner를 사용할 예정
+        persistent_workers=False,
+        shuffle = True)
 
+    data_loaders = build_dataloader(dataset, **train_loader_cfg)     # 이게 run안에서 어떻게 동작하는지 보자
+
+    model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids) # 여기까지
