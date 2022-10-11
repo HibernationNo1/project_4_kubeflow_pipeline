@@ -1,4 +1,3 @@
-from abc import ABCMeta
 import numpy as np
 
 import torch
@@ -11,36 +10,10 @@ from loss import CrossEntropyLoss, L1Loss
 from assigner import MaxIoUAssigner
 from initialization import constant_init
 from maskrcnn.fpn import ConvModule
+from utils.sampler import RandomSampler
 
 
 
-
-
-
-class RandomSampler(metaclass=ABCMeta):
-    """Random sampler.
-
-    Args:
-        num (int): Number of samples
-        pos_fraction (float): Fraction of positive samples
-        neg_pos_up (int, optional): Upper bound number of negative and
-            positive samples. Defaults to -1.
-        add_gt_as_proposals (bool, optional): Whether to add ground truth
-            boxes as proposals. Defaults to True.
-    """
-    def __init__(self,
-                 num,
-                 pos_fraction,
-                 neg_pos_ub=-1,
-                 add_gt_as_proposals=True):
-        self.num = num
-        self.pos_fraction = pos_fraction
-        self.neg_pos_ub = neg_pos_ub
-        self.add_gt_as_proposals = add_gt_as_proposals
-        self.pos_sampler = self
-        self.neg_sampler = self
-        self.rng = np.random.mtrand._rand
-    # TODO
 
 class AnchorGenerator:
     """Standard anchor generator for 2D anchor-based detectors.
@@ -217,7 +190,7 @@ class AnchorGenerator:
     # TODO
     
         
-class RPNHead(BaseModule, ):
+class RPNHead(BaseModule):
     def __init__(self,
                  in_channels,
                  init_cfg=dict(type='Normal', layer='Conv2d', std=0.01),
