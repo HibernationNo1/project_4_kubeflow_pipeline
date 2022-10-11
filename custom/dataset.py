@@ -1,7 +1,8 @@
 from torch.utils.data import Dataset
 import json
 import os, os.path as osp
-
+import numpy as np
+from terminaltables import AsciiTable
 from coco_api import COCO
 from compose import Compose
 
@@ -59,7 +60,8 @@ class CustomDataset(Dataset):
         self.data_root = data_root if osp.isabs(data_root) else  osp.join(os.getcwd(), data_root) 
         self.ann_file = ann_file if osp.isabs(ann_file) else  osp.join(self.data_root, ann_file)
         self.img_prefix = img_prefix if osp.isabs(img_prefix) else  osp.join(self.data_root, img_prefix)        
-            
+        self.filter_empty_gt = filter_empty_gt
+        
         assert osp.isfile(self.ann_file), f"The file: {self.ann_file} dose not exist."
         assert osp.isdir(self.data_root), f"The directory: {self.data_root} dose not exist."
         assert osp.isdir(self.img_prefix), f"The directory: {self.img_prefix} dose not exist."
@@ -75,7 +77,17 @@ class CustomDataset(Dataset):
                 
         self.pipeline = Compose(pipeline)
        
-
+        
+        valid_inds = self._filter_imgs()    # isntance가 0개인 image는 버린다.
+        self.data_infos = [self.data_infos[i] for i in valid_inds]
+        
+        # set group flag for the sampler
+        self._set_group_flag()  
+       
+       
+    def __len__(self):
+        """Total number of samples of data."""
+        return len(self.data_infos)
 
     def get_palette(self):
         if self.CLASSES is not None:
@@ -152,85 +164,147 @@ class CustomDataset(Dataset):
         
         return data_infos
     
+    # print dataset to table
+    # example
+    # >>>  ustomDataset train dataset with number of images 1896, and instance counts:
+    # >>>  +------------+-------+---------------+-------+-----------+-------+-----------+-------+-----------+-------+
+    # >>>  | category   | count | category      | count | category  | count | category  | count | category  | count |
+    # >>>  +------------+-------+---------------+-------+-----------+-------+-----------+-------+-----------+-------+
+    # >>>  | 0 [obj_0]  | n_0   | 1 [obj_1]     | n_1   | 2 [obj_2] | n_2   | 3 [obj_3] | n_3   | 4 [obj_4] | n_4   |
+    # >>>  |            |       |               |       |           |       |           |       |           |       |
+    # >>>  | 5 [obj_5]  | n_5   |               |       |           |       |           |       |           |       |
+    # >>>  +------------+-------+---------------+-------+-----------+-------+-----------+-------+-----------+-------+
+    def __repr__(self):
+        """Print the number of instance number."""
+        # return dataset to (build_from_cfg) of (build_dataset) in dataset>builder.py
+   
+        result = (f'\n{self.__class__.__name__} train dataset '
+                  f'with number of images {len(self)}, '
+                  f'and instance counts: \n')
+        
+        if self.CLASSES is None:
+            result += 'Category names are not provided. \n'
+            return result
+        
+        instance_count = np.zeros(len(self.CLASSES) + 1).astype(int)
+    
+        # count the instance number in each image
+        for idx in range(len(self)):
+            label = self.get_ann_info(idx)['labels']  
+            unique, counts = np.unique(label, return_counts=True)  
+            if len(unique) > 0:
+                # add the occurrence number to each class
+                instance_count[unique] += counts
+            else:
+                if len(label) == 0: continue
+                # background is the last index
+                instance_count[-1] += 1   
+                
+        # create a table with category count
+        table_data = [['category', 'count'] * 5]
+        row_data = []
+
+        for cls, count in enumerate(instance_count):
+            if cls < len(self.CLASSES):
+                row_data += [f'{cls} [{self.CLASSES[cls]}]', f'{count}']
+            else:
+                # add the background number
+                row_data += ['-1 background', f'{count}']  
+            if len(row_data) == 10:
+                table_data.append(row_data)
+                row_data = []
+        if len(row_data) >= 2:
+            if row_data[-1] == '0':
+                row_data = row_data[:-2]
+            if len(row_data) >= 2:
+                table_data.append([])
+                table_data.append(row_data)
+
+    
+        table = AsciiTable(table_data)
+        result += table.table        
+        return result
+
+    
 
     # def load_proposals(self, proposal_file):
     #     """Load proposal from proposal file."""
     #     return mmcv.load(proposal_file)
 
-    # def get_ann_info(self, idx):
-    #     """Get COCO annotation by index.
+    def get_ann_info(self, idx):
+        """Get COCO annotation by index.
 
-    #     Args:
-    #         idx (int): Index of data.
+        Args:
+            idx (int): Index of data.
 
-    #     Returns:
-    #         dict: Annotation info of specified index.
-    #     """
+        Returns:
+            dict: Annotation info of specified index.
+        """
 
-    #     img_id = self.data_infos[idx]['id']
-    #     ann_ids = self.coco.get_ann_ids(img_ids=[img_id])
-    #     ann_info = self.coco.load_anns(ann_ids)
-    #     return self._parse_ann_info(self.data_infos[idx], ann_info)
+        img_id = self.data_infos[idx]['id']
+        ann_ids = self.coco.get_ann_ids(img_ids=[img_id])
+        ann_info = self.coco.load_anns(ann_ids)
+        return self._parse_ann_info(self.data_infos[idx], ann_info)
 
 
-    # def _parse_ann_info(self, img_info, ann_info):
-    #     """Parse bbox and mask annotation.
+    def _parse_ann_info(self, img_info, ann_info):
+        """Parse bbox and mask annotation.
 
-    #     Args:
-    #         ann_info (list[dict]): Annotation info of an image.
-    #         with_mask (bool): Whether to parse mask annotations.
+        Args:
+            ann_info (list[dict]): Annotation info of an image.
+            with_mask (bool): Whether to parse mask annotations.
 
-    #     Returns:
-    #         dict: A dict containing the following keys: bboxes, bboxes_ignore,\
-    #             labels, masks, seg_map. "masks" are raw annotations and not \
-    #             decoded into binary masks.
-    #     """
-    #     gt_bboxes = []
-    #     gt_labels = []
-    #     gt_bboxes_ignore = []
-    #     gt_masks_ann = []
-    #     for i, ann in enumerate(ann_info):
-    #         if ann.get('ignore', False):
-    #             continue
-    #         x1, y1, w, h = ann['bbox']
-    #         inter_w = max(0, min(x1 + w, img_info['width']) - max(x1, 0))
-    #         inter_h = max(0, min(y1 + h, img_info['height']) - max(y1, 0))
-    #         if inter_w * inter_h == 0:
-    #             continue
-    #         if ann['area'] <= 0 or w < 1 or h < 1:
-    #             continue
-    #         if ann['category_id'] not in self.cat_ids:
-    #             continue
-    #         bbox = [x1, y1, x1 + w, y1 + h]
-    #         if ann.get('iscrowd', False):
-    #             gt_bboxes_ignore.append(bbox)
-    #         else:
-    #             gt_bboxes.append(bbox)
-    #             gt_labels.append(self.cat2label[ann['category_id']])
-    #             gt_masks_ann.append(ann.get('segmentation', None))
+        Returns:
+            dict: A dict containing the following keys: bboxes, bboxes_ignore,\
+                labels, masks, seg_map. "masks" are raw annotations and not \
+                decoded into binary masks.
+        """
+        gt_bboxes = []
+        gt_labels = []
+        gt_bboxes_ignore = []
+        gt_masks_ann = []
+        for i, ann in enumerate(ann_info):
+            if ann.get('ignore', False):
+                continue
+            x1, y1, w, h = ann['bbox']
+            inter_w = max(0, min(x1 + w, img_info['width']) - max(x1, 0))
+            inter_h = max(0, min(y1 + h, img_info['height']) - max(y1, 0))
+            if inter_w * inter_h == 0:
+                continue
+            if ann['area'] <= 0 or w < 1 or h < 1:
+                continue
+            if ann['category_id'] not in self.cat_ids:
+                continue
+            bbox = [x1, y1, x1 + w, y1 + h]
+            if ann.get('iscrowd', False):
+                gt_bboxes_ignore.append(bbox)
+            else:
+                gt_bboxes.append(bbox)
+                gt_labels.append(self.cat2label[ann['category_id']])
+                gt_masks_ann.append(ann.get('segmentation', None))
 
-    #     if gt_bboxes:
-    #         gt_bboxes = np.array(gt_bboxes, dtype=np.float32)
-    #         gt_labels = np.array(gt_labels, dtype=np.int64)
-    #     else:
-    #         gt_bboxes = np.zeros((0, 4), dtype=np.float32)
-    #         gt_labels = np.array([], dtype=np.int64)
+        if gt_bboxes:
+            gt_bboxes = np.array(gt_bboxes, dtype=np.float32)
+            gt_labels = np.array(gt_labels, dtype=np.int64)
+        else:
+            gt_bboxes = np.zeros((0, 4), dtype=np.float32)
+            gt_labels = np.array([], dtype=np.int64)
 
-    #     if gt_bboxes_ignore:
-    #         gt_bboxes_ignore = np.array(gt_bboxes_ignore, dtype=np.float32)
-    #     else:
-    #         gt_bboxes_ignore = np.zeros((0, 4), dtype=np.float32)
+        if gt_bboxes_ignore:
+            gt_bboxes_ignore = np.array(gt_bboxes_ignore, dtype=np.float32)
+        else:
+            gt_bboxes_ignore = np.zeros((0, 4), dtype=np.float32)
 
-    #     seg_map = img_info['filename'].replace('jpg', 'png')
+        seg_map = img_info['filename'].replace('jpg', 'png')
 
-    #     ann = dict(
-    #         bboxes=gt_bboxes,
-    #         labels=gt_labels,
-    #         bboxes_ignore=gt_bboxes_ignore,
-    #         masks=gt_masks_ann,
-    #         seg_map=seg_map)
+        ann = dict(
+            bboxes=gt_bboxes,
+            labels=gt_labels,
+            bboxes_ignore=gt_bboxes_ignore,
+            masks=gt_masks_ann,
+            seg_map=seg_map)
 
-    #     return ann
+        return ann
 
 
     # def get_cat_ids(self, idx):
@@ -258,43 +332,43 @@ class CustomDataset(Dataset):
     #     results['mask_fields'] = []
     #     results['seg_fields'] = []
 
-    # def _filter_imgs(self, min_size=32):
-    #     """Filter images too small or without ground truths."""
-    #     valid_inds = []
-    #     # obtain images that contain annotation
-    #     ids_with_ann = set(_['image_id'] for _ in self.coco.anns.values())
-    #     # obtain images that contain annotations of the required categories
-    #     ids_in_cat = set()
-    #     for i, class_id in enumerate(self.cat_ids):
-    #         ids_in_cat |= set(self.coco.cat_img_map[class_id])
-    #     # merge the image id sets of the two conditions and use the merged set
-    #     # to filter out images if self.filter_empty_gt=True
-    #     ids_in_cat &= ids_with_ann
-
-    #     valid_img_ids = []
-    #     for i, img_info in enumerate(self.data_infos):
-    #         img_id = self.img_ids[i]
-    #         if self.filter_empty_gt and img_id not in ids_in_cat:
-    #             continue
-    #         if min(img_info['width'], img_info['height']) >= min_size:
-    #             valid_inds.append(i)
-    #             valid_img_ids.append(img_id)
-    #     self.img_ids = valid_img_ids
-    #     return valid_inds
+    def _filter_imgs(self, min_size=32):
+        """Filter images too small or without ground truths."""
+        valid_inds = []
+        # obtain images that contain annotation
+        ids_with_ann = set(_['image_id'] for _ in self.coco.anns.values())
+        # obtain images that contain annotations of the required categories
+        ids_in_cat = set()
+        for i, class_id in enumerate(self.cat_ids):
+            ids_in_cat |= set(self.coco.cat_img_map[class_id])
+        # merge the image id sets of the two conditions and use the merged set
+        # to filter out images if self.filter_empty_gt=True
+        ids_in_cat &= ids_with_ann
+        
+        valid_img_ids = []
+        for i, img_info in enumerate(self.data_infos):
+            img_id = self.img_ids[i]
+            if self.filter_empty_gt and img_id not in ids_in_cat:
+                continue
+            if min(img_info['width'], img_info['height']) >= min_size:
+                valid_inds.append(i)
+                valid_img_ids.append(img_id)
+        self.img_ids = valid_img_ids
+        return valid_inds
     
 
-    # def _set_group_flag(self):
-    #     """Set flag according to image aspect ratio.
+    def _set_group_flag(self):
+        """Set flag according to image aspect ratio.
 
-    #     Images with aspect ratio greater than 1 will be set as group 1,
-    #     otherwise group 0.
-    #     """ 
-    #     self.flag = np.zeros(len(self), dtype=np.uint8)
+        Images with aspect ratio greater than 1 will be set as group 1,
+        otherwise group 0.
+        """ 
+        self.flag = np.zeros(len(self), dtype=np.uint8)
 
-    #     for i in range(len(self)):
-    #         img_info = self.data_infos[i]
-    #         if img_info['width'] / img_info['height'] > 1:
-    #             self.flag[i] = 1
+        for i in range(len(self)):
+            img_info = self.data_infos[i]
+            if img_info['width'] / img_info['height'] > 1:
+                self.flag[i] = 1
 
     # def _rand_another(self, idx):
     #     """Get another random index from the same group as the given index."""
@@ -904,53 +978,5 @@ class CustomDataset(Dataset):
     # #                 eval_results[f'AR@{num}'] = ar[i]
     # #     return eval_results
 
-    # def __repr__(self):
-    #     """Print the number of instance number."""
-    #     # return dataset to (build_from_cfg) of (build_dataset) in dataset>builder.py
-    #     dataset_type = 'Test' if self.test_mode else 'Train'
-    #     result = (f'\n{self.__class__.__name__} {dataset_type} dataset '
-    #               f'with number of images {len(self)}, '
-    #               f'and instance counts: \n')
-        
-    #     if self.CLASSES is None:
-    #         result += 'Category names are not provided. \n'
-    #         return result
-        
-    #     instance_count = np.zeros(len(self.CLASSES) + 1).astype(int)
     
-    #     # count the instance number in each image
-    #     for idx in range(len(self)):
-    #         label = self.get_ann_info(idx)['labels']  
-    #         unique, counts = np.unique(label, return_counts=True)  
-    #         if len(unique) > 0:
-    #             # add the occurrence number to each class
-    #             instance_count[unique] += counts
-    #         else:
-    #             # background is the last index
-    #             instance_count[-1] += 1   
-                
-    #     # create a table with category count
-    #     table_data = [['category', 'count'] * 5]
-    #     row_data = []
-
-    #     for cls, count in enumerate(instance_count):
-    #         if cls < len(self.CLASSES):
-    #             row_data += [f'{cls} [{self.CLASSES[cls]}]', f'{count}']
-    #         else:
-    #             # add the background number
-    #             row_data += ['-1 background', f'{count}']  
-    #         if len(row_data) == 10:
-    #             table_data.append(row_data)
-    #             row_data = []
-    #     if len(row_data) >= 2:
-    #         if row_data[-1] == '0':
-    #             row_data = row_data[:-2]
-    #         if len(row_data) >= 2:
-    #             table_data.append([])
-    #             table_data.append(row_data)
-
-    
-    #     table = AsciiTable(table_data)
-    #     result += table.table        
-    #     return result
 
