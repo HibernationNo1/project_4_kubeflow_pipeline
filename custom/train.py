@@ -2,9 +2,15 @@ import argparse
 import os, os.path as osp
 import numpy as np
 
+from utils.utils import get_device, set_meta
 from utils.config import Config
 from utils.log import set_logger_info, create_logger, collect_env
-from builder import build_model, build_dataset, build_dataloader, build_dp
+from builder import (build_model, 
+                     build_dataset, 
+                     build_dataloader, 
+                     build_dp, 
+                     build_optimizer, 
+                     build_runner)
 import __init__ # 모든 module 및 function import 
 
 # python train.py --cfg configs/swin_maskrcnn.py
@@ -24,17 +30,18 @@ def set_config(cfg_path):
     cfg = Config.fromfile(config_file_path)
     
     cfg.seed = np.random.randint(2**31)
+    cfg.device = get_device()    
     return cfg
 
 
     
-        
     
 if __name__ == "__main__":
  
 
     args = parse_args()
     cfg = set_config(args.cfg)
+    
     
     set_logger_info(osp.join(os.getcwd(), cfg.result), cfg.log_level)
     logger = create_logger('enviroments')
@@ -45,6 +52,8 @@ if __name__ == "__main__":
     dash_line = '-' * 60 + '\n'
     # logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
     # logger.info(f'Config:\n{cfg.pretty_text}')
+    
+    meta = set_meta(cfg, args, env_info)
     
     
     dataset = build_dataset(cfg.data.train)
@@ -65,13 +74,22 @@ if __name__ == "__main__":
     train_loader_cfg = dict(
         batch_size=cfg.data.samples_per_gpu,
         num_workers=cfg.data.workers_per_gpu,
-        num_gpus = 1,
-        dist = False,
         seed = cfg.seed,
-        runner_type = cfg.runner['type'],    # TODO 무조건 EpochBasedRunner를 사용할 예정
-        persistent_workers=False,
         shuffle = True)
 
     data_loaders = build_dataloader(dataset, **train_loader_cfg)     # 이게 run안에서 어떻게 동작하는지 보자
 
-    model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids) # 여기까지
+    model = build_dp(model, cfg.device)
+    
+    # build optimizer
+    optimizer = build_optimizer(model, cfg, logger)     # TODO 어떤 layer에 optimizer를 적용시켰는지 확인
+    
+    runner = build_runner(
+        cfg.runner,
+        default_args=dict(
+            model=model,
+            optimizer=optimizer,
+            work_dir=cfg.work_dir,
+            logger=logger,
+            meta=meta))
+
