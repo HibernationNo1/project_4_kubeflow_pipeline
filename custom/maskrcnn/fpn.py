@@ -81,17 +81,19 @@ class FPN(BaseModule):
 
         
         for i in range(self.start_level, self.backbone_end_level):
-            l_conv = ConvModule(
+            l_conv = ConvModule(    # lateral_convs
                 in_channels[i],
                 out_channels,
                 kernel_size= 1,
-                inplace=False)
-            fpn_conv = ConvModule(
+                inplace=False,
+                act_cfg=None)   # activate layer: None
+            fpn_conv = ConvModule(  # fpn_convs
                 out_channels,
                 out_channels,
                 kernel_size= 3,
                 padding=1,
-                inplace=False)
+                inplace=False,
+                act_cfg=None)   # activate layer: None
 
             self.lateral_convs.append(l_conv)
             self.fpn_convs.append(fpn_conv)
@@ -150,7 +152,8 @@ class ConvModule(nn.Module):
                  padding=0,
                  dilation=1,
                  groups=1,
-                 bias=0,  
+                 bias=True,  
+                 act_cfg=dict(type='ReLU'), # ConvModule를 호출하는 neck에서는 activation layer사용 안함 // roi_head의 mask_head에서는 사용함
                  inplace=True,
                  padding_mode='zeros',      # support ['zeros' 'circular', 'reflect'] 찾아서 공부해서 적용해보기
                  order=('conv', 'norm', 'act')):
@@ -165,6 +168,9 @@ class ConvModule(nn.Module):
         assert isinstance(self.order, tuple) and len(self.order) == 3
         assert set(order) == {'conv', 'norm', 'act'}
         
+        self.act_cfg = act_cfg
+        self.with_activation = act_cfg is not None
+        
         # reset padding to 0 for conv module
         conv_padding = padding
 
@@ -177,6 +183,7 @@ class ConvModule(nn.Module):
                                 dilation=dilation,
                                 groups=groups,
                                 bias=bias)
+        
         # export the attributes of self.conv to a higher level for convenience
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -188,16 +195,9 @@ class ConvModule(nn.Module):
         self.transposed = self.conv.transposed
         self.output_padding = self.conv.output_padding
         
-        # build normalization layers
-        # norm layer is after conv layer
-        if order.index('norm') > order.index('conv'):
-            norm_channels = out_channels
-        else:
-            norm_channels = in_channels
-        norm = nn.LayerNorm(norm_channels, eps = 1e-5)
-        self.norm_name = 'norm_layer' 
-        
-        self.add_module(self.norm_name, norm)
+        # build activation layer
+        if self.with_activation:
+            self.activate = nn.ReLU(inplace=True)
 
         # Use msra init by default
         self.init_weights()
