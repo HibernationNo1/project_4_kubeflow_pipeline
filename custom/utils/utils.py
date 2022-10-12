@@ -1,8 +1,9 @@
 
+import os
 from itertools import repeat
 import collections.abc
 from collections.abc import Mapping, Sequence
-
+import torch
 
 # From PyTorch internals
 def _ntuple(n):
@@ -17,6 +18,65 @@ def _ntuple(n):
 
 to_2tuple = _ntuple(2)
 
+# multi GPU사용할때 
+def is_mlu_available():
+    """Returns a bool indicating if MLU is currently available."""
+    return hasattr(torch, 'is_mlu_available') and torch.is_mlu_available()
+
+# simgle gpu: cuda,   multi gpu: mlu  
+def get_device():
+    """Returns an available device, cpu, cuda or mlu."""
+    is_device_available = {
+        'cuda': torch.cuda.is_available(),
+        'mlu': is_mlu_available()
+    }
+    device_list = [k for k, v in is_device_available.items() if v]
+    return device_list[0] if len(device_list) == 1 else 'cpu'
+
+# not use. 나중에 여유 될때 사용해서 training해보기
+def auto_scale_lr(cfg, logger, num_gpus = 1):   
+    """Automatically scaling LR according to GPU number and sample per GPU.
+
+    Args:
+        cfg (config): whole config.
+        logger (logging.Logger): Logger.
+    """
+    
+    # Get flag from config
+    if ('auto_scale_lr' not in cfg) or \
+            (not cfg.auto_scale_lr.get('enable', False)):
+        logger.info('Automatic scaling of learning rate (LR)'
+                    ' has been disabled.')
+        return
+    
+    # Get base batch size from config
+    base_batch_size = cfg.auto_scale_lr.get('base_batch_size', None)
+    if base_batch_size is None:
+        return
+    
+    batch_size = cfg.data.train_dataloader.samples_per_gpu
+    logger.info(f'Training with {num_gpus} GPU(s). The total batch size is {batch_size}.')
+    
+    if batch_size != base_batch_size:
+        # scale LR with
+        # [linear scaling rule](https://arxiv.org/abs/1706.02677)
+        scaled_lr = (batch_size / base_batch_size) * cfg.optimizer.lr
+        logger.info('LR has been automatically scaled '
+                    f'from {cfg.optimizer.lr} to {scaled_lr}')
+        cfg.optimizer.lr = scaled_lr
+    else:
+        logger.info('The batch size match the '
+                    f'base batch size: {base_batch_size}, '
+                    f'will not scaling the LR ({cfg.optimizer.lr}).')
+        
+        
+def set_meta(cfg, args, env_info):
+    meta = dict()
+    meta['env_info'] = env_info
+    meta['config'] = cfg.pretty_text
+    meta['seed'] = cfg.seed
+    meta['exp_name'] = os.path.basename(args.cfg)     
+    return meta    
 
 
 # TODO
