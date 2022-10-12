@@ -245,7 +245,7 @@ class SwinTransformer(BaseModule):
                 if k.startswith('backbone.'):
                     # layer에 backbone이 명시된 경우 'backborn'단어만 이름에서 delete
                     state_dict[k[9:]] = v
-
+            
             # strip prefix of state_dict
             if list(state_dict.keys())[0].startswith('module.'):
                 # layer에 'module'이 명시된 경우 'module'단어만 이름에서 delete

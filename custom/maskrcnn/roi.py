@@ -35,7 +35,7 @@ class RoIHead(BaseModule):
         self.test_cfg = test_cfg
         
         if bbox_head is not None: self.init_bbox_head(bbox_roi_extractor, bbox_head)        
-        if mask_head is not None:  self.init_mask_head(mask_roi_extractor, mask_head)
+        if mask_head is not None: self.init_mask_head(mask_roi_extractor, mask_head)
         self.init_assigner_sampler()
     
     @property
@@ -70,6 +70,9 @@ class RoIHead(BaseModule):
         self.bbox_roi_extractor = SingleRoIExtractor(**bbox_roi_extractor)
         self.bbox_head = Shared2FCBBoxHead(**bbox_head)
         
+        
+
+        
     def init_mask_head(self, mask_roi_extractor, mask_head):
         """Initialize ``mask_head``"""
         if mask_roi_extractor is not None:
@@ -80,6 +83,8 @@ class RoIHead(BaseModule):
             self.mask_roi_extractor = self.bbox_roi_extractor
    
         self.mask_head = FCNMaskHead(**mask_head)
+        
+        
         
     # TODO
 
@@ -283,6 +288,7 @@ class Shared2FCBBoxHead(BaseModule):
                 self.num_shared_convs, self.num_shared_fcs, self.in_channels,
                 True)
         self.shared_out_channels = last_layer_dim
+        
 
         # add cls specific branch
         self.cls_convs, self.cls_fcs, self.cls_last_dim = \

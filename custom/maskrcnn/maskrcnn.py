@@ -35,5 +35,7 @@ class MaskRCNN(BaseModule):
         roi_head.update(test_cfg=test_cfg.rcnn)
         self.roi_head = RoIHead(**roi_head)
         
+        
+    
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
