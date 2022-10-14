@@ -113,7 +113,6 @@ class FCNMaskHead(BaseModule):
         self.num_classes = num_classes
         self.class_agnostic = class_agnostic
         self.predictor_cfg = predictor_cfg
-        self.fp16_enabled = False
         self.loss_mask = CrossEntropyLoss(**loss_mask)
         
         self.convs = ModuleList()
@@ -255,7 +254,6 @@ class Shared2FCBBoxHead(BaseModule):
         self.reg_class_agnostic = reg_class_agnostic
         self.reg_decoded_bbox = reg_decoded_bbox
 
-        self.fp16_enabled = False
         self.bbox_coder = DeltaXYWHBBoxCoder(**bbox_coder)
         self.loss_cls = CrossEntropyLoss(**loss_cls)
         self.loss_bbox = L1Loss(**loss_bbox)
@@ -414,7 +412,6 @@ class SingleRoIExtractor(BaseModule):
         
         self.out_channels = out_channels
         self.featmap_strides = featmap_strides
-        self.fp16_enabled = False
         self.finest_scale = finest_scale
     
     @property

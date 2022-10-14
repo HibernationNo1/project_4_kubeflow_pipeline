@@ -319,6 +319,7 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     area1 = (bboxes1[..., 2] - bboxes1[..., 0]) * (
         bboxes1[..., 3] - bboxes1[..., 1])
     area2 = (bboxes2[..., 2] - bboxes2[..., 0]) * (
+        
         bboxes2[..., 3] - bboxes2[..., 1])
 
     if is_aligned:
@@ -413,18 +414,6 @@ class BboxOverlaps2D:
             bboxes2 = bboxes2[..., :4]
         if bboxes1.size(-1) == 5:
             bboxes1 = bboxes1[..., :4]
-
-        if self.dtype == 'fp16':
-            # change tensor type to save cpu and cuda memory and keep speed
-            if self.dtype == 'fp16': 
-                # scale is for preventing overflows
-                bboxes1 = (bboxes1 / self.scale).half()
-                bboxes2 = (bboxes2 / self.scale).half()
-            overlaps = bbox_overlaps(bboxes1, bboxes2, mode, is_aligned)
-            if not overlaps.is_cuda and overlaps.dtype == torch.float16:
-                # resume cpu float32
-                overlaps = overlaps.float()
-            return overlaps
 
         return bbox_overlaps(bboxes1, bboxes2, mode, is_aligned)
 

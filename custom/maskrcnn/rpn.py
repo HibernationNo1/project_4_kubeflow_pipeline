@@ -247,7 +247,6 @@ class RPNHead(BaseModule):
              
            
             self.sampler = RandomSampler(**sampler_cfg)
-        self.fp16_enabled = False
         self.prior_generator = AnchorGenerator(**anchor_generator)
         
         self.num_base_priors = self.prior_generator.num_base_priors[0]

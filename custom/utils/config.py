@@ -78,7 +78,7 @@ def import_modules_from_strings(imports, allow_failed_imports=False):
 
 
 
-class ConfigDict(Dict):
+class ConfigDict(Dict) :
 
     def __missing__(self, name):
         raise KeyError(name)

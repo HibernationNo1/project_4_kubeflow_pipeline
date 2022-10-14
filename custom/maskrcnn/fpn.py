@@ -62,7 +62,6 @@ class FPN(BaseModule):
         self.num_ins = len(in_channels)
         self.num_outs = num_outs
         self.relu_before_extra_convs = relu_before_extra_convs
-        self.fp16_enabled = False
         self.upsample_cfg = upsample_cfg.copy()
 
         if end_level == -1 or end_level == self.num_ins - 1:
