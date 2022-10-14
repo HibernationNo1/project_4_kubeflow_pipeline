@@ -1,7 +1,10 @@
 
 
 
-checkpoint_config = dict(interval=1)
+checkpoint_config = dict(
+    interval=1,
+    filename_tmpl = 'model_{}.pth'        # model name to be save :  {model_name}_{epoch}.pth
+    )
 # yapf:disable
 log_config = dict(
     interval=50,
@@ -16,7 +19,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
 resume_from = None
-workflow = [('train', 1)]
+workflow = [('train', 1)]   # TODO : [('train', n_1), ('val', n_2)] 
 
 # disable opencv multithreading to avoid system being overloaded
 opencv_num_threads = 0

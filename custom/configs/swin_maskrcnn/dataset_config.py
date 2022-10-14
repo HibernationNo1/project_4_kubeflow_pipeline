@@ -45,7 +45,7 @@ test_pipeline = [
         ])
 ]
 
-data_root = "data"
+data_root = "dataset"
 
 data = dict(
     samples_per_gpu=2,  # batch_size
