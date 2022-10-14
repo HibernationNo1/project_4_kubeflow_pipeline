@@ -102,6 +102,31 @@ class DefaultOptimizerConstructor:
         self.base_wd = optimizer_cfg.get('weight_decay', None)
         self._validate_cfg()
         
+    def __call__(self, model: nn.Module):
+        if hasattr(model, 'module'):
+            model = model.module
+        
+       
+        
+        optimizer_cfg = self.optimizer_cfg.copy()
+       
+        # if no paramwise option is specified, just use the global setting
+        if not self.paramwise_cfg:
+            optimizer_cfg['params'] = model.parameters()
+            return self.select_optimizer(optimizer_cfg)
+
+        # set param-wise lr and weight decay recursively
+        params: List[Dict] = []
+        
+        # 각 nn.module중 optimizer를 적용할 수 있는 parameter(weight, bias)에 대해
+        # lr, weight_decay등의 값을 적용하기 위한 list(dict) : params
+        self.add_params(params, model)
+        optimizer_cfg['params'] = params
+
+
+        return self.select_optimizer(optimizer_cfg)
+        
+        
     def _validate_cfg(self) :
         if not isinstance(self.paramwise_cfg, dict):
             raise TypeError('paramwise_cfg should be None or a dict, but got {type(self.paramwise_cfg)}')
@@ -209,29 +234,6 @@ class DefaultOptimizerConstructor:
                 
         
         
-    def __call__(self, model: nn.Module):
-        if hasattr(model, 'module'):
-            model = model.module
-        
-       
-        
-        optimizer_cfg = self.optimizer_cfg.copy()
-       
-        # if no paramwise option is specified, just use the global setting
-        if not self.paramwise_cfg:
-            optimizer_cfg['params'] = model.parameters()
-            return self.select_optimizer(optimizer_cfg)
-
-        # set param-wise lr and weight decay recursively
-        params: List[Dict] = []
-        
-        # 각 nn.module중 optimizer를 적용할 수 있는 parameter(weight, bias)에 대해
-        # lr, weight_decay등의 값을 적용하기 위한 list(dict) : params
-        self.add_params(params, model)
-        optimizer_cfg['params'] = params
-
-
-        return self.select_optimizer(optimizer_cfg)
-        
+    
         
         
