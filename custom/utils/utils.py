@@ -1,9 +1,54 @@
 
+import warnings
+from getpass import getuser
+from socket import gethostname
+import time
 import os
+import os.path as osp
 from itertools import repeat
 import collections.abc
 from collections.abc import Mapping, Sequence
 import torch
+
+
+def get_host_info():
+    """Get hostname and username.
+
+    Return empty string if exception raised, e.g. ``getpass.getuser()`` will
+    lead to error in docker container
+    """
+    host = ''
+    try:
+        host = f'{getuser()}@{gethostname()}'
+    except Exception as e:
+        warnings.warn(f'Host or user not found: {str(e)}')
+    finally:
+        return host
+    
+    
+
+def is_tuple_of(seq, expected_type):
+
+    if not isinstance(seq, tuple):
+        return False
+    
+    for item in seq:
+        if not isinstance(item, expected_type):
+            return False
+
+    return True
+
+def is_list_of(seq, expected_type):
+    """Check whether it is a sequence of list type.
+    """
+    if not isinstance(seq, list):
+        return False
+    
+    for item in seq:
+        if not isinstance(item, expected_type):
+            return False
+
+    return True
 
 # From PyTorch internals
 def _ntuple(n):
@@ -75,7 +120,7 @@ def set_meta(cfg, args, env_info):
     meta['env_info'] = env_info
     meta['config'] = cfg.pretty_text
     meta['seed'] = cfg.seed
-    meta['exp_name'] = os.path.basename(args.cfg)     
+    meta['exp_name'] = os.path.basename(args.cfg) 
     return meta    
 
 
@@ -154,3 +199,51 @@ def collate(batch, samples_per_gpu=1):
         }
     else:
         return default_collate(batch)
+
+def get_time_str():
+    return time.strftime('%Y%m%d_%H%M%S', time.localtime())
+
+
+
+def scandir(dir_path, suffix=None, recursive=False, case_sensitive=True):
+    """Scan a directory to find the interested files.
+
+    Args:
+        dir_path (str | :obj:`Path`): Path of the directory.
+        suffix (str | tuple(str), optional): File suffix that we are
+            interested in. Default: None.
+        recursive (bool, optional): If set to True, recursively scan the
+            directory. Default: False.
+        case_sensitive (bool, optional) : If set to False, ignore the case of
+            suffix. Default: True.
+
+    Returns:
+        A generator for all the interested files with relative paths.
+    """
+    if isinstance(dir_path, str):
+        dir_path = str(dir_path)
+    else:
+        raise TypeError('"dir_path" must be a string or Path object')
+
+    if (suffix is not None) and not isinstance(suffix, (str, tuple)):
+        raise TypeError('"suffix" must be a string or tuple of strings')
+
+    if suffix is not None and not case_sensitive:
+        suffix = suffix.lower() if isinstance(suffix, str) else tuple(
+            item.lower() for item in suffix)
+
+    root = dir_path
+
+    def _scandir(dir_path, suffix, recursive, case_sensitive):
+        for entry in os.scandir(dir_path):
+            if not entry.name.startswith('.') and entry.is_file():
+                rel_path = osp.relpath(entry.path, root)
+                _rel_path = rel_path if case_sensitive else rel_path.lower()
+                if suffix is None or _rel_path.endswith(suffix):
+                    yield rel_path
+            elif recursive and os.path.isdir(entry.path):
+                # scan recursively if entry.path is a directory
+                yield from _scandir(entry.path, suffix, recursive,
+                                    case_sensitive)
+
+    return _scandir(dir_path, suffix, recursive, case_sensitive)
