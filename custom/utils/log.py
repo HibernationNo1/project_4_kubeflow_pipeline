@@ -1,6 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import logging
 from collections import defaultdict
+from re import I
 import sys
 import subprocess
 import cv2
@@ -8,6 +9,7 @@ import os.path as osp
 import torch
 import time
 import os
+from utils.utils import get_time_str
 
 logger_initialized: dict = {}       # 어디서든 호출할 수 있도록 global선언
 log_recorder: dict = {}         
@@ -20,7 +22,7 @@ log_info: dict = {}
 TORCH_VERSION = torch.__version__
 
 def set_logger_info(path, log_level):
-    timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+    timestamp = get_time_str()
     log_info['timestamp'] = timestamp
     
     result_dir = osp.join(path, timestamp)
@@ -28,6 +30,7 @@ def set_logger_info(path, log_level):
     
     log_info['log_level'] = log_level
     os.makedirs(result_dir, exist_ok= True)
+    return timestamp
 
 def create_logger(log_name = None):
     if log_name is None: 
@@ -243,3 +246,53 @@ def print_log(msg, logger=None, level=logging.INFO):
         raise TypeError(
             'logger should be either a logging.Logger object, str, '
             f'"silent" or None, but got {type(logger)}')
+
+
+
+
+
+
+
+import numpy as np
+
+
+class LogBuffer:
+
+    def __init__(self):
+        self.val_history = dict()
+        self.n_history = dict()
+        self.output = dict()
+        self.ready = False
+
+    def clear(self) -> None:
+        self.val_history.clear()
+        self.n_history.clear()
+        self.clear_output()
+
+    def clear_output(self) -> None:
+        self.output.clear()
+        self.ready = False
+
+    def update(self, vars: dict, count: int = 1) -> None:
+        assert isinstance(vars, dict)
+        for key, var in vars.items():
+            if key not in self.val_history:
+                self.val_history[key] = []
+                self.n_history[key] = []
+            self.val_history[key].append(var)
+            self.n_history[key].append(count)
+
+    def average(self, n: int = 0) -> None:
+        """Average latest n values or all values."""
+        assert n >= 0
+        for key in self.val_history:
+            values = np.array(self.val_history[key][-n:])
+            nums = np.array(self.n_history[key][-n:])
+            avg = np.sum(values * nums) / np.sum(nums)
+            self.output[key] = avg
+        self.ready = True
+
+
+
+
+
