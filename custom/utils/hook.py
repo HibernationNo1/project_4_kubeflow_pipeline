@@ -8,7 +8,7 @@ import os.path as osp
 import torch
 from torch.nn.utils import clip_grad
 
-from utils.utils import is_tuple_of
+from utils.utils import is_tuple_of, is_list_of, dict_to_pretty
 from base_module import BaseRunner
 from maskrcnn.rpn import RPNHead
 
@@ -327,7 +327,7 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
         
         log_dict = dict(log_dict, **runner.log_buffer.output)  # type: ignore  
         self._log_info(log_dict, runner)
-        self.write_log(log_dict, runner)
+        self.write_log([log_dict])
 
         ### 
     def _log_info(self, log_dict: Dict, runner) -> None:
@@ -402,35 +402,64 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
 
         
         
-    def write_log(self, log_dict: Dict, runner):
-        # dump log in json format
-        text_log = ''
-        for k, v in log_dict.items():
-            key_tx = f"\n{k}:  " 
-            value_tx = f"{self._round_float(v)}\n"
-            text_log = text_log + key_tx + value_tx
+    def write_log(self, status, log_dict_list: list):    # TODO : text가 training도중에 내용이 계속 추가되며도 저장도 되는지 확인
+        # dump log in .log format
 
-        with open(self.log_file_path, 'w') as f:
-            f.write(f"{text_log}")
+        if not is_list_of(log_dict_list, dict): raise TypeError(f"element of list must be dict, but was not.")
+        
+        text_log = '\n'
+        num_bar = 50
+        for i in range(num_bar):
+            if i == num_bar//2:
+                text_log += f'< {status} >'
+            text_log += '-'
+            
+        for log_dict in log_dict_list:
+            text_log = text_log + "\n" + dict_to_pretty(log_dict) + "\n"
+            
+        if osp.isfile(self.log_file_path):
+            with open(self.log_file_path, 'a+') as f:
+                f.write(f"{text_log}")
+        else:
+            with open(self.log_file_path, 'w') as f:        # 일단 학습중엔 저장함
+                f.write(f"{text_log}")
     
         
                 
     def before_run(self, runner):
-
         if self.out_dir is not None:
             runner.logger.info(
                 f'Text logs will be saved to {self.out_dir} after the training process.')
             self.log_file_path = osp.join(self.out_dir, self.log_file_name)
         else:
             self.log_file_path = osp.join(runner.work_dir, self.log_file_name)
-        
-        with open(self.log_file_path, 'w') as f:
-            f.write("")
               
         self.start_iter = runner.iter
+        log_dict_list = []
+        log_dict_list.append(runner.meta)
+        log_dict_list.append(dict(
+            bach_size = runner.get('batch_size') ,
+            training_iteration_unit = runner.get('train_unit_type'),
+            expected_iteration_value = runner.get('_max_iters'),
+            expected_epoche_value = runner.get('_max_epochs')
+        ))
         
-        if runner.meta is not None:
-            self.write_log(log_dict = runner.meta)    
+        if len(log_dict_list) != 0:
+            self.write_log('before_run', log_dict_list)    
+        
+    def before_train_epoch(self, runner):
+        log_dict = dict(
+            start_epoch = runner.get('epoch'),
+            iterd_per_epochs = runner.get('iterd_per_epochs')
+            )
+        self.write_log('before_epoch', [log_dict])
+        runner.log_buffer.clear()  # clear logs of last epoch
+    
+    def before_train_iter(self, runner):
+        log_dict = dict(start_iter = runner.get('iter'))
+
+        self.write_log('before_iter', [log_dict])
+        
    
     
     def after_train_iter(self, runner) -> None:
