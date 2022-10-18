@@ -376,7 +376,8 @@ class BaseRunner(metaclass=ABCMeta):
                  logger=None,
                  meta=None,
                  max_iters=None,
-                 max_epochs=None):
+                 max_epochs=None,
+                 **kwargs):
        
         
         assert hasattr(model, 'train_step')
@@ -403,7 +404,9 @@ class BaseRunner(metaclass=ABCMeta):
         if meta is not None and not isinstance(meta, dict):
             raise TypeError(
                 f'meta must be a dict or None, but got {type(meta)}')
-            
+        
+        self.batch_size = kwargs.get('batch_size', None)
+         
         self.model = model
         self.optimizer = optimizer
         self.logger = logger
@@ -421,18 +424,19 @@ class BaseRunner(metaclass=ABCMeta):
         self._rank, self._world_size = 0, 1
         self.timestamp = get_time_str()
         self.mode = None
-        self._hooks = []
+        self._hooks = []    # hooks을 저장할 list
         self._epoch = 0
         self._iter = 0
         self._inner_iter = 0
         
-        
         if max_epochs is not None and max_iters is not None:
             raise ValueError(
                 'Only one of `max_epochs` or `max_iters` can be set.')
+        if max_epochs is not None:    self.train_unit_type = 'epoch'
+        else:                               self.train_unit_type = 'iter'
         self._max_epochs = max_epochs
         self._max_iters = max_iters
-        
+  
         
         self.log_buffer = LogBuffer()
         
@@ -482,6 +486,10 @@ class BaseRunner(metaclass=ABCMeta):
         """int: Maximum training iterations."""
         return self._max_iters
 
+    @abstractmethod # 상속받을 class에서 사용 
+    def train(self):
+        pass
+    
     @abstractmethod
     def save_checkpoint(self,
                         out_dir,
