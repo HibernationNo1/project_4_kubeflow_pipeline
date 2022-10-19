@@ -1,4 +1,6 @@
 import numpy as np
+import os.path as osp
+import cv2
 
 from utils.registry import Registry, build_from_cfg
 
@@ -28,7 +30,6 @@ class Compose:
         Returns:
         dict: Transformed data.
         """
-        
         for transform in self.transforms:
             data = transform(data)
             if data is None:
@@ -73,56 +74,45 @@ class LoadImageFromFile:
     def __init__(self,
                  to_float32=False,
                  color_type='color',
-                 channel_order='bgr',
-                 file_client_args=dict(backend='disk')):
+                 channel_order='bgr'):
         self.to_float32 = to_float32
         self.color_type = color_type
         self.channel_order = channel_order
-        self.file_client_args = file_client_args.copy()
-        self.file_client = None
 
-    # def __call__(self, results):
-    #     """Call functions to load image and get image meta information.
+    def __call__(self, results):
+        """Call functions to load image and get image meta information.
 
-    #     Args:
-    #         results (dict): Result dict from :obj:`mmdet.CustomDataset`.
+        Args:
+            results (dict): Result dict from :obj:`mmdet.CustomDataset`.
 
-    #     Returns:
-    #         dict: The dict contains loaded image and meta information.
-    #     """
+        Returns:
+            dict: The dict contains loaded image and meta information.
+        """
 
-    #     if self.file_client is None:
-    #         self.file_client = mmcv.FileClient(**self.file_client_args)       
-        
-    #     if results['img_prefix'] is not None:
-    #         filename = osp.join(results['img_prefix'],
-    #                             results['img_info']['filename'])
-    #     else:
-    #         filename = results['img_info']['filename']
+        if results['img_prefix'] is None : raise KeyError(f"'results' must be have key-img_prefix, but is None")
 
-    #     img_bytes = self.file_client.get(filename)
-    #     img = mmcv.imfrombytes(
-    #         img_bytes, flag=self.color_type, channel_order=self.channel_order)
-    #     if self.to_float32:
-    #         img = img.astype(np.float32)
+        filename = osp.join(results['img_prefix'], results['img_info']['filename'])  
 
-    #     results['filename'] = filename
-    #     results['ori_filename'] = results['img_info']['filename']
-    #     results['img'] = img
-    #     results['img_shape'] = img.shape
-    #     results['ori_shape'] = img.shape
-    #     results['img_fields'] = ['img']
-       
-            
-    #     return results
+        img = cv2.imread(filename)
+        if self.to_float32:
+            img = img.astype(np.float32)
 
-    # def __repr__(self):
-    #     repr_str = (f'{self.__class__.__name__}('
-    #                 f'to_float32={self.to_float32}, '
-    #                 f"color_type='{self.color_type}', "
-    #                 f"channel_order='{self.channel_order}', "
-    #                 f'file_client_args={self.file_client_args})')
-    #     return repr_str
+        results['filename'] = filename
+        results['ori_filename'] = results['img_info']['filename']
+        results['img'] = img
+        results['img_shape'] = img.shape
+        results['ori_shape'] = img.shape
+        results['img_fields'] = ['img']
+             
+        return results
+
+    def __repr__(self):
+        repr_str = (f'{self.__class__.__name__}('
+                    f'to_float32={self.to_float32}, '
+                    f"color_type='{self.color_type}', "
+                    f"channel_order='{self.channel_order}', "
+                    f'file_client_args={self.file_client_args})')
+        return repr_str
 
 
 @PIPELINES.register_module()
@@ -924,6 +914,7 @@ class Resize:
     
 @PIPELINES.register_module()    
 class LoadAnnotations:
+    # coco dataset ket-value구조의 dataset에 맞춰 구현되어 있음 
     """Load multiple types of annotations.
 
     Args:
@@ -950,62 +941,60 @@ class LoadAnnotations:
                  with_label=True,
                  with_mask=False,
                  with_seg=False,
-                 poly2mask=True,
                  denorm_bbox=False,
                  file_client_args=dict(backend='disk')):
         self.with_bbox = with_bbox
         self.with_label = with_label
         self.with_mask = with_mask
         self.with_seg = with_seg
-        self.poly2mask = poly2mask
         self.denorm_bbox = denorm_bbox
         self.file_client_args = file_client_args.copy()
         self.file_client = None
 
-    # def _load_bboxes(self, results):
-    #     """Private function to load bounding box annotations.
+    def _load_bboxes(self, results):
+        """Private function to load bounding box annotations.
 
-    #     Args:
-    #         results (dict): Result dict from :obj:`mmdet.CustomDataset`.
+        Args:
+            results (dict): Result dict from :obj:`mmdet.CustomDataset`.
 
-    #     Returns:
-    #         dict: The dict contains loaded bounding box annotations.
-    #     """
+        Returns:
+            dict: The dict contains loaded bounding box annotations.
+        """
 
-    #     ann_info = results['ann_info']
-    #     results['gt_bboxes'] = ann_info['bboxes'].copy()
+        ann_info = results['ann_info']
+        results['gt_bboxes'] = ann_info['bboxes'].copy()
 
-    #     if self.denorm_bbox:
-    #         bbox_num = results['gt_bboxes'].shape[0]
-    #         if bbox_num != 0:
-    #             h, w = results['img_shape'][:2]
-    #             results['gt_bboxes'][:, 0::2] *= w
-    #             results['gt_bboxes'][:, 1::2] *= h
+        if self.denorm_bbox:
+            bbox_num = results['gt_bboxes'].shape[0]
+            if bbox_num != 0:
+                h, w = results['img_shape'][:2]
+                results['gt_bboxes'][:, 0::2] *= w
+                results['gt_bboxes'][:, 1::2] *= h
 
-    #     gt_bboxes_ignore = ann_info.get('bboxes_ignore', None)
-    #     if gt_bboxes_ignore is not None:
-    #         results['gt_bboxes_ignore'] = gt_bboxes_ignore.copy()
-    #         results['bbox_fields'].append('gt_bboxes_ignore')
-    #     results['bbox_fields'].append('gt_bboxes')
+        gt_bboxes_ignore = ann_info.get('bboxes_ignore', None)
+        if gt_bboxes_ignore is not None:
+            results['gt_bboxes_ignore'] = gt_bboxes_ignore.copy()
+            results['bbox_fields'].append('gt_bboxes_ignore')
+        results['bbox_fields'].append('gt_bboxes')
 
-    #     gt_is_group_ofs = ann_info.get('gt_is_group_ofs', None)
-    #     if gt_is_group_ofs is not None:
-    #         results['gt_is_group_ofs'] = gt_is_group_ofs.copy()
+        gt_is_group_ofs = ann_info.get('gt_is_group_ofs', None)
+        if gt_is_group_ofs is not None:
+            results['gt_is_group_ofs'] = gt_is_group_ofs.copy()
 
-    #     return results
+        return results
 
-    # def _load_labels(self, results):
-    #     """Private function to load label annotations.
+    def _load_labels(self, results):
+        """Private function to load label annotations.
 
-    #     Args:
-    #         results (dict): Result dict from :obj:`mmdet.CustomDataset`.
+        Args:
+            results (dict): Result dict from :obj:`mmdet.CustomDataset`.
 
-    #     Returns:
-    #         dict: The dict contains loaded label annotations.
-    #     """
+        Returns:
+            dict: The dict contains loaded label annotations.
+        """
 
-    #     results['gt_labels'] = results['ann_info']['labels'].copy()
-    #     return results
+        results['gt_labels'] = results['ann_info']['labels'].copy()
+        return results
 
     # def _poly2mask(self, mask_ann, img_h, img_w):
     #     """Private function to convert masks represented with polygon to
@@ -1051,30 +1040,28 @@ class LoadAnnotations:
     #             valid_polygons.append(polygon)
     #     return valid_polygons
 
-    # def _load_masks(self, results):
-    #     """Private function to load mask annotations.
+    def _load_masks(self, results):
+        """Private function to load mask annotations.
 
-    #     Args:
-    #         results (dict): Result dict from :obj:`mmdet.CustomDataset`.
+        Args:
+            results (dict): Result dict from :obj:`mmdet.CustomDataset`.
 
-    #     Returns:
-    #         dict: The dict contains loaded mask annotations.
-    #             If ``self.poly2mask`` is set ``True``, `gt_mask` will contain
-    #             :obj:`PolygonMasks`. Otherwise, :obj:`BitmapMasks` is used.
-    #     """
+        Returns:
+            dict: The dict contains loaded mask annotations.
+                If ``self.poly2mask`` is set ``True``, `gt_mask` will contain
+                :obj:`PolygonMasks`. Otherwise, :obj:`BitmapMasks` is used.
+        """
+        h, w = results['img_info']['height'], results['img_info']['width']
+        gt_masks = results['ann_info']['masks']
+        # polygon만 취급한다
 
-    #     h, w = results['img_info']['height'], results['img_info']['width']
-    #     gt_masks = results['ann_info']['masks']
-    #     if self.poly2mask:
-    #         gt_masks = BitmapMasks(
-    #             [self._poly2mask(mask, h, w) for mask in gt_masks], h, w)
-    #     else:
-    #         gt_masks = PolygonMasks(
-    #             [self.process_polygons(polygons) for polygons in gt_masks], h,
-    #             w)
-    #     results['gt_masks'] = gt_masks
-    #     results['mask_fields'].append('gt_masks')
-    #     return results
+        from utils.compose.polygonMasks import PolygonMasks     # 여기서부터
+        gt_masks = PolygonMasks(
+            [self.process_polygons(polygons) for polygons in gt_masks], h,
+            w)
+        results['gt_masks'] = gt_masks
+        results['mask_fields'].append('gt_masks')
+        return results
 
     # def _load_semantic_seg(self, results):
     #     """Private function to load semantic segmentation annotations.
@@ -1097,28 +1084,28 @@ class LoadAnnotations:
     #     results['seg_fields'].append('gt_semantic_seg')
     #     return results
 
-    # def __call__(self, results):
-    #     """Call function to load multiple types annotations.
+    def __call__(self, results):
+        """Call function to load multiple types annotations.
 
-    #     Args:
-    #         results (dict): Result dict from :obj:`mmdet.CustomDataset`.
+        Args:
+            results (dict): Result dict from :obj:`mmdet.CustomDataset`.
 
-    #     Returns:
-    #         dict: The dict contains loaded bounding box, label, mask and
-    #             semantic segmentation annotations.
-    #     """
+        Returns:
+            dict: The dict contains loaded bounding box, label, mask and
+                semantic segmentation annotations.
+        """
 
-    #     if self.with_bbox:
-    #         results = self._load_bboxes(results)
-    #         if results is None:
-    #             return None
-    #     if self.with_label:
-    #         results = self._load_labels(results)
-    #     if self.with_mask:
-    #         results = self._load_masks(results)
-    #     if self.with_seg:
-    #         results = self._load_semantic_seg(results)
-    #     return results
+        if self.with_bbox:
+            results = self._load_bboxes(results)
+            if results is None:
+                return None
+        if self.with_label:
+            results = self._load_labels(results)
+        if self.with_mask:
+            results = self._load_masks(results)
+        if self.with_seg:
+            results = self._load_semantic_seg(results)
+        return results
 
     # def __repr__(self):
     #     repr_str = self.__class__.__name__
