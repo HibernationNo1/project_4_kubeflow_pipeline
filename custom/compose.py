@@ -2,7 +2,17 @@ import numpy as np
 import os.path as osp
 import cv2
 
+
+
 from utils.registry import Registry, build_from_cfg
+from utils.transforms import (BitmapMasks, 
+                              imrescale, imresize, imflip, 
+                              imnormalize, 
+                              impad, impad_to_multiple)
+from utils.utils import to_tensor
+from utils.datacontainer import DataContainer as DC
+                       
+import pycocotools.mask as maskUtils
 
 PIPELINES = Registry('pipeline')
 
@@ -133,27 +143,26 @@ class Normalize:
         self.std = np.array(std, dtype=np.float32)
         self.to_rgb = to_rgb
 
-    # def __call__(self, results):
-    #     """Call function to normalize images.
+    def __call__(self, results):
+        """Call function to normalize images.
 
-    #     Args:
-    #         results (dict): Result dict from loading pipeline.
+        Args:
+            results (dict): Result dict from loading pipeline.
 
-    #     Returns:
-    #         dict: Normalized results, 'img_norm_cfg' key is added into
-    #             result dict.
-    #     """
-    #     for key in results.get('img_fields', ['img']):
-    #         results[key] = mmcv.imnormalize(results[key], self.mean, self.std,
-    #                                         self.to_rgb)
-    #     results['img_norm_cfg'] = dict(
-    #         mean=self.mean, std=self.std, to_rgb=self.to_rgb)
-    #     return results
+        Returns:
+            dict: Normalized results, 'img_norm_cfg' key is added into
+                result dict.
+        """
+        for key in results.get('img_fields', ['img']):
+            results[key] = imnormalize(results[key], self.mean, self.std, self.to_rgb)
+        results['img_norm_cfg'] = dict(
+            mean=self.mean, std=self.std, to_rgb=self.to_rgb)
+        return results
 
-    # def __repr__(self):
-    #     repr_str = self.__class__.__name__
-    #     repr_str += f'(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})'
-    #     return repr_str
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(mean={self.mean}, std={self.std}, to_rgb={self.to_rgb})'
+        return repr_str
 
 
 @PIPELINES.register_module()
@@ -205,35 +214,35 @@ class Collect:
         self.meta_keys = meta_keys
     
 
-    # def __call__(self, results):
-    #     """Call function to collect keys in results. The keys in ``meta_keys``
-    #     will be converted to :obj:mmcv.DataContainer.
+    def __call__(self, results):
+        """Call function to collect keys in results. The keys in ``meta_keys``
+        will be converted to :obj:mmcv.DataContainer.
 
-    #     Args:
-    #         results (dict): Result dict contains the data to collect.
+        Args:
+            results (dict): Result dict contains the data to collect.
 
-    #     Returns:
-    #         dict: The result dict contains the following keys
+        Returns:
+            dict: The result dict contains the following keys
 
-    #             - keys in``self.keys``
-    #             - ``img_metas``
-    #     """
+                - keys in``self.keys``
+                - ``img_metas``
+        """
         
              
-    #     data = {}
-    #     img_meta = {}
-    #     for key in self.meta_keys:
-    #         img_meta[key] = results[key]
+        data = {}
+        img_meta = {}
+        for key in self.meta_keys:
+            img_meta[key] = results[key]
         
-    #     data['img_metas'] = DC(img_meta, cpu_only=True)
+        data['img_metas'] = DC(img_meta, cpu_only=True)
         
-    #     for key in self.keys:
-    #         data[key] = results[key]
-    #     return data
+        for key in self.keys:
+            data[key] = results[key]
+        return data
 
-    # def __repr__(self):
-    #     return self.__class__.__name__ + \
-    #            f'(keys={self.keys}, meta_keys={self.meta_keys})'
+    def __repr__(self):
+        return self.__class__.__name__ + \
+               f'(keys={self.keys}, meta_keys={self.meta_keys})'
                
                
 
@@ -269,76 +278,78 @@ class DefaultFormatBundle:
         self.img_to_float = img_to_float
         self.pad_val = pad_val
 
-    # def __call__(self, results):
-    #     """Call function to transform and format common fields in results.
+    def __call__(self, results):
+        """Call function to transform and format common fields in results.
 
-    #     Args:
-    #         results (dict): Result dict contains the data to convert.
+        Args:
+            results (dict): Result dict contains the data to convert.
 
-    #     Returns:
-    #         dict: The result dict contains the data that is formatted with \
-    #             default bundle.
-    #     """
+        Returns:
+            dict: The result dict contains the data that is formatted with \
+                default bundle.
+        """
 
-    #     if 'img' in results:
-    #         img = results['img']
-    #         if self.img_to_float is True and img.dtype == np.uint8:
-    #             # Normally, image is of uint8 type without normalization.
-    #             # At this time, it needs to be forced to be converted to
-    #             # flot32, otherwise the model training and inference
-    #             # will be wrong. Only used for YOLOX currently .
-    #             img = img.astype(np.float32)
-    #         # add default meta keys
-    #         results = self._add_default_meta_keys(results)
-    #         if len(img.shape) < 3:
-    #             img = np.expand_dims(img, -1)
-    #         img = np.ascontiguousarray(img.transpose(2, 0, 1))
-    #         results['img'] = DC(
-    #             to_tensor(img), padding_value=self.pad_val['img'], stack=True)
-    #     for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
-    #         if key not in results:
-    #             continue
-    #         results[key] = DC(to_tensor(results[key]))
-    #     if 'gt_masks' in results:
-    #         results['gt_masks'] = DC(
-    #             results['gt_masks'],
-    #             padding_value=self.pad_val['masks'],
-    #             cpu_only=True)
-    #     if 'gt_semantic_seg' in results:
-    #         results['gt_semantic_seg'] = DC(
-    #             to_tensor(results['gt_semantic_seg'][None, ...]),
-    #             padding_value=self.pad_val['seg'],
-    #             stack=True)
-    #     return results
+        # 학습에 사용할 data들을 전부 datacontainer 타입으로 변횐
+        if 'img' in results:
+            img = results['img']
+            if self.img_to_float is True and img.dtype == np.uint8:
+                # Normally, image is of uint8 type without normalization.
+                # At this time, it needs to be forced to be converted to
+                # flot32, otherwise the model training and inference
+                # will be wrong. Only used for YOLOX currently .
+                img = img.astype(np.float32)
+            # add default meta keys
+            results = self._add_default_meta_keys(results)
+            if len(img.shape) < 3:
+                img = np.expand_dims(img, -1)
+            img = np.ascontiguousarray(img.transpose(2, 0, 1))
+            results['img'] = DC(
+                to_tensor(img), padding_value=self.pad_val['img'], stack=True)
+        for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
+            if key not in results:
+                continue
+            results[key] = DC(to_tensor(results[key]))
+        if 'gt_masks' in results:
+            results['gt_masks'] = DC(
+                results['gt_masks'],
+                padding_value=self.pad_val['masks'],
+                cpu_only=True)
+        if 'gt_semantic_seg' in results:
+            results['gt_semantic_seg'] = DC(
+                to_tensor(results['gt_semantic_seg'][None, ...]),
+                padding_value=self.pad_val['seg'],
+                stack=True)
+        return results
 
-    # def _add_default_meta_keys(self, results):
-    #     """Add default meta keys.
 
-    #     We set default meta keys including `pad_shape`, `scale_factor` and
-    #     `img_norm_cfg` to avoid the case where no `Resize`, `Normalize` and
-    #     `Pad` are implemented during the whole pipeline.
+    def _add_default_meta_keys(self, results):
+        """Add default meta keys.
 
-    #     Args:
-    #         results (dict): Result dict contains the data to convert.
+        We set default meta keys including `pad_shape`, `scale_factor` and
+        `img_norm_cfg` to avoid the case where no `Resize`, `Normalize` and
+        `Pad` are implemented during the whole pipeline.
 
-    #     Returns:
-    #         results (dict): Updated result dict contains the data to convert.
-    #     """
-    #     img = results['img']
-    #     results.setdefault('pad_shape', img.shape)
-    #     results.setdefault('scale_factor', 1.0)
-    #     num_channels = 1 if len(img.shape) < 3 else img.shape[2]
-    #     results.setdefault(
-    #         'img_norm_cfg',
-    #         dict(
-    #             mean=np.zeros(num_channels, dtype=np.float32),
-    #             std=np.ones(num_channels, dtype=np.float32),
-    #             to_rgb=False))
-    #     return results
+        Args:
+            results (dict): Result dict contains the data to convert.
 
-    # def __repr__(self):
-    #     return self.__class__.__name__ + \
-    #            f'(img_to_float={self.img_to_float})'
+        Returns:
+            results (dict): Updated result dict contains the data to convert.
+        """
+        img = results['img']
+        results.setdefault('pad_shape', img.shape)
+        results.setdefault('scale_factor', 1.0)
+        num_channels = 1 if len(img.shape) < 3 else img.shape[2]
+        results.setdefault(
+            'img_norm_cfg',
+            dict(
+                mean=np.zeros(num_channels, dtype=np.float32),
+                std=np.ones(num_channels, dtype=np.float32),
+                to_rgb=False))
+        return results
+
+    def __repr__(self):
+        return self.__class__.__name__ + \
+               f'(img_to_float={self.img_to_float})'
 
 
 
@@ -373,7 +384,7 @@ class Pad:
         self.pad_val = pad_val
         self.pad_to_square = pad_to_square
 
-        if pad_to_square:
+        if pad_to_square:       # 정사각형으로 padding
             assert size is None and size_divisor is None, \
                 'The size and size_divisor must be None ' \
                 'when pad2square is True'
@@ -382,66 +393,68 @@ class Pad:
                 'only one of size and size_divisor should be valid'
             assert size is None or size_divisor is None
 
-    # def _pad_img(self, results):
-    #     """Pad images according to ``self.size``."""
-    #     pad_val = self.pad_val.get('img', 0)
-    #     for key in results.get('img_fields', ['img']):
-    #         if self.pad_to_square:
-    #             max_size = max(results[key].shape[:2])
-    #             self.size = (max_size, max_size)
-    #         if self.size is not None:
-    #             padded_img = mmcv.impad(
-    #                 results[key], shape=self.size, pad_val=pad_val)
-    #         elif self.size_divisor is not None:
-    #             padded_img = mmcv.impad_to_multiple(
-    #                 results[key], self.size_divisor, pad_val=pad_val)
-    #         results[key] = padded_img
-    #     results['pad_shape'] = padded_img.shape
-    #     results['pad_fixed_size'] = self.size
-    #     results['pad_size_divisor'] = self.size_divisor
+    def _pad_img(self, results):
+        """Pad images according to ``self.size``."""
+        pad_val = self.pad_val.get('img', 0)
+        for key in results.get('img_fields', ['img']):
+            print(f"results[key].shape : {results[key].shape}")
+            if self.pad_to_square:
+                max_size = max(results[key].shape[:2])
+                self.size = (max_size, max_size)
+            if self.size is not None:
+                padded_img = impad(
+                    results[key], shape=self.size, pad_val=pad_val)
+            elif self.size_divisor is not None:
+                padded_img = impad_to_multiple(
+                    results[key], self.size_divisor, pad_val=pad_val)
+                
+            results[key] = padded_img
+        results['pad_shape'] = padded_img.shape
+        results['pad_fixed_size'] = self.size
+        results['pad_size_divisor'] = self.size_divisor
 
-    # def _pad_masks(self, results):
-    #     """Pad masks according to ``results['pad_shape']``."""
-    #     pad_shape = results['pad_shape'][:2]
-    #     pad_val = self.pad_val.get('masks', 0)
-    #     for key in results.get('mask_fields', []):
-    #         results[key] = results[key].pad(pad_shape, pad_val=pad_val)
+    def _pad_masks(self, results):  # padding to mask image
+        """Pad masks according to ``results['pad_shape']``."""
+        pad_shape = results['pad_shape'][:2]
+        pad_val = self.pad_val.get('masks', 0)
+        for key in results.get('mask_fields', []):
+            results[key] = results[key].pad(pad_shape, pad_val=pad_val)
 
-    # def _pad_seg(self, results):
-    #     """Pad semantic segmentation map according to
-    #     ``results['pad_shape']``."""
-    #     pad_val = self.pad_val.get('seg', 255)
-    #     for key in results.get('seg_fields', []):
-    #         results[key] = mmcv.impad(
-    #             results[key], shape=results['pad_shape'][:2], pad_val=pad_val)
+    def _pad_seg(self, results):    # padding to seg image
+        """Pad semantic segmentation map according to
+        ``results['pad_shape']``."""
+        pad_val = self.pad_val.get('seg', 255)
+        for key in results.get('seg_fields', []):
+            results[key] = impad(
+                results[key], shape=results['pad_shape'][:2], pad_val=pad_val)
 
-    # def __call__(self, results):
-    #     """Call function to pad images, masks, semantic segmentation maps.
+    def __call__(self, results):
+        """Call function to pad images, masks, semantic segmentation maps.
 
-    #     Args:
-    #         results (dict): Result dict from loading pipeline.
+        Args:
+            results (dict): Result dict from loading pipeline.
 
-    #     Returns:
-    #         dict: Updated result dict.
-    #     """
-    #     self._pad_img(results)
-    #     self._pad_masks(results)
-    #     self._pad_seg(results)
-    #     return results
+        Returns:
+            dict: Updated result dict.
+        """
+        self._pad_img(results)
+        self._pad_masks(results)
+        self._pad_seg(results)
+        return results
 
-    # def __repr__(self):
-    #     repr_str = self.__class__.__name__
-    #     repr_str += f'(size={self.size}, '
-    #     repr_str += f'size_divisor={self.size_divisor}, '
-    #     repr_str += f'pad_to_square={self.pad_to_square}, '
-    #     repr_str += f'pad_val={self.pad_val})'
-    #     return repr_str
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(size={self.size}, '
+        repr_str += f'size_divisor={self.size_divisor}, '
+        repr_str += f'pad_to_square={self.pad_to_square}, '
+        repr_str += f'pad_val={self.pad_val})'
+        return repr_str
 
 
 
 
 @PIPELINES.register_module()
-class RandomFlip:
+class RandomFlip:       # TODO: flip말고도 pre processing 더 넣는것을 구현. (name변경)
     """Flip the image & bbox & mask.
 
     If the input dict contains the key "flip", then the flag will be used,
@@ -469,7 +482,7 @@ class RandomFlip:
         of 0.3, vertically with probability of 0.5.
 
     Args:
-        flip_ratio (float | list[float], optional): The flipping probability.
+        flip_ratio (float | list[float], optional): 전체 dataset에서 flip을 적용할 image의 비율 
             Default: None.
         direction(str | list[str], optional): The flipping direction. Options
             are 'horizontal', 'vertical', 'diagonal'. Default: 'horizontal'.
@@ -507,97 +520,102 @@ class RandomFlip:
         if isinstance(flip_ratio, list):
             assert len(self.flip_ratio) == len(self.direction)
 
-    # def bbox_flip(self, bboxes, img_shape, direction):
-    #     """Flip bboxes horizontally.
+    def bbox_flip(self, bboxes, img_shape, direction):
+        """Flip bboxes horizontally.
 
-    #     Args:
-    #         bboxes (numpy.ndarray): Bounding boxes, shape (..., 4*k)
-    #         img_shape (tuple[int]): Image shape (height, width)
-    #         direction (str): Flip direction. Options are 'horizontal',
-    #             'vertical'.
+        Args:
+            bboxes (numpy.ndarray): Bounding boxes, shape (..., 4*k)
+            img_shape (tuple[int]): Image shape (height, width)
+            direction (str): Flip direction. Options are 'horizontal',
+                'vertical'.
 
-    #     Returns:
-    #         numpy.ndarray: Flipped bounding boxes.
-    #     """
+        Returns:
+            numpy.ndarray: Flipped bounding boxes.
+        """
 
-    #     assert bboxes.shape[-1] % 4 == 0
-    #     flipped = bboxes.copy()
-    #     if direction == 'horizontal':
-    #         w = img_shape[1]
-    #         flipped[..., 0::4] = w - bboxes[..., 2::4]
-    #         flipped[..., 2::4] = w - bboxes[..., 0::4]
-    #     elif direction == 'vertical':
-    #         h = img_shape[0]
-    #         flipped[..., 1::4] = h - bboxes[..., 3::4]
-    #         flipped[..., 3::4] = h - bboxes[..., 1::4]
-    #     elif direction == 'diagonal':
-    #         w = img_shape[1]
-    #         h = img_shape[0]
-    #         flipped[..., 0::4] = w - bboxes[..., 2::4]
-    #         flipped[..., 1::4] = h - bboxes[..., 3::4]
-    #         flipped[..., 2::4] = w - bboxes[..., 0::4]
-    #         flipped[..., 3::4] = h - bboxes[..., 1::4]
-    #     else:
-    #         raise ValueError(f"Invalid flipping direction '{direction}'")
-    #     return flipped
+        assert bboxes.shape[-1] % 4 == 0
+        flipped = bboxes.copy()
+        if direction == 'horizontal':
+            w = img_shape[1]
+            flipped[..., 0::4] = w - bboxes[..., 2::4]
+            flipped[..., 2::4] = w - bboxes[..., 0::4]
+        elif direction == 'vertical':
+            h = img_shape[0]
+            flipped[..., 1::4] = h - bboxes[..., 3::4]
+            flipped[..., 3::4] = h - bboxes[..., 1::4]
+        elif direction == 'diagonal':
+            w = img_shape[1]
+            h = img_shape[0]
+            flipped[..., 0::4] = w - bboxes[..., 2::4]
+            flipped[..., 1::4] = h - bboxes[..., 3::4]
+            flipped[..., 2::4] = w - bboxes[..., 0::4]
+            flipped[..., 3::4] = h - bboxes[..., 1::4]
+        else:
+            raise ValueError(f"Invalid flipping direction '{direction}'")
+        return flipped
 
-    # def __call__(self, results):
-    #     """Call function to flip bounding boxes, masks, semantic segmentation
-    #     maps.
+    def __call__(self, results):
+        """Call function to flip bounding boxes, masks, semantic segmentation
+        maps.
 
-    #     Args:
-    #         results (dict): Result dict from loading pipeline.
+        Args:
+            results (dict): Result dict from loading pipeline.
 
-    #     Returns:
-    #         dict: Flipped results, 'flip', 'flip_direction' keys are added \
-    #             into result dict.
-    #     """
+        Returns:
+            dict: Flipped results, 'flip', 'flip_direction' keys are added \
+                into result dict.
+        """
 
-    #     if 'flip' not in results:
-    #         if isinstance(self.direction, list):
-    #             # None means non-flip
-    #             direction_list = self.direction + [None]
-    #         else:
-    #             # None means non-flip
-    #             direction_list = [self.direction, None]
+        if 'flip' not in results:
+            if isinstance(self.direction, list):
+                # None means non-flip
+                direction_list = self.direction + [None]
+            else:
+                # None means non-flip
+                direction_list = [self.direction, None]
 
-    #         if isinstance(self.flip_ratio, list):
-    #             non_flip_ratio = 1 - sum(self.flip_ratio)
-    #             flip_ratio_list = self.flip_ratio + [non_flip_ratio]
-    #         else:
-    #             non_flip_ratio = 1 - self.flip_ratio
-    #             # exclude non-flip
-    #             single_ratio = self.flip_ratio / (len(direction_list) - 1)
-    #             flip_ratio_list = [single_ratio] * (len(direction_list) -
-    #                                                 1) + [non_flip_ratio]
+            if isinstance(self.flip_ratio, list):
+                non_flip_ratio = 1 - sum(self.flip_ratio)
+                flip_ratio_list = self.flip_ratio + [non_flip_ratio]
+            else:
+                non_flip_ratio = 1 - self.flip_ratio
+                # exclude non-flip
+                single_ratio = self.flip_ratio / (len(direction_list) - 1)
+                # flip_ratio_list = [적용할 비율, 1 - 적용할 비율]
+                flip_ratio_list = [single_ratio] * (len(direction_list) - 1) + [non_flip_ratio]
 
-    #         cur_dir = np.random.choice(direction_list, p=flip_ratio_list)
+            cur_dir = np.random.choice(direction_list, p=flip_ratio_list)
+           
+            # TODO : flip_ratio = [0.3, 0.5, 0.2] 이면 전체 중 0.9%가 특정 flip이 적용된다.
+            # 전체 이미지해 대하여 flip(또는 이외의 pre-processing)을 적용한 후 
+            # 새로운 results return하여 image의 양을 불리는 argumentation연구해보자
+            results['flip'] = cur_dir is not None
+        
+        if 'flip_direction' not in results:
+            results['flip_direction'] = cur_dir
+            
 
-    #         results['flip'] = cur_dir is not None
-    #     if 'flip_direction' not in results:
-    #         results['flip_direction'] = cur_dir
-    #     if results['flip']:
-    #         # flip image
-    #         for key in results.get('img_fields', ['img']):
-    #             results[key] = mmcv.imflip(
-    #                 results[key], direction=results['flip_direction'])
-    #         # flip bboxes
-    #         for key in results.get('bbox_fields', []):
-    #             results[key] = self.bbox_flip(results[key],
-    #                                           results['img_shape'],
-    #                                           results['flip_direction'])
-    #         # flip masks
-    #         for key in results.get('mask_fields', []):
-    #             results[key] = results[key].flip(results['flip_direction'])
+        if results['flip']:
+            # flip image
+            for key in results.get('img_fields', ['img']):
+                results[key] = imflip(results[key], direction=results['flip_direction'])
+            # flip bboxes
+            for key in results.get('bbox_fields', []):
+                results[key] = self.bbox_flip(results[key],
+                                              results['img_shape'],
+                                              results['flip_direction'])
+            # flip masks
+            for key in results.get('mask_fields', []):
+                results[key] = results[key].flip(results['flip_direction'])
 
-    #         # flip segs
-    #         for key in results.get('seg_fields', []):
-    #             results[key] = mmcv.imflip(
-    #                 results[key], direction=results['flip_direction'])
-    #     return results
+            # flip segs
+            for key in results.get('seg_fields', []):
+                results[key] = imflip(
+                    results[key], direction=results['flip_direction'])
+        return results
 
-    # def __repr__(self):
-    #     return self.__class__.__name__ + f'(flip_ratio={self.flip_ratio})'
+    def __repr__(self):
+        return self.__class__.__name__ + f'(flip_ratio={self.flip_ratio})'
     
     
     
@@ -648,42 +666,30 @@ class Resize:
     """
 
     def __init__(self,
-                 img_scale=None,
-                 multiscale_mode='range',
-                 ratio_range=None,
+                 img_scale,
                  keep_ratio=True,
                  bbox_clip_border=True,
-                 backend='cv2',
                  interpolation='bilinear',
                  override=False):
-        if img_scale is None:
-            self.img_scale = None
-        else:
-            if isinstance(img_scale, list):
-                self.img_scale = img_scale
-            else:
-                self.img_scale = [img_scale]
-                
-            for scale in self.img_scale:        # img_scale은 전부 tuple type이여야 한다
-                assert isinstance(scale, tuple)
 
-        if ratio_range is not None:
-            # mode 1: given a scale and a range of image ratio
-            assert len(self.img_scale) == 1
+        # img_scale은 전부 tuple type이여야 한다
+        # img_scale : (width, height)
+        if isinstance(img_scale, list): 
+            self.img_scale = img_scale
         else:
-            # mode 2: given multiple scales or a range of scales
-            assert multiscale_mode in ['value', 'range']
-
-        self.backend = backend
-        self.multiscale_mode = multiscale_mode
-        self.ratio_range = ratio_range
+            self.img_scale = [img_scale]
+            
+        for scale in self.img_scale:       
+            assert isinstance(scale, tuple)
+       
+      
         self.keep_ratio = keep_ratio
         # TODO: refactor the override option in Resize
         self.interpolation = interpolation
         self.override = override
         self.bbox_clip_border = bbox_clip_border
 
-    # @staticmethod
+    # TODO 아래것들 사용하는지 확인
     # def random_select(img_scales):
     #     """Randomly select an img_scale from given candidates.
 
@@ -755,160 +761,148 @@ class Resize:
     #     scale = int(img_scale[0] * ratio), int(img_scale[1] * ratio)
     #     return scale, None
 
-    # def _random_scale(self, results):
-    #     """Randomly sample an img_scale according to ``ratio_range`` and
-    #     ``multiscale_mode``.
+    def _random_scale(self, results):
+        """Randomly sample an img_scale according to ``ratio_range`` and
+        ``multiscale_mode``.
 
-    #     If ``ratio_range`` is specified, a ratio will be sampled and be
-    #     multiplied with ``img_scale``.
-    #     If multiple scales are specified by ``img_scale``, a scale will be
-    #     sampled according to ``multiscale_mode``.
-    #     Otherwise, single scale will be used.
+        If ``ratio_range`` is specified, a ratio will be sampled and be
+        multiplied with ``img_scale``.
+        If multiple scales are specified by ``img_scale``, a scale will be
+        sampled according to ``multiscale_mode``.
+        Otherwise, single scale will be used.
 
-    #     Args:
-    #         results (dict): Result dict from :obj:`dataset`.
+        Args:
+            results (dict): Result dict from :obj:`dataset`.
 
-    #     Returns:
-    #         dict: Two new keys 'scale` and 'scale_idx` are added into \
-    #             ``results``, which would be used by subsequent pipelines.
-    #     """
+        Returns:
+            dict: Two new keys 'scale` and 'scale_idx` are added into \
+                ``results``, which would be used by subsequent pipelines.
+        """
+     
+        if len(self.img_scale) == 1:
+            scale, scale_idx = self.img_scale[0], 0
+        else:
+            raise NotImplementedError
 
-    #     if self.ratio_range is not None:
-    #         scale, scale_idx = self.random_sample_ratio(
-    #             self.img_scale[0], self.ratio_range)
-    #     elif len(self.img_scale) == 1:
-    #         scale, scale_idx = self.img_scale[0], 0
-    #     elif self.multiscale_mode == 'range':
-    #         scale, scale_idx = self.random_sample(self.img_scale)
-    #     elif self.multiscale_mode == 'value':
-    #         scale, scale_idx = self.random_select(self.img_scale)
-    #     else:
-    #         raise NotImplementedError
+        results['scale'] = scale
+        results['scale_idx'] = scale_idx
 
-    #     results['scale'] = scale
-    #     results['scale_idx'] = scale_idx
-
-    # def _resize_img(self, results):
-    #     """Resize images with ``results['scale']``."""
+    def _resize_img(self, results):
+        """Resize images with ``results['scale']``."""
 
         
-    #     for key in results.get('img_fields', ['img']):
-    #         if self.keep_ratio:
-    #             img, scale_factor = mmcv.imrescale(
-    #                 results[key],
-    #                 results['scale'],
-    #                 return_scale=True,
-    #                 interpolation=self.interpolation,
-    #                 backend=self.backend)
-    #             # the w_scale and h_scale has minor difference
-    #             # a real fix should be done in the mmcv.imrescale in the future
-    #             new_h, new_w = img.shape[:2]
-    #             h, w = results[key].shape[:2]
-    #             w_scale = new_w / w
-    #             h_scale = new_h / h
-    #         else:
-    #             img, w_scale, h_scale = mmcv.imresize(
-    #                 results[key],
-    #                 results['scale'],
-    #                 return_scale=True,
-    #                 interpolation=self.interpolation,
-    #                 backend=self.backend)
-    #         results[key] = img
+        for key in results.get('img_fields', ['img']):
+            if self.keep_ratio:
+                img, scale_factor = imrescale(results[key],
+                                              results['scale'],
+                                              return_scale=True,
+                                              interpolation=self.interpolation)
+                # the w_scale and h_scale has minor difference
+                # a real fix should be done in the mmcv.imrescale in the future
+                new_h, new_w = img.shape[:2]
+                h, w = results[key].shape[:2]
+                w_scale = new_w / w
+                h_scale = new_h / h
+            else:
+                img, w_scale, h_scale = imresize(
+                    results[key],
+                    results['scale'],
+                    return_scale=True,
+                    interpolation=self.interpolation)
+            results[key] = img
 
-    #         scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
-    #                                 dtype=np.float32)
-    #         results['img_shape'] = img.shape
-    #         # in case that there is no padding
-    #         results['pad_shape'] = img.shape
-    #         results['scale_factor'] = scale_factor
-    #         results['keep_ratio'] = self.keep_ratio
+            scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
+                                    dtype=np.float32)
+            results['img_shape'] = img.shape
+            # in case that there is no padding
+            results['pad_shape'] = img.shape
+            results['scale_factor'] = scale_factor
+            results['keep_ratio'] = self.keep_ratio
 
-    # def _resize_bboxes(self, results):
-    #     """Resize bounding boxes with ``results['scale_factor']``."""
-    #     for key in results.get('bbox_fields', []):
-    #         bboxes = results[key] * results['scale_factor']
-    #         if self.bbox_clip_border:
-    #             img_shape = results['img_shape']
-    #             bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1])
-    #             bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0])
-    #         results[key] = bboxes
+    def _resize_bboxes(self, results):
+        """Resize bounding boxes with ``results['scale_factor']``."""
+        for key in results.get('bbox_fields', []):
+            bboxes = results[key] * results['scale_factor']
+            if self.bbox_clip_border:
+                img_shape = results['img_shape']
+                bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1])
+                bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0])
+            results[key] = bboxes
 
-    # def _resize_masks(self, results):
-    #     """Resize masks with ``results['scale']``"""
-    #     for key in results.get('mask_fields', []):
-    #         if results[key] is None:
-    #             continue
-    #         if self.keep_ratio:
-    #             results[key] = results[key].rescale(results['scale'])
-    #         else:
-    #             results[key] = results[key].resize(results['img_shape'][:2])
+    def _resize_masks(self, results):
+        """Resize masks with ``results['scale']``"""
+        for key in results.get('mask_fields', []):
+            if results[key] is None:
+                continue
+            if self.keep_ratio:
+                results[key] = results[key].rescale(results['scale'])
+            else:
+                results[key] = results[key].resize(results['img_shape'][:2])
 
-    # def _resize_seg(self, results):
-    #     """Resize semantic segmentation map with ``results['scale']``."""
-    #     for key in results.get('seg_fields', []):
-    #         if self.keep_ratio:
-    #             gt_seg = mmcv.imrescale(
-    #                 results[key],
-    #                 results['scale'],
-    #                 interpolation='nearest',
-    #                 backend=self.backend)
-    #         else:
-    #             gt_seg = mmcv.imresize(
-    #                 results[key],
-    #                 results['scale'],
-    #                 interpolation='nearest',
-    #                 backend=self.backend)
-    #         results[key] = gt_seg
+    def _resize_seg(self, results):
+        """Resize semantic segmentation map with ``results['scale']``."""
+        for key in results.get('seg_fields', []):
+            if self.keep_ratio:
+                gt_seg = imrescale(
+                    results[key],
+                    results['scale'],
+                    interpolation='nearest')
+            else:
+                gt_seg = imresize(
+                    results[key],
+                    results['scale'],
+                    interpolation='nearest')
+            results[key] = gt_seg
 
-    # def __call__(self, results):
-    #     """Call function to resize images, bounding boxes, masks, semantic
-    #     segmentation map.
 
-    #     Args:
-    #         results (dict): Result dict from loading pipeline.
+    def __call__(self, results):
+        """Call function to resize images, bounding boxes, masks, semantic
+        segmentation map.
 
-    #     Returns:
-    #         dict: Resized results, 'img_shape', 'pad_shape', 'scale_factor', \
-    #             'keep_ratio' keys are added into result dict.
-    #     """
+        Args:
+            results (dict): Result dict from loading pipeline.
 
+        Returns:
+            dict: Resized results, 'img_shape', 'pad_shape', 'scale_factor', \
+                'keep_ratio' keys are added into result dict.
+        """
         
         
-        
-        
-    #     if 'scale' not in results:
-    #         if 'scale_factor' in results:                
-    #             img_shape = results['img'].shape[:2]
-    #             scale_factor = results['scale_factor']
-    #             assert isinstance(scale_factor, float)
-    #             results['scale'] = tuple(
-    #                 [int(x * scale_factor) for x in img_shape][::-1])
-    #         else:
-    #             self._random_scale(results)
-    #     else:
-    #         if not self.override:
-    #             assert 'scale_factor' not in results, (
-    #                 'scale and scale_factor cannot be both set.')
-    #         else:
-    #             results.pop('scale')
-    #             if 'scale_factor' in results:
-    #                 results.pop('scale_factor')
-    #             self._random_scale(results)
+        if 'scale' not in results:
+            if 'scale_factor' in results:                
+                img_shape = results['img'].shape[:2]
+                scale_factor = results['scale_factor']
+                assert isinstance(scale_factor, float)
+                results['scale'] = tuple(
+                    [int(x * scale_factor) for x in img_shape][::-1])
+            else:
+                # 해당 code의 기대값 : _random_scale
+                self._random_scale(results)
+        else:
+            if not self.override:
+                assert 'scale_factor' not in results, (
+                    'scale and scale_factor cannot be both set.')
+            else:
+                results.pop('scale')
+                if 'scale_factor' in results:
+                    results.pop('scale_factor')
+                self._random_scale(results)
 
-    #     self._resize_img(results)
-    #     self._resize_bboxes(results)
-    #     self._resize_masks(results)
-    #     self._resize_seg(results)
-    #     return results
+        # resizing image, 그리고 그에 맞춰 bbox, mask, segmentation도 resizing 
+        self._resize_img(results)
+        self._resize_bboxes(results)
+        self._resize_masks(results)
+        self._resize_seg(results)
+        return results
 
-    # def __repr__(self):
-    #     repr_str = self.__class__.__name__
-    #     repr_str += f'(img_scale={self.img_scale}, '
-    #     repr_str += f'multiscale_mode={self.multiscale_mode}, '
-    #     repr_str += f'ratio_range={self.ratio_range}, '
-    #     repr_str += f'keep_ratio={self.keep_ratio}, '
-    #     repr_str += f'bbox_clip_border={self.bbox_clip_border})'
-    #     return repr_str
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(img_scale={self.img_scale}, '
+        repr_str += f'multiscale_mode={self.multiscale_mode}, '
+        repr_str += f'ratio_range={self.ratio_range}, '
+        repr_str += f'keep_ratio={self.keep_ratio}, '
+        repr_str += f'bbox_clip_border={self.bbox_clip_border})'
+        return repr_str
     
     
     
@@ -996,49 +990,33 @@ class LoadAnnotations:
         results['gt_labels'] = results['ann_info']['labels'].copy()
         return results
 
-    # def _poly2mask(self, mask_ann, img_h, img_w):
-    #     """Private function to convert masks represented with polygon to
-    #     bitmaps.
+    def _poly2mask(self, mask_ann, img_h, img_w):
+        """Private function to convert masks represented with polygon to
+        bitmaps.
 
-    #     Args:
-    #         mask_ann (list | dict): Polygon mask annotation input.
-    #         img_h (int): The height of output mask.
-    #         img_w (int): The width of output mask.
+        Args:
+            mask_ann (list | dict): Polygon mask annotation input.
+            img_h (int): The height of output mask.
+            img_w (int): The width of output mask.
 
-    #     Returns:
-    #         numpy.ndarray: The decode bitmap mask of shape (img_h, img_w).
-    #     """
+        Returns:
+            numpy.ndarray: The decode bitmap mask of shape (img_h, img_w).
+        """
 
-    #     if isinstance(mask_ann, list):
-    #         # polygon -- a single object might consist of multiple parts
-    #         # we merge all parts into one mask rle code
-    #         rles = maskUtils.frPyObjects(mask_ann, img_h, img_w)
-    #         rle = maskUtils.merge(rles)
-    #     elif isinstance(mask_ann['counts'], list):
-    #         # uncompressed RLE
-    #         rle = maskUtils.frPyObjects(mask_ann, img_h, img_w)
-    #     else:
-    #         # rle
-    #         rle = mask_ann
-    #     mask = maskUtils.decode(rle)
-    #     return mask
+        if isinstance(mask_ann, list):
+            # polygon -- a single object might consist of multiple parts
+            # we merge all parts into one mask rle code
+            rles = maskUtils.frPyObjects(mask_ann, img_h, img_w)
+            rle = maskUtils.merge(rles)
+        elif isinstance(mask_ann['counts'], list):
+            # uncompressed RLE
+            rle = maskUtils.frPyObjects(mask_ann, img_h, img_w)
+        else:
+            # rle
+            rle = mask_ann
+        mask = maskUtils.decode(rle)
+        return mask
 
-    # def process_polygons(self, polygons):
-    #     """Convert polygons to list of ndarray and filter invalid polygons.
-
-    #     Args:
-    #         polygons (list[list]): Polygons of one instance.
-
-    #     Returns:
-    #         list[numpy.ndarray]: Processed polygons.
-    #     """
-
-    #     polygons = [np.array(p) for p in polygons]
-    #     valid_polygons = []
-    #     for polygon in polygons:
-    #         if len(polygon) % 2 == 0 and len(polygon) >= 6:
-    #             valid_polygons.append(polygon)
-    #     return valid_polygons
 
     def _load_masks(self, results):
         """Private function to load mask annotations.
@@ -1053,36 +1031,16 @@ class LoadAnnotations:
         """
         h, w = results['img_info']['height'], results['img_info']['width']
         gt_masks = results['ann_info']['masks']
-        # polygon만 취급한다
-
-        from utils.compose.polygonMasks import PolygonMasks     # 여기서부터
-        gt_masks = PolygonMasks(
-            [self.process_polygons(polygons) for polygons in gt_masks], h,
-            w)
+        # BitmapMasks만 취급한다
+        
+        gt_masks = BitmapMasks(
+            [self._poly2mask(mask, h, w) for mask in gt_masks], h, w)
+    
         results['gt_masks'] = gt_masks
         results['mask_fields'].append('gt_masks')
         return results
 
-    # def _load_semantic_seg(self, results):
-    #     """Private function to load semantic segmentation annotations.
 
-    #     Args:
-    #         results (dict): Result dict from :obj:`dataset`.
-
-    #     Returns:
-    #         dict: The dict contains loaded semantic segmentation annotations.
-    #     """
-
-    #     if self.file_client is None:
-    #         self.file_client = mmcv.FileClient(**self.file_client_args)
-
-    #     filename = osp.join(results['seg_prefix'],
-    #                         results['ann_info']['seg_map'])
-    #     img_bytes = self.file_client.get(filename)
-    #     results['gt_semantic_seg'] = mmcv.imfrombytes(
-    #         img_bytes, flag='unchanged').squeeze()
-    #     results['seg_fields'].append('gt_semantic_seg')
-    #     return results
 
     def __call__(self, results):
         """Call function to load multiple types annotations.
@@ -1103,16 +1061,15 @@ class LoadAnnotations:
             results = self._load_labels(results)
         if self.with_mask:
             results = self._load_masks(results)
-        if self.with_seg:
-            results = self._load_semantic_seg(results)
         return results
+    
 
-    # def __repr__(self):
-    #     repr_str = self.__class__.__name__
-    #     repr_str += f'(with_bbox={self.with_bbox}, '
-    #     repr_str += f'with_label={self.with_label}, '
-    #     repr_str += f'with_mask={self.with_mask}, '
-    #     repr_str += f'with_seg={self.with_seg}, '
-    #     repr_str += f'poly2mask={self.poly2mask}, '
-    #     repr_str += f'poly2mask={self.file_client_args})'
-    #     return repr_str
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(with_bbox={self.with_bbox}, '
+        repr_str += f'with_label={self.with_label}, '
+        repr_str += f'with_mask={self.with_mask}, '
+        repr_str += f'with_seg={self.with_seg}, '
+        repr_str += f'poly2mask={self.poly2mask}, '
+        repr_str += f'poly2mask={self.file_client_args})'
+        return repr_str
