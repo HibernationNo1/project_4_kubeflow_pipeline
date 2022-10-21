@@ -7,16 +7,18 @@ from torch.nn.parallel import DataParallel
 from functools import partial
 from itertools import chain
 
-from utils.utils import collate, auto_scale_lr
+from utils.utils import auto_scale_lr
 from utils.registry import Registry, build_from_cfg
-from utils.sampler import GroupSampler
 from utils.optimizer import DefaultOptimizerConstructor
 from utils.runner import EpochBasedRunner
 from utils.scatter import scatter_kwargs
-from dataset import CustomDataset
+from datasets.sampler import GroupSampler, collate
+from datasets.dataset import CustomDataset
 
 MODELS = Registry('model')
 BACKBONES = Registry('backbone')
+
+
     
     
 def build_backbone(cfg):

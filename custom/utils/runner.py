@@ -2,7 +2,7 @@ import torch
 import time
 import os.path as osp
 from base_module import BaseRunner
-from utils.utils import is_list_of, get_host_info
+from utils.utils import get_host_info
 
 from utils.hook import (Hook,
                         StepLrUpdaterHook, 

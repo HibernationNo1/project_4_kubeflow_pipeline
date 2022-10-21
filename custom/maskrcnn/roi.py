@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn.modules.utils import _pair
 
 from base_module import BaseModule, ModuleList
-from coder import DeltaXYWHBBoxCoder
+from maskrcnn.coder import DeltaXYWHBBoxCoder
 from loss import CrossEntropyLoss, L1Loss
 from assigner import MaxIoUAssigner
 from maskrcnn.rpn import ConvModule
