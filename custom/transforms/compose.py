@@ -5,12 +5,12 @@ import cv2
 
 
 from utils.registry import Registry, build_from_cfg
-from utils.transforms import (BitmapMasks, 
+from transforms.utils import (BitmapMasks, 
                               imrescale, imresize, imflip, 
                               imnormalize, 
                               impad, impad_to_multiple)
 from utils.utils import to_tensor
-from utils.datacontainer import DataContainer as DC
+from datasets.datacontainer import DataContainer as DC
                        
 import pycocotools.mask as maskUtils
 
@@ -397,7 +397,6 @@ class Pad:
         """Pad images according to ``self.size``."""
         pad_val = self.pad_val.get('img', 0)
         for key in results.get('img_fields', ['img']):
-            print(f"results[key].shape : {results[key].shape}")
             if self.pad_to_square:
                 max_size = max(results[key].shape[:2])
                 self.size = (max_size, max_size)

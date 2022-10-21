@@ -3,10 +3,10 @@ import json
 import os, os.path as osp
 import numpy as np
 from terminaltables import AsciiTable
-from coco_api import COCO
-from compose import Compose
+from datasets.coco_api import COCO
+from transforms.compose import Compose
 
-
+    
 
 class CustomDataset(Dataset):
     """Custom dataset for detection.
@@ -370,7 +370,7 @@ class CustomDataset(Dataset):
         """
 
         while True:
-            data = self.prepare_train_img(idx)
+            data = self.prepare_train_img(idx)      # preprocessing을 전부 마치고 하나로 모아진 data
             if data is None:
                 idx = self._rand_another(idx)
                 continue
