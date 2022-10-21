@@ -2,9 +2,7 @@ import numpy as np
 import random
 import copy
 import torch
-from torch.utils.data import DataLoader
 from torch.nn.parallel import DataParallel
-from functools import partial
 from itertools import chain
 
 from utils.utils import auto_scale_lr
@@ -12,8 +10,8 @@ from utils.registry import Registry, build_from_cfg
 from utils.optimizer import DefaultOptimizerConstructor
 from utils.runner import EpochBasedRunner
 from utils.scatter import scatter_kwargs
-from datasets.sampler import GroupSampler, collate
 from datasets.dataset import CustomDataset
+from datasets.dataloader import _build_dataloader
 
 MODELS = Registry('model')
 BACKBONES = Registry('backbone')
@@ -36,34 +34,9 @@ def build_dataloader(dataset,
                      batch_size,
                      num_workers,
                      seed,
-                     shuffle = True
-                    ):
+                     shuffle = True):
 
-    sampler = GroupSampler(dataset, batch_size) if shuffle else None
-    batch_sampler = None
-    
-    init_fn = partial(worker_init_fn, num_workers=num_workers,seed=seed) if seed is not None else None
-    
-    data_loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        sampler=sampler,
-        num_workers=num_workers,
-        batch_sampler=batch_sampler,
-        collate_fn=partial(collate, samples_per_gpu=batch_size),    
-        pin_memory=False,
-        worker_init_fn=init_fn) # TODO : run에서 persistent_workers사용하는지 확인
-
-    return data_loader
-    
-    
-def worker_init_fn(worker_id, num_workers, seed):
-    # The seed of each worker equals to
-    # num_worker * rank + worker_id + user_seed
-    worker_seed = num_workers + worker_id + seed
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
-    torch.manual_seed(worker_seed)
+   return _build_dataloader(dataset, batch_size, num_workers, seed, shuffle = shuffle)
 
 
 def build_runner(cfg: dict):
@@ -126,7 +99,8 @@ class MMDataParallel(DataParallel):
     def train_step(self, *inputs, **kwargs):
         assert self.device_ids == [0], "this project is for only single gpu with ID == '0',\
                                         but device_ids is {self.device_ids}"
-        
+        # inputs[0]: data_batch
+        # inputs[1]: optimizer
         for t in chain(self.module.parameters(), self.module.buffers()):
             if t.device != self.src_device_obj:
                 raise RuntimeError(
