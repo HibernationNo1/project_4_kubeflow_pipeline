@@ -10,7 +10,7 @@ from loss import CrossEntropyLoss, L1Loss
 from assigner import MaxIoUAssigner
 from initialization import constant_init
 from maskrcnn.fpn import ConvModule
-from utils.sampler import RandomSampler
+from datasets.sampler import RandomSampler
 
 
 

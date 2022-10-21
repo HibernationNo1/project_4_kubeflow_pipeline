@@ -408,7 +408,13 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
         if not is_list_of(log_dict_list, dict): raise TypeError(f"element of list must be dict, but was not.")
         
         text_log = '\n'
-        num_bar = 50
+        if status in ['before_run', 'after_run']:
+            num_bar = 30
+        elif status in ['before_epoch', 'after_epoch']:
+            num_bar = 45
+        elif status in ['before_iter', 'after_iter']:
+            num_bar = 60
+        
         for i in range(num_bar):
             if i == num_bar//2:
                 text_log += f'< {status} >'
@@ -450,7 +456,7 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
     def before_train_epoch(self, runner):
         log_dict = dict(
             start_epoch = runner.get('epoch'),
-            iterd_per_epochs = runner.get('iterd_per_epochs')
+            iterd_per_epochs = runner.get('iters_per_epochs')
             )
         self.write_log('before_epoch', [log_dict])
         runner.log_buffer.clear()  # clear logs of last epoch
@@ -463,9 +469,9 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
    
     
     def after_train_iter(self, runner) -> None:
-        if self.by_epoch and self.every_n_inner_iters(runner, self.interval):   # epoch단위
+        if self.by_epoch and self.every_n_inner_iters(runner, self.interval):   # epoch단위, iter +1
             runner.log_buffer.average(self.interval)
-        elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # iter단위
+        elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # iter단위, iter +1
             runner.log_buffer.average(self.interval)
         elif self.end_of_epoch(runner) and not self.ignore_last:    # last epoch일때
             # not precise but more stable

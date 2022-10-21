@@ -7,7 +7,7 @@ from maskrcnn.coder import DeltaXYWHBBoxCoder
 from loss import CrossEntropyLoss, L1Loss
 from assigner import MaxIoUAssigner
 from maskrcnn.rpn import ConvModule
-from utils.sampler import RandomSampler
+from datasets.sampler import RandomSampler
 
 if torch.__version__ == 'parrots':
     TORCH_VERSION = torch.__version__
