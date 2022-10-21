@@ -79,7 +79,15 @@ class EpochBasedRunner(BaseRunner):
                 
             pass
             
+    def run_iter(self, data_batch, train_mode, **kwargs):
+        if train_mode:
+            # MMDataParallel.train_step
+            outputs = self.model.train_step(data_batch, self.optimizer,
+                                            **kwargs)
+        else:   # TODO
+            outputs = self.model.val_step(data_batch, self.optimizer, **kwargs)
             
+        
                 
     def train(self, mode, data_loader, **kwargs):
         self.model.train()
@@ -91,13 +99,12 @@ class EpochBasedRunner(BaseRunner):
             self.data_batch = data_batch
             self._inner_iter = i
             self.call_hook('before_train_iter')
-            exit()
             self.run_iter(data_batch, train_mode=True, **kwargs)
             self.call_hook('after_train_iter')
             del self.data_batch
             self._iter += 1
             if self.train_unit_type == "iter" and self.iter == self._max_iters - 1: break
-            
+        exit()
         self.call_hook('after_train_epoch')
         self._epoch += 1
  
