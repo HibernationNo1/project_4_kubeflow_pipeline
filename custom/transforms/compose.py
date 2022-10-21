@@ -303,22 +303,20 @@ class DefaultFormatBundle:
             if len(img.shape) < 3:
                 img = np.expand_dims(img, -1)
             img = np.ascontiguousarray(img.transpose(2, 0, 1))
-            results['img'] = DC(
-                to_tensor(img), padding_value=self.pad_val['img'], stack=True)
+            results['img'] = DC(to_tensor(img), padding_value=self.pad_val['img'], 
+                                stack=True)
         for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
             if key not in results:
                 continue
             results[key] = DC(to_tensor(results[key]))
         if 'gt_masks' in results:
-            results['gt_masks'] = DC(
-                results['gt_masks'],
-                padding_value=self.pad_val['masks'],
-                cpu_only=True)
+            results['gt_masks'] = DC(results['gt_masks'],
+                                     padding_value=self.pad_val['masks'],
+                                     cpu_only=True)
         if 'gt_semantic_seg' in results:
-            results['gt_semantic_seg'] = DC(
-                to_tensor(results['gt_semantic_seg'][None, ...]),
-                padding_value=self.pad_val['seg'],
-                stack=True)
+            results['gt_semantic_seg'] = DC(to_tensor(results['gt_semantic_seg'][None, ...]),
+                                            padding_value=self.pad_val['seg'],
+                                            stack=True)
         return results
 
 
