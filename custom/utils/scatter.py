@@ -62,7 +62,8 @@ def scatter(input, devices, streams=None):
     
     if streams is None:
         streams = [None] * len(devices)
-        
+    
+   
     if isinstance(input, list):
         chunk_size = (len(input) - 1) // len(devices) + 1       # chunk_size == 1 if using single GPU
         outputs = [
@@ -109,6 +110,7 @@ def get_input_device(input):
 # original: class Scatter
 def forward_scatter(target_gpus, input):
     input_device = get_input_device(input)
+
     streams = None
     # input_device == -1면 아직 CPU에 data가 할당되어 있는 경우
     if input_device == -1 and target_gpus != [-1]:  
@@ -129,32 +131,54 @@ def forward_scatter(target_gpus, input):
 def parallel_scatter(inputs, target_gpus = [0], dim = 0):
     """Scatter inputs to target gpus.
     """
-    
+
     def scatter_map(obj):
         """
         Args:
             obj (_type_) is in ['tuple', 'dict', 'tuple', 'DataContainer']
         """
+        
+        # simplify code
+        # batch_list = []
+        # if isinstance(obj, tuple):
+        #     for obj_ in obj:
+        #         if isinstance(obj_, dict):
+        #             outs = dict()
+                    
+        #             for key, value in obj_.items():
+        #                 if value.cpu_only:
+        #                     out= value.data
+        #                 else:
+        #                     out= forward_scatter(target_gpus, value.data)
+        #                 outs[key] = out
+        #         else:
+        #             outs = obj_
+                    
+        #         batch_list.append(outs)
+        # return [tuple(batch_list)]
+                    
         if isinstance(obj, torch.Tensor):
             assert target_gpus == [-1], "Use only GPU, not CPU"
             return OrigScatter.apply(target_gpus, None, dim, obj)
         
-        if isinstance(obj, DataContainer):      
+        if isinstance(obj, DataContainer): 
             if obj.cpu_only:
                 return obj.data
             else:
                 return forward_scatter(target_gpus, obj.data)
         
-        if isinstance(obj, tuple) and len(obj) > 0:
-            return list(zip(*map(scatter_map, obj)))
+        if isinstance(obj, tuple) and len(obj) > 0:      
+            out = list(zip(*map(scatter_map, obj)))    
+            return out
+            
         
         if isinstance(obj, list) and len(obj) > 0:
-            out = list(map(list, zip(*map(scatter_map, obj))))
+            return list(map(list, zip(*map(scatter_map, obj))))
+        
+        if isinstance(obj, dict) and len(obj) > 0:     
+            out = list(map(dict, zip(*map(scatter_map, obj.items()))))
             return out
         
-        if isinstance(obj, dict) and len(obj) > 0:
-            out = list(map(type(obj), zip(*map(scatter_map, obj.items()))))
-            return out
         return [obj for targets in target_gpus]
         
         
@@ -163,16 +187,25 @@ def parallel_scatter(inputs, target_gpus = [0], dim = 0):
     finally:
         scatter_map = None
             
-            
-def scatter_kwargs(inputs, kwargs, target_gpus = [0], dim=0):
+# org : scatter_kwargs            
+def scatter_inputs(inputs, target_gpus = [0], dim=0):
         """Scatter with support for kwargs dictionary."""
-        inputs = parallel_scatter(inputs, target_gpus, dim) if inputs else []       # 여기까지 함
-        kwargs = parallel_scatter(kwargs, target_gpus, dim) if kwargs else []       # 여기서부터 할 차례
-        if len(inputs) < len(kwargs):
-            inputs.extend([() for _ in range(len(kwargs) - len(inputs))])
-        elif len(kwargs) < len(inputs):
-            kwargs.extend([{} for _ in range(len(inputs) - len(kwargs))])
-        inputs = tuple(inputs)
-        kwargs = tuple(kwargs)
-        return inputs, kwargs
+        # inputs data를 각 gpu에 나누어 할당하고, .contiguous() .cuda() 를 적용
+        
+        # type(inputs): tuple,       len(inputs) = 2
+        # type(inputs[0]): dict,     ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks'] 
+        #      img.shape = (batch_size, channel, height, width)
+        #      else, len(key) == batch_size
+        # type(inputs[0]): optimizer
+        cattered_inputs = parallel_scatter(inputs, target_gpus, dim) if inputs else [] 
+        # list로 한 차원 더 씌워지는 것 말고 구조변화는 없음
+        # type(cattered_inputs): list,          len(cattered_inputs): 1
+        # type(cattered_inputs[0]): tuple ,      len(cattered_inputs[0]): 2   
+        #    type(cattered_inputs[0][0]): dict,     
+        #       cattered_inputs[0][0].keys(): ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks']
+        #    type(cattered_inputs[0][1]): optimizer,
+       
+
+        inputs = tuple(cattered_inputs)
+        return inputs
 
