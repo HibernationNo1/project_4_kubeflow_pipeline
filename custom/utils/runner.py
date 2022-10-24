@@ -66,7 +66,7 @@ class EpochBasedRunner(BaseRunner):
             
             while self.epoch < self._max_epochs:
                 
-                epoch_runner = getattr(self, mode)      # mode에 해당되는 method 호출
+                epoch_runner = getattr(self, mode)      # mode에 해당되는 method 호출(train, val, eval)
                 
                 for _ in range(self._max_epochs):
                     epoch_runner(mode, data_loader, **kwargs)
@@ -79,13 +79,12 @@ class EpochBasedRunner(BaseRunner):
                 
             pass
             
-    def run_iter(self, data_batch, train_mode, **kwargs):
+    def run_iter(self, data_batch, train_mode):
         if train_mode:
             # MMDataParallel.train_step
-            outputs = self.model.train_step(data_batch, self.optimizer,
-                                            **kwargs)
+            outputs = self.model.train_step(data_batch, self.optimizer)
         else:   # TODO
-            outputs = self.model.val_step(data_batch, self.optimizer, **kwargs)
+            outputs = self.model.val_step(data_batch, self.optimizer)
             
         
                 
@@ -96,10 +95,13 @@ class EpochBasedRunner(BaseRunner):
         self.call_hook('before_train_epoch')
         time.sleep(2)  # Prevent possible deadlock during epoch transition
         for i, data_batch in enumerate(self.data_loader):
-            self.data_batch = data_batch
+            # data_batch: dataset의 pipelines > data_loader의 collate를 거친 data
+            # data_batch.keys() = ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks']
+        
+            self.data_batch = data_batch        
             self._inner_iter = i
             self.call_hook('before_train_iter')
-            self.run_iter(data_batch, train_mode=True, **kwargs)
+            self.run_iter(data_batch, train_mode=True)
             self.call_hook('after_train_iter')
             del self.data_batch
             self._iter += 1

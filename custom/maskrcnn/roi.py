@@ -60,7 +60,7 @@ class RoIHead(BaseModule):
         self.bbox_sampler = None
         if self.train_cfg:
             
-            self.bbox_assigner = MaxIoUAssigner(**self.train_cfg.assigner)        # 여기서부터
+            self.bbox_assigner = MaxIoUAssigner(**self.train_cfg.assigner)        
             self.bbox_sampler = RandomSampler(**self.train_cfg.sampler)
             
     

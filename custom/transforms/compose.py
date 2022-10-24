@@ -233,11 +233,11 @@ class Collect:
         img_meta = {}
         for key in self.meta_keys:
             img_meta[key] = results[key]
-        
         data['img_metas'] = DC(img_meta, cpu_only=True)
         
-        for key in self.keys:
+        for key in self.keys:           # 최종 학습에 사용할 key만 추려낸다. (self.keys에 속한 key)
             data[key] = results[key]
+        
         return data
 
     def __repr__(self):
@@ -289,8 +289,13 @@ class DefaultFormatBundle:
                 default bundle.
         """
 
-        # 학습에 사용할 data들을 전부 datacontainer 타입으로 변횐
-        if 'img' in results:
+        # 학습에 사용할 data들을 전부 datacontainer 타입으로 변환하여 관리
+        # 1. cpu_only = True,                   // key: 'gt_masks', 'img_metas'
+        # 2. cpu_only = False, stack = True,    // key: 'img', 'gt_semantic_seg'
+        # 3. cpu_only = False, stack = False,   // key: 'proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels'
+        
+ 
+        if 'img' in results:                    # cpu_only = False, stack = True
             img = results['img']
             if self.img_to_float is True and img.dtype == np.uint8:
                 # Normally, image is of uint8 type without normalization.
@@ -306,17 +311,19 @@ class DefaultFormatBundle:
             results['img'] = DC(to_tensor(img), padding_value=self.pad_val['img'], 
                                 stack=True)
         for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
+                                                # cpu_only = False, stack = Flase
             if key not in results:
                 continue
             results[key] = DC(to_tensor(results[key]))
-        if 'gt_masks' in results:
+        if 'gt_masks' in results:               # cpu_only = True
             results['gt_masks'] = DC(results['gt_masks'],
                                      padding_value=self.pad_val['masks'],
                                      cpu_only=True)
-        if 'gt_semantic_seg' in results:
+        if 'gt_semantic_seg' in results:        # cpu_only = False, stack = True
             results['gt_semantic_seg'] = DC(to_tensor(results['gt_semantic_seg'][None, ...]),
                                             padding_value=self.pad_val['seg'],
                                             stack=True)
+        
         return results
 
 

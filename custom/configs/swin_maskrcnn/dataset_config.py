@@ -13,7 +13,7 @@ train_pipeline = [
     dict(type='Normalize', **img_norm_cfg),                
     dict(type='Pad', size_divisor=32),      # width, height가 각각 size_divisor의 배수가 되는 size까지 padding         
     dict(type='DefaultFormatBundle'),                      
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),   # 최종 학습에 사용할 data
 ]
 
 val_pipeline = [

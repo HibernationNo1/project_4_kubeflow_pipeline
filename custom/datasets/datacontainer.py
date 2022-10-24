@@ -31,6 +31,10 @@ class DataContainer:
     - leave the objects as is and pass it to the model
     - pad_dims specifies the number of last few dimensions to do padding
     """
+    
+    # 1. cpu_only = True,                   // key: 'gt_masks', 'img_metas'
+    # 2. cpu_only = False, stack = True,    // key: 'img', 'gt_semantic_seg'
+    # 3. cpu_only = False, stack = False,   // key: 'proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels'
 
     def __init__(self,
                  data,
@@ -39,8 +43,8 @@ class DataContainer:
                  cpu_only=False,
                  pad_dims=2):
         self._data = data
-        self._cpu_only = cpu_only
-        self._stack = stack
+        self._cpu_only = cpu_only               # if False: .contiguous(), .cuda()        
+        self._stack = stack                    
         self._padding_value = padding_value
         assert pad_dims in [None, 1, 2, 3]
         self._pad_dims = pad_dims

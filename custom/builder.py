@@ -9,7 +9,7 @@ from utils.utils import auto_scale_lr
 from utils.registry import Registry, build_from_cfg
 from utils.optimizer import DefaultOptimizerConstructor
 from utils.runner import EpochBasedRunner
-from utils.scatter import scatter_kwargs
+from utils.scatter import scatter_inputs
 from datasets.dataset import CustomDataset
 from datasets.dataloader import _build_dataloader
 
@@ -96,10 +96,11 @@ class MMDataParallel(DataParallel):
         self.dim = dim
         
         
-    def train_step(self, *inputs, **kwargs):
+    def train_step(self, *inputs):
         assert self.device_ids == [0], "this project is for only single gpu with ID == '0',\
                                         but device_ids is {self.device_ids}"
-        # inputs[0]: data_batch
+        # inputs[0]: data_batch, dict
+        #    inputs[0].keys():  ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks']
         # inputs[1]: optimizer
         for t in chain(self.module.parameters(), self.module.buffers()):
             if t.device != self.src_device_obj:
@@ -108,9 +109,9 @@ class MMDataParallel(DataParallel):
                     f'on device {self.src_device_obj} (device_ids[0]) but '
                     f'found one of them on device: {t.device}')
         
-        
-        inputs, kwargs = scatter_kwargs(inputs, kwargs, self.device_ids)
-        return self.module.train_step(*inputs[0], **kwargs[0])
+       
+        inputs = scatter_inputs(inputs, self.device_ids)        # input data를 
+        return self.module.train_step(*inputs[0]) 
     
     
     

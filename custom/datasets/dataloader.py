@@ -54,19 +54,16 @@ def collate(batch, samples_per_gpu=1):
     Extend default_collate to add support for
     :type:`~mmcv.parallel.DataContainer`. There are 3 cases.
 
-    1. cpu_only = True, e.g., meta data
-    2. cpu_only = False, stack = True, e.g., images tensors
-    3. cpu_only = False, stack = False, e.g., gt bboxes
+    # 1. cpu_only = True,                   // key: 'gt_masks', 'img_metas'
+    # 2. cpu_only = False, stack = True,    // key: 'img', 'gt_semantic_seg'
+    # 3. cpu_only = False, stack = False,   // key: 'proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels'
     """
-
-  
     if not isinstance(batch, Sequence):
         raise TypeError(f'{batch.dtype} is not supported.')
     if isinstance(batch[0], DataContainer):
         stacked = []        
-        if batch[0].cpu_only:     
-            # 학습에 사용되지 않는 meta data
-            # >> expected: 
+        if batch[0].cpu_only:  # cpu_only = True   
+            # >>> expected: 
             #   len(stacked) == 1
             #   len(stacked[n]) == batchsize
             #   stacked[n][m].keys() = ['filename', 'ori_filename', 'ori_shape', 'img_shape', 'pad_shape', 'scale]
@@ -76,9 +73,9 @@ def collate(batch, samples_per_gpu=1):
         
             return DataContainer(stacked, batch[0].stack, batch[0].padding_value, 
                                  cpu_only=True)
-        elif batch[0].stack:        # TODO 설명 추가 @@@
+        elif batch[0].stack:        # cpu_only = False, stack = True
             # 학습에 사용되는 tensor
-            # >> expected: 
+            # >>> expected: 
             #   len(stacked) == 1
             #   stacked[n].shape = [batch size, chennel, height, width]
             for i in range(0, len(batch), samples_per_gpu):
@@ -118,10 +115,14 @@ def collate(batch, samples_per_gpu=1):
                     raise ValueError(
                         'pad_dims should be either None or integers (1-3)')
 
-        else:
+        else:       # cpu_only = False, stack = False
+            # 학습에 사용되는 tensor
+            # >> expected: 
+            #   len(stacked) == 1
+            #   len(stacked[n]) == batchsize
+            #   stacked[n].shape = [m, 4],      m: instance의 개수??    # TODO
             for i in range(0, len(batch), samples_per_gpu):
                 stacked.append([sample.data for sample in batch[i:i + samples_per_gpu]])
-        
         return DataContainer(stacked, batch[0].stack, batch[0].padding_value)
     
     elif isinstance(batch[0], Sequence):

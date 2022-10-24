@@ -368,9 +368,8 @@ class CustomDataset(Dataset):
             dict: Training/test data (with annotation if `test_mode` is set \
                 True).
         """
-
         while True:
-            data = self.prepare_train_img(idx)      # preprocessing을 전부 마치고 하나로 모아진 data
+            data = self.prepare_train_img(idx)      # data : preprocessing을 전부 마치고 하나로 모아진 data
             if data is None:
                 idx = self._rand_another(idx)
                 continue
