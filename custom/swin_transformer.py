@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import torch.utils.checkpoint as cp
 
 import math
 from copy import deepcopy
@@ -11,7 +11,7 @@ from utils.log import get_logger
 from utils.checkpoint import CheckpointLoader   
 from base_module import BaseModule, ModuleList
 from builder import BACKBONES
-from initialization import trunc_normal_init, constant_init
+from initialization import trunc_normal_init, constant_init, _no_grad_trunc_normal_
 
 TORCH_VERSION = torch.__version__
 
@@ -217,6 +217,16 @@ class SwinTransformer(BaseModule):
             layer_name = f'norm{i}'
             self.add_module(layer_name, layer)
         
+    
+    def forward(self, x):
+        x, hw_shape = self.patch_embed(x)       # [batch_size, 64512, 96], [192, 336]
+        x = self.drop_after_pos(x)
+        
+        outs = []
+        for i, stage in enumerate(self.stages):
+            x, hw_shape, out, out_hw_shape = stage(x, hw_shape)
+          
+        
         
     def init_weights(self):
         logger = get_logger(name = "initialization")
@@ -348,6 +358,12 @@ class SwinBlockSequence(BaseModule):
             
         
         self.downsample = downsample
+    
+    def forward(self, x, hw_shape):
+        for block in self.blocks:
+            x = block(x, hw_shape)      # shape is same: [B, H*W, C]
+            # 여기서부터
+            
         
 
 class SwinBlock(BaseModule):
@@ -416,6 +432,28 @@ class SwinBlock(BaseModule):
             drop_path_rate = drop_path_rate,  
             add_identity=True,
             init_cfg=None)
+    
+    def forward(self, x, hw_shape):
+        
+        def _inner_forward(x):           
+            identity = x
+            x = self.norm1(x)
+            x = self.attn(x, hw_shape)          # [B, H*W, C]
+                                                # B: batch size,        C: channel
+            x = x + identity
+            
+            identity = x
+            x = self.norm2(x)
+            x = self.ffn(x, identity=identity)     
+
+            return x        # [B, H*W, C]
+        
+        if self.with_cp and x.requires_grad:
+            x = cp.checkpoint(_inner_forward, x)
+        else:
+            x = _inner_forward(x)
+
+        return x            # [B, H*W, C]
         
 
 
@@ -477,6 +515,29 @@ class FFN(BaseModule):
         self.layers = nn.Sequential(*layers)
         self.dropout_layer = DropPath(drop_path_rate)
         self.add_identity = add_identity
+    
+    def forward(self, x, identity=None):
+        """Forward function for `FFN`.
+
+        The function would add x to the output tensor if residue is None.
+        """
+        # [B, H*W, C]
+        # Batch size,  Height, Width, Channel
+        out = self.layers(x)     
+    
+        if not self.add_identity:
+            return self.dropout_layer(out)
+        
+        if identity is None:
+            identity = x
+            
+        out = identity + self.dropout_layer(out)
+        return out
+        
+        
+        
+    
+                                                
         
         
         
@@ -562,8 +623,113 @@ class ShiftWindowMSA(BaseModule):
             init_cfg=None)
 
         self.drop = DropPath(drop_prob)
-    
+        
+    def forward(self, query, hw_shape):
+        B, L, C = query.shape       # B: batch_size,    C: channel
+        H, W = hw_shape
+        assert L == H * W, 'input feature has wrong size'
+        query = query.view(B, H, W, C)      # [batch_size, H*W, C] -> [batch_size, H, W, C]
+   
+        # pad feature maps to multiples of window size
+        pad_r = (self.window_size - W % self.window_size) % self.window_size        # 0 (pad to width-right)
+        pad_b = (self.window_size - H % self.window_size) % self.window_size        # 4 (pad to height-bottom)
+        query = F.pad(query, (0, 0, 0, pad_r, 0, pad_b))                            # [batch_size, 196, 336, 96]  
+        # (0, 0)으로 last dim을 pad,   (0, pad_r)으로 1 dim을 pad ,     (0, pad_b)으로 2 dim을 pad   
+        H_pad, W_pad = query.shape[1], query.shape[2]       
+   
+        # cyclic shift
+        if self.shift_size > 0:     #  TODO: katib      self.shift_size==0이상 값으로 실험해보기
+            shifted_query = torch.roll(query, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
+            
+            # calculate attention mask for SW-MSA
+            img_mask = torch.zeros((1, H_pad, W_pad, 1), device=query.device)
+            h_slices = (slice(0, -self.window_size),
+                        slice(-self.window_size,
+                              -self.shift_size), slice(-self.shift_size, None))
+            w_slices = (slice(0, -self.window_size),
+                        slice(-self.window_size,
+                              -self.shift_size), slice(-self.shift_size, None))
+            cnt = 0
+            for h in h_slices:
+                for w in w_slices:
+                    img_mask[:, h, w, :] = cnt
+                    cnt += 1
 
+            # nW, window_size, window_size, 1
+            mask_windows = self.window_partition(img_mask)
+            mask_windows = mask_windows.view(
+                -1, self.window_size * self.window_size)
+            attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
+            attn_mask = attn_mask.masked_fill(attn_mask != 0,
+                                              float(-100.0)).masked_fill(
+                                                  attn_mask == 0, float(0.0))
+        else:
+            shifted_query = query
+            attn_mask = None
+            
+        # [2688, window_size, window_size, 96], nW*B(number of windows*batch size)=2688,     channel= 96
+        query_windows = self.window_partition(shifted_query)            
+        # [nW*B, Wh*Ww, channel]
+        query_windows = query_windows.view(-1, self.window_size**2, C)  
+        
+        # W-MSA/SW-MSA
+        attn_windows = self.w_msa(query_windows, mask=attn_mask)                        # [nW*B, Wh*Ww, channel] 
+        # merge windows
+        attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)     # [nW*B, window_size, window_size, channel]  
+  
+        # B H' W' C
+        shifted_x = self.window_reverse(attn_windows, H_pad, W_pad) 
+        
+        # reverse cyclic shift
+        if self.shift_size > 0:
+            x = torch.roll(
+                shifted_x,
+                shifts=(self.shift_size, self.shift_size),
+                dims=(1, 2))
+        else:
+            x = shifted_x           # [B, H, W, C]
+        
+        if pad_r > 0 or pad_b:
+            x = x[:, :H, :W, :].contiguous()
+        
+        x = x.view(B, H * W, C)
+
+        x = self.drop(x)
+        return x                    # [B, H*W, C]
+
+
+        
+    def window_reverse(self, windows, H, W):
+        """
+        Args:
+            windows: (num_windows*B, window_size, window_size, C), C: channel
+            H (int): Height of image
+            W (int): Width of image
+        Returns:
+            x: (B, H, W, C)
+        """
+        window_size = self.window_size
+        B = int(windows.shape[0] / (H * W / window_size / window_size))     # batch size
+        x = windows.view(B,                                                 # [B, H_num_windows, W_num_windows, window_size, window_size, C]
+                         H // window_size, W // window_size, 
+                         window_size, window_size, -1)
+        x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)              # [B, H, W, C]
+        return x     
+        
+    def window_partition(self, x):
+        """
+        Args:
+            x: (B, H, W, C)
+        Returns:
+            windows: (num_windows*B, window_size, window_size, C)
+        """
+        B, H, W, C = x.shape        # [batch_size, 196, 336, 96]
+        window_size = self.window_size
+        x = x.view(B, H // window_size, window_size,    # [batch_size, 28, 7, 48, 7, 96], window_size= 7    # TODO: katib, window_size변경 후 학습
+                   W // window_size, window_size, C)
+        windows = x.permute(0, 1, 3, 2, 4, 5).contiguous()          # [batch_size, 28, 48, 7, 7, 96]        
+        windows = windows.view(-1, window_size, window_size, C)     # [2688, 7, 7, 96]      # number of windows * batch size = 2688
+        return windows
 
 def drop_path(x, drop_prob=0., training=False):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of
@@ -635,16 +801,15 @@ class WindowMSA(BaseModule):
         super().__init__()
         self.embed_dims = embed_dims
         self.window_size = window_size  # Wh, Ww
-        self.num_heads = num_heads
+        self.num_heads = num_heads     
         head_embed_dims = embed_dims // num_heads
         self.scale = qk_scale or head_embed_dims**-0.5
         self.init_cfg = init_cfg
 
         # define a parameter table of relative position bias
-        self.relative_position_bias_table = nn.Parameter(
-            torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1),
-                        num_heads))  # 2*Wh-1 * 2*Ww-1, nH
-
+        # 2*Wh-1 * 2*Ww-1, nH
+        self.relative_position_bias_table = nn.Parameter(torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads))  
+        
         # About 2x faster than original impl
         Wh, Ww = self.window_size
         rel_index_coords = self.double_step_seq(2 * Ww - 1, Wh, 1, Ww)
@@ -665,6 +830,57 @@ class WindowMSA(BaseModule):
         seq1 = torch.arange(0, step1 * len1, step1)
         seq2 = torch.arange(0, step2 * len2, step2)
         return (seq1[:, None] + seq2[None, :]).reshape(1, -1)
+
+
+    def init_weights(self):
+        _no_grad_trunc_normal_(self.relative_position_bias_table, 
+                               mean = 0.,
+                               std=0.02,
+                               a = -2.,
+                               b = 2.)
+    
+    def forward(self, x, mask=None):
+        """
+        Args:
+
+            x (tensor): input features with shape of (num_windows*B, N, C)
+            mask (tensor | None, Optional): mask with shape of (num_windows,
+                Wh*Ww, Wh*Ww), value should be between (-inf, 0].
+        """
+        B, N, C = x.shape       # [nW*B, Wh*Ww, channel]
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads)     # [nW*B, Wh*Ww, 3, self.num_heads, channel//self.num_heads]
+        qkv = qkv.permute(2, 0, 3, 1, 4)                                            # [3, nW*B, nH, W^2, C//nH]
+        
+        # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+        
+        q = q * self.scale
+        attn = (q @ k.transpose(-2, -1))        # [nW*B, nH, Wh*Ww, Wh*Ww]
+        
+      
+        relative_position_bias = self.relative_position_bias_table[                    # [Wh*Ww,Wh*Ww,nH]
+            self.relative_position_index.view(-1)].view(
+                self.window_size[0] * self.window_size[1],
+                self.window_size[0] * self.window_size[1],
+                -1)  
+        relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # [nH, Wh*Ww, Wh*Ww]
+        attn = attn + relative_position_bias.unsqueeze(0)                              # [nW*B, nH, Wh*Ww, Wh*Ww] 
+        if mask is not None:
+            nW = mask.shape[0]
+            attn = attn.view(B // nW, nW, self.num_heads, N,
+                             N) + mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(-1, self.num_heads, N, N)
+        attn = self.softmax(attn)       # activate func
+
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)     # [nW*B, Wh*Ww, channel] 
+        x = self.proj(x)
+        x = self.proj_drop(x)
+
+        return x    # [nW*B, Wh*Ww, channel] 
+    
+        
         
         
 class PatchMerging(BaseModule):
@@ -824,12 +1040,14 @@ class PatchEmbed(BaseModule):
 
         if self.adap_padding:
             x = self.adap_padding(x)
+        
+        x = self.projection(x)                      # [batch_size, 3, 768, 1344] -> [batch_size, 96, 192, 336]
 
-        x = self.projection(x)
         out_size = (x.shape[2], x.shape[3])
-        x = x.flatten(2).transpose(1, 2)
+        x = x.flatten(2).transpose(1, 2)            # [batch_size, 64512, 96]
+        
         if self.norm is not None:
-            x = self.norm(x)
+            x = self.norm(x)       
         return x, out_size     
         
 class AdaptivePadding(nn.Module):
@@ -879,12 +1097,13 @@ class AdaptivePadding(nn.Module):
         self.stride = stride
         self.dilation = dilation
 
-    def get_pad_shape(self, input_shape):
+    def get_pad_shape(self, input_shape):   # TODO: 현제 return = 0, 0임.  self.kernel_size,  self.stride,  self.dilation 세개 수정해서 값 변경 후 학습해보기
         input_h, input_w = input_shape
         kernel_h, kernel_w = self.kernel_size
         stride_h, stride_w = self.stride
         output_h = math.ceil(input_h / stride_h)
         output_w = math.ceil(input_w / stride_w)
+                    
         pad_h = max((output_h - 1) * stride_h +
                     (kernel_h - 1) * self.dilation[0] + 1 - input_h, 0)
         pad_w = max((output_w - 1) * stride_w +
@@ -893,6 +1112,7 @@ class AdaptivePadding(nn.Module):
 
     def forward(self, x):
         pad_h, pad_w = self.get_pad_shape(x.size()[-2:])
+        
         if pad_h > 0 or pad_w > 0:
             if self.padding == 'corner':
                 x = F.pad(x, [0, pad_w, 0, pad_h])
