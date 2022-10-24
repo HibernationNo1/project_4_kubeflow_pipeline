@@ -18,6 +18,9 @@ class MaskRCNN(BaseModule):
                  init_cfg=None):
         
         super(MaskRCNN, self).__init__(init_cfg)
+        self.fp16_enabled = False       # TODO fp16으로 변환하여 학습 진행해보기
+        # mmcv > runner > ffp16_utils.py > def auto_fp16
+        
         
         self.backbone = build_backbone(backbone)
         
@@ -41,6 +44,31 @@ class MaskRCNN(BaseModule):
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
 
+    # @auto_fp16(apply_to=('img', ))
+    def forward(self, img, img_metas, return_loss=True, **kwargs):
+        """Calls either :func:`forward_train` or :func:`forward_test` depending
+        on whether ``return_loss`` is ``True``.
+        Note this setting will change the expected inputs. When
+        ``return_loss=True``, img and img_meta are single-nested (i.e. Tensor
+        and List[dict]), and when ``resturn_loss=False``, img and img_meta
+        should be double nested (i.e.  List[Tensor], List[List[dict]]), with
+        the outer list indicating test time augmentations.
+        """
+        if return_loss:
+            return self.forward_train(img, img_metas, **kwargs)
+        else:
+            return self.forward_test(img, img_metas, **kwargs)  #  TODO
+        
+    
+    def forward_train(self, img, img_metas, gt_bboxes, gt_labels,
+                      gt_bboxes_ignore=None, gt_masks=None, proposals=None,
+                      **kwargs):
+        x = self.backbone(img)
+        x = self.neck(x)
+        
+        
+        
+    
     @property
     def with_neck(self):
         """bool: whether the detector has a neck"""
@@ -90,7 +118,15 @@ class MaskRCNN(BaseModule):
                   DDP, it means the batch size on each GPU), which is used for
                   averaging the logs.
         """
-        losses = self(**data)
+
+        # type(data): dict,     ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks'] 
+        #      img.shape = (batch_size, channel, height, width)
+        #      else, len(key) == batch_size
+    
+        
+        # self.에 포함된 모든 module의 forward()를 실행
+        losses = self(**data)       
+        
         loss, log_vars = self._parse_losses(losses)
         
         outputs = dict(
