@@ -62,8 +62,10 @@ if __name__ == "__main__":
     # val_dataset = build_dataset(cfg.data.val)
     data_loaders = []
     train_dataset = build_dataset(cfg.data.train)
-    cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) # TODO: MaskRCNN이 아닌 경우도 상정하기
-    cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)    
+    if cfg.model.type == 'MaskRCNN':
+        cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
+        cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)    
+        # cfg.model.rpn_head.num_classes = len(train_dataset.CLASSES)   # TODO: 이거 추가 안되어있는데, 추가하고 학습에 차이있는지 확인
     
     train_loader_cfg = dict(
         batch_size=cfg.data.samples_per_gpu,

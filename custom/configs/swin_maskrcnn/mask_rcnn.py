@@ -27,7 +27,7 @@ model = dict(
             target_means=[.0, .0, .0, .0],
             target_stds=[1.0, 1.0, 1.0, 1.0]),
         loss_cls=dict( use_sigmoid=True, loss_weight=1.0),   # CrossEntropyLoss
-        loss_bbox=dict(type='L1Loss', loss_weight=1.0)),
+        loss_bbox=dict(loss_weight=1.0)),       # L1Loss
     roi_head=dict(      # RoIHead
         bbox_roi_extractor=dict(    # SingleRoIExtractor
             roi_layer=dict(         # RoIAlign
