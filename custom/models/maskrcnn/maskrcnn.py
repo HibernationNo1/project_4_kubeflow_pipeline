@@ -2,9 +2,9 @@ import  torch
 
 from builder import build_backbone, MODELS
 from base_module import BaseModule
-from maskrcnn.rpn import RPNHead
-from maskrcnn.fpn import FPN
-from maskrcnn.roi import RoIHead
+from models.maskrcnn.rpn import RPNHead
+from models.neck.fpn import FPN
+from models.maskrcnn.roi import RoIHead
 
 @MODELS.register_module()
 class MaskRCNN(BaseModule):
@@ -31,6 +31,7 @@ class MaskRCNN(BaseModule):
         rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None
         rpn_head_cfg = rpn_head.copy()
         rpn_head_cfg.update(train_cfg=rpn_train_cfg, test_cfg=test_cfg.rpn)
+    
         self.rpn_head = RPNHead(**rpn_head_cfg)
         
         
@@ -63,9 +64,30 @@ class MaskRCNN(BaseModule):
     def forward_train(self, img, img_metas, gt_bboxes, gt_labels,
                       gt_bboxes_ignore=None, gt_masks=None, proposals=None,
                       **kwargs):
+        # img: [B=2, C=3, H=768, W=1344]
         x = self.backbone(img)
-        x = self.neck(x)
+        # type(x): list,        len(x) == cfg.model.backbone.depths
+        # 각 elements의 channel은 cfg.model.neck.in_channels과 동일해야 한다
+        # x[n]: [B, Cn, H/n, W/n],     Cn == cfg.model.neck.in_channels,    n = [4, 8, 16, 32]
+
+        # [2, 96, 192, 336]
+        # [2, 192, 96, 168]
+        # [2, 384, 48, 84]
+        # [2, 768, 24, 42]
         
+        x = self.neck(x)
+        # [2, 256, 192, 336]
+        # [2, 256, 96, 168]
+        # [2, 256, 48, 84]
+        # [2, 256, 24, 42]
+        # [2, 256, 12, 21]      # max_pool2d
+        
+        losses = dict()
+        # RPN forward and loss
+        proposal_cfg = self.train_cfg.get('rpn_proposal', self.test_cfg.rpn)
+        rpn_losses, proposal_list = self.rpn_head.forward_train(x, img_metas, gt_bboxes,
+                                                                gt_bboxes_ignore=gt_bboxes_ignore, proposal_cfg=proposal_cfg,
+                                                                **kwargs)
         
         
     
@@ -126,6 +148,7 @@ class MaskRCNN(BaseModule):
         
         # self.에 포함된 모든 module의 forward()를 실행
         losses = self(**data)       
+        exit()
         
         loss, log_vars = self._parse_losses(losses)
         
