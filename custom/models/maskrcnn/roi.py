@@ -3,11 +3,14 @@ import torch.nn as nn
 from torch.nn.modules.utils import _pair
 
 from base_module import BaseModule, ModuleList
-from maskrcnn.coder import DeltaXYWHBBoxCoder
 from loss import CrossEntropyLoss, L1Loss
 from assigner import MaxIoUAssigner
-from maskrcnn.rpn import ConvModule
+
 from datasets.sampler import RandomSampler
+
+
+from models.maskrcnn.coder import DeltaXYWHBBoxCoder
+from basic_module import ConvModule
 
 if torch.__version__ == 'parrots':
     TORCH_VERSION = torch.__version__

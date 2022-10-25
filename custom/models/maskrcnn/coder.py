@@ -71,8 +71,8 @@ class DeltaXYWHBBoxCoder(metaclass=ABCMeta):
         dw = torch.log(gw / pw)
         dh = torch.log(gh / ph)
         deltas = torch.stack([dx, dy, dw, dh], dim=-1)
-        means = deltas.new_tensor(means).unsqueeze(0)
-        stds = deltas.new_tensor(stds).unsqueeze(0)
+        means = deltas.new_tensor(self.means).unsqueeze(0)
+        stds = deltas.new_tensor(self.stds).unsqueeze(0)
         encoded_bboxes = deltas.sub_(means).div_(stds)      # shape: (N, 4),  N = (dx, dy, dw, dh)
     
         return encoded_bboxes
