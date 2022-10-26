@@ -10,6 +10,44 @@ import collections.abc
 from collections.abc import Mapping, Sequence
 import torch
 import  numpy as np
+import importlib
+from functools import partial
+
+def multi_apply(func, *args, **kwargs):
+    """Apply function to a list of arguments.
+
+    Note:
+        This function applies the ``func`` to multiple inputs and
+        map the multiple outputs of the ``func`` into different
+        list. Each list contains the same type of outputs corresponding
+        to different inputs.
+
+    Args:
+        func (Function): A function that will be applied to a list of
+            arguments
+
+    Returns:
+        tuple(list): A tuple containing multiple list, each list contains \
+            a kind of returned results by the function
+    """
+    pfunc = partial(func, **kwargs) if kwargs else func
+    map_results = map(pfunc, *args)
+    return tuple(map(list, zip(*map_results)))
+
+
+
+
+def load_ext(name, funcs):
+    # TODO: 
+    # 1. 해당 package를 pypi에 올린 후 pip install한다.
+    #    필. _ext.cp38-win_amd64.pyd 또는 linux용 C소스 module을 포함하여 upload.
+    # 2. 아래 "mmcv."을 f"{upload한 module_name}으로 대체" 
+    ext = importlib.import_module("mmcv." + name)   
+    for fun in funcs:
+        assert hasattr(ext, fun), f'{fun} miss in module {name}'
+    
+    return ext
+
 
 def to_tensor(data):
     """Convert objects of various python types to :obj:`torch.Tensor`.
