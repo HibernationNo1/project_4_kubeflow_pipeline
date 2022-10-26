@@ -60,10 +60,13 @@ class MaskRCNN(BaseModule):
         else:
             return self.forward_test(img, img_metas, **kwargs)  #  TODO
         
-    
-    def forward_train(self, img, img_metas, gt_bboxes, gt_labels,
-                      gt_bboxes_ignore=None, gt_masks=None, proposals=None,
+    # gt_bboxes_ignore = None
+    def forward_train(self, img, img_metas, gt_bboxes, gt_labels, gt_masks=None, proposals=None,
                       **kwargs):
+        """
+            len(gt_bboxe) = batch_size
+                gt_bboxe: [num_gts, 4] in [x_min, y_min, x_max, y_max]
+        """
         # img: [B=2, C=3, H=768, W=1344]
         x = self.backbone(img)
         # type(x): list,        len(x) == cfg.model.backbone.depths
@@ -85,9 +88,17 @@ class MaskRCNN(BaseModule):
         losses = dict()
         # RPN forward and loss
         proposal_cfg = self.train_cfg.get('rpn_proposal', self.test_cfg.rpn)
-        rpn_losses, proposal_list = self.rpn_head.forward_train(x, img_metas, gt_bboxes,
-                                                                gt_bboxes_ignore=gt_bboxes_ignore, proposal_cfg=proposal_cfg,
+        
+        ## compute rpn loss and get proposal boxes
+        # type:dict, keys = ['loss_cls', 'loss_bbox'],      each len = num_levels, value: tensor(float)
+        # len(proposal_list) = batch_size
+        # proposal: [proposal_cfg.max_per_img, 5],    5: [x_min, y_min, x_max, y_max, score]
+        rpn_losses, proposal_list = self.rpn_head.forward_train(x, img_metas, gt_bboxes, proposal_cfg, 
                                                                 **kwargs)
+        
+        roi_losses = self.roi_head.forward_train(x, img_metas, proposal_list,
+                                                 gt_bboxes, gt_labels, gt_masks,
+                                                 **kwargs)
         
         
     
