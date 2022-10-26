@@ -73,10 +73,11 @@ model = dict(
             pos_weight=-1,
             debug=False),
         rpn_proposal=dict(
-            nms_pre=2000,
-            max_per_img=1000,
-            nms=dict(type='nms', iou_threshold=0.7),
-            min_bbox_size=0),
+            nms_pre=2000,       # 각 level별 추려낼 anchor개수
+            max_per_img=1000,   # image당 proposals되는 image의 최대 개수(넘더라도 이 선에서 자른다. 값 올리면 성능 올라가나?)
+            nms=dict(type='nms', iou_threshold=0.7),        # 추가 가능: max_num (int): maximum number of boxes after NMS.
+                                                            # score_threshold = 0 or 0 < fload < 1   : score threshold for NMS.
+            min_bbox_size=0),   # 이 값이 크면 작은 object는 detection불가능하지만 성능 효율↑
         rcnn=dict(
             assigner=dict(              # MaxIoUAssigner
                 pos_iou_thr=0.5,

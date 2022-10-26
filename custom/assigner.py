@@ -295,6 +295,7 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         >>> assert tuple(bbox_overlaps(empty, empty).shape) == (0, 0)
     """
 
+    
     assert mode in ['iou', 'iof', 'giou'], f'Unsupported mode {mode}'
     # Either the boxes are empty or the length of boxes' last dimension is 4
     assert (bboxes1.size(-1) == 4 or bboxes1.size(0) == 0)
@@ -307,6 +308,7 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
 
     rows = bboxes1.size(-2)
     cols = bboxes2.size(-2)
+
     if is_aligned:
         assert rows == cols
 
@@ -316,12 +318,9 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         else:
             return bboxes1.new(batch_shape + (rows, cols))
 
-    area1 = (bboxes1[..., 2] - bboxes1[..., 0]) * (
-        bboxes1[..., 3] - bboxes1[..., 1])
-    area2 = (bboxes2[..., 2] - bboxes2[..., 0]) * (
-        
-        bboxes2[..., 3] - bboxes2[..., 1])
-
+    area1 = (bboxes1[..., 2] - bboxes1[..., 0]) * (bboxes1[..., 3] - bboxes1[..., 1])
+    area2 = (bboxes2[..., 2] - bboxes2[..., 0]) * (bboxes2[..., 3] - bboxes2[..., 1])
+ 
     if is_aligned:
         lt = torch.max(bboxes1[..., :2], bboxes2[..., :2])  # [B, rows, 2]
         rb = torch.min(bboxes1[..., 2:], bboxes2[..., 2:])  # [B, rows, 2]
@@ -352,7 +351,6 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         else:  wh = (rb - lt).clamp(0, None)
         
         overlap = wh[..., 0] * wh[..., 1]
-
         if mode in ['iou', 'giou']:
             union = area1[..., None] + area2[..., None, :] - overlap
         else:
@@ -414,7 +412,7 @@ class BboxOverlaps2D:
             bboxes2 = bboxes2[..., :4]
         if bboxes1.size(-1) == 5:
             bboxes1 = bboxes1[..., :4]
-
+     
         return bbox_overlaps(bboxes1, bboxes2, mode, is_aligned)
 
     def __repr__(self):
@@ -513,10 +511,12 @@ class MaxIoUAssigner:
             >>> expected_gt_inds = torch.LongTensor([1, 0])
             >>> assert torch.all(assign_result.gt_inds == expected_gt_inds)
         """
+      
         assign_on_cpu = True if (self.gpu_assign_thr > 0) and (
             gt_bboxes.shape[0] > self.gpu_assign_thr) else False
         # compute overlap and assign gt on CPU when number of GT is large
-        if assign_on_cpu:
+        
+        if assign_on_cpu:   # Flase
             device = bboxes.device
             bboxes = bboxes.cpu()
             gt_bboxes = gt_bboxes.cpu()
@@ -524,7 +524,8 @@ class MaxIoUAssigner:
                 gt_bboxes_ignore = gt_bboxes_ignore.cpu()
             if gt_labels is not None:
                 gt_labels = gt_labels.cpu()
-
+                
+        # overlaps.shape: [gt_bboxes.size[0], bboxes.size[0]]
         overlaps = self.iou_calculator(gt_bboxes, bboxes)
 
         if (self.ignore_iof_thr > 0 and gt_bboxes_ignore is not None
