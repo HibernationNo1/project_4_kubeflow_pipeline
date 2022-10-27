@@ -146,7 +146,6 @@ class SwinTransformer(BaseModule):
                  convert_weights=False,
                  frozen_stages=-1,
                  init_cfg=None):    
-        
         self.convert_weights = convert_weights  
         self.frozen_stages = frozen_stages   
         if isinstance(pretrain_img_size, int):
@@ -184,6 +183,7 @@ class SwinTransformer(BaseModule):
         
         self.stages = ModuleList()
         
+  
         in_channels = embed_dims
         for i in range(num_layers):
             if i < num_layers - 1:
@@ -216,7 +216,9 @@ class SwinTransformer(BaseModule):
         self.num_features = [int(embed_dims * 2**i) for i in range(num_layers)]
         
         for i in out_indices:
-            layer = nn.LayerNorm(self.num_features[i])
+            layer = nn.LayerNorm(self.num_features[i], eps= 1e-05)
+            for param in layer.parameters():
+                param.requires_grad = True
             layer_name = f'norm{i}'
             self.add_module(layer_name, layer)
         
@@ -232,6 +234,7 @@ class SwinTransformer(BaseModule):
             x, hw_shape, out, out_hw_shape = stage(x, hw_shape)
             if i in self.out_indices:
                 norm_layer = getattr(self, f'norm{i}')
+                
                 out = norm_layer(out)
                 out = out.view(-1, *out_hw_shape,self.num_features[i])\
                               .permute(0, 3, 1,2)\

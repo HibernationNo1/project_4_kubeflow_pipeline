@@ -300,6 +300,8 @@ class SingleRoIExtractor(BaseModule):
         self.out_channels = out_channels
         self.featmap_strides = featmap_strides
         self.finest_scale = finest_scale
+        
+        self.fp16_enabled = False
     
     @property
     def num_inputs(self):
@@ -460,8 +462,10 @@ class Shared2FCBBoxHead(BaseModule):
 
         self.bbox_coder = DeltaXYWHBBoxCoder(**bbox_coder)
         self.loss_cls = CrossEntropyLoss(**loss_cls)
-        self.loss_bbox = L1Loss(**loss_bbox)
         
+        self.loss_bbox = L1Loss(**loss_bbox)
+
+       
         in_channels = self.in_channels
         if self.with_avg_pool:
             self.avg_pool = nn.AvgPool2d(self.roi_feat_size)
@@ -518,7 +522,10 @@ class Shared2FCBBoxHead(BaseModule):
          
         if self.with_reg:
             out_dim_reg = 4 if reg_class_agnostic else 4 * num_classes
-            self.fc_reg = nn.Linear( in_features=self.cls_last_dim, out_features=out_dim_reg)
+            self.fc_reg = nn.Linear(in_features = self.cls_last_dim, out_features = out_dim_reg)
+            self.out_dim_reg = out_dim_reg  ###
+      
+            
         
         self.debug_imgs = None
         if init_cfg is None:    # model initialize시 사용할 임의의 config
@@ -597,14 +604,17 @@ class Shared2FCBBoxHead(BaseModule):
                         bbox_pred.size(0), -1,
                         4)[pos_inds.type(torch.bool),
                            labels[pos_inds.type(torch.bool)]]
+                
                 losses['loss_bbox'] = self.loss_bbox(
                     pos_bbox_pred,
                     bbox_targets[pos_inds.type(torch.bool)],
                     bbox_weights[pos_inds.type(torch.bool)],
                     avg_factor=bbox_targets.size(0),
                     reduction_override=reduction_override)
+                
             else:
                 losses['loss_bbox'] = bbox_pred[pos_inds].sum()
+        
         return losses
     
 
@@ -781,7 +791,7 @@ class Shared2FCBBoxHead(BaseModule):
         for fc in self.reg_fcs:
             x_reg = self.relu(fc(x_reg))
 
- 
+
         cls_score = self.fc_cls(x_cls) if self.with_cls else None
         bbox_pred = self.fc_reg(x_reg) if self.with_reg else None
         return cls_score, bbox_pred
