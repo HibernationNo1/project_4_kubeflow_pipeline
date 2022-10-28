@@ -21,26 +21,78 @@ class MaskRCNN(BaseModule):
         self.fp16_enabled = False       # TODO fp16으로 변환하여 학습 진행해보기
         # mmcv > runner > ffp16_utils.py > def auto_fp16
         
+        # from mmdet_taeuk4958.models.backbones.swin import SwinTransformer as SwinTransformer_   ####
+        # _ = backbone.pop("type")
+        # self.backbone = SwinTransformer_(**backbone)
+        
+        # from mmdet_taeuk4958.models.necks.fpn import FPN as FPN_####
+        # _ = neck.pop("type")
+        # self.neck = FPN_(**neck)
         
         self.backbone = build_backbone(backbone)
         
-        
-        self.neck = FPN(in_channels= neck.in_channels, out_channels= neck.out_channels, num_outs= neck.num_outs)
+        _ = neck.pop("type")
+        self.neck = FPN(**neck)
         
         # build_rpn_head : RPNHead
+        # rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None
+        # rpn_head_cfg = rpn_head.copy()
+        # rpn_head_cfg.update(train_cfg=rpn_train_cfg, test_cfg=test_cfg.rpn)
+        # self.rpn_head = RPNHead(**rpn_head_cfg)
+        
         rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None
         rpn_head_cfg = rpn_head.copy()
+        rpn_train_cfg = {'assigner': {'type': 'MaxIoUAssigner', 
+                                      'pos_iou_thr': rpn_train_cfg.assigner.pos_iou_thr, 
+                                      'neg_iou_thr': rpn_train_cfg.assigner.neg_iou_thr, 
+                                      'min_pos_iou': rpn_train_cfg.assigner.min_pos_iou, 
+                                      'match_low_quality': rpn_train_cfg.assigner.match_low_quality, 
+                                      'ignore_iof_thr': rpn_train_cfg.assigner.ignore_iof_thr}, 
+                         'sampler': {'type': 'RandomSampler', 
+                                     'num': rpn_train_cfg.sampler.num, 
+                                     'pos_fraction': rpn_train_cfg.sampler.pos_fraction, 
+                                     'neg_pos_ub': rpn_train_cfg.sampler.neg_pos_ub, 
+                                     'add_gt_as_proposals': rpn_train_cfg.sampler.add_gt_as_proposals}, 
+                         'allowed_border': rpn_train_cfg.allowed_border, 
+                         'pos_weight': rpn_train_cfg.pos_weight, 
+                         'debug': rpn_train_cfg.debug}
         rpn_head_cfg.update(train_cfg=rpn_train_cfg, test_cfg=test_cfg.rpn)
-    
-        self.rpn_head = RPNHead(**rpn_head_cfg)
+        from mmdet_taeuk4958.models.dense_heads.rpn_head import RPNHead as RPNHead_
+        from utils.config import Config
+        rpn_head_cfg = Config(rpn_head_cfg)  
+        self.rpn_head = RPNHead_(**rpn_head_cfg)    
         
         
+        # rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None
+        # rpn_train_cfg = 
+
+
+        # rcnn_train_cfg = train_cfg.rcnn if train_cfg is not None else None
+        # roi_head.update(train_cfg=rcnn_train_cfg)
+        # roi_head.update(test_cfg=test_cfg.rcnn)
+        # self.roi_head = RoIHead(**roi_head)   
         rcnn_train_cfg = train_cfg.rcnn if train_cfg is not None else None
+        rcnn_train_cfg = {'assigner': {'type': 'MaxIoUAssigner', 
+                                       'pos_iou_thr': train_cfg.rcnn.assigner.pos_iou_thr, 
+                                       'neg_iou_thr': train_cfg.rcnn.assigner.neg_iou_thr, 
+                                       'min_pos_iou': train_cfg.rcnn.assigner.min_pos_iou, 
+                                       'match_low_quality': train_cfg.rcnn.assigner.match_low_quality, 
+                                       'ignore_iof_thr': train_cfg.rcnn.assigner.ignore_iof_thr}, 
+                          'sampler': {'type': 'RandomSampler', 
+                                      'num': train_cfg.rcnn.sampler.num, 
+                                      'pos_fraction': train_cfg.rcnn.sampler.pos_fraction, 
+                                      'neg_pos_ub': train_cfg.rcnn.sampler.neg_pos_ub, 
+                                      'add_gt_as_proposals': train_cfg.rcnn.sampler.add_gt_as_proposals}, 
+                          'mask_size': train_cfg.rcnn.mask_size, 
+                          'pos_weight': train_cfg.rcnn.pos_weight, 
+                          'debug': train_cfg.rcnn.debug}
         roi_head.update(train_cfg=rcnn_train_cfg)
         roi_head.update(test_cfg=test_cfg.rcnn)
-        self.roi_head = RoIHead(**roi_head)
-        
-        
+        from mmdet_taeuk4958.models.roi_heads.standard_roi_head import StandardRoIHead as StandardRoIHead_
+        from utils.config import Config
+        roi_head = Config(roi_head)  
+        self.roi_head = StandardRoIHead_(**roi_head)     
+
     
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -67,8 +119,10 @@ class MaskRCNN(BaseModule):
             len(gt_bboxe) = batch_size
                 gt_bboxe: [num_gts, 4] in [x_min, y_min, x_max, y_max]
         """
+
         # img: [B=2, C=3, H=768, W=1344]
         x = self.backbone(img)
+
         # type(x): list,        len(x) == cfg.model.backbone.depths
         # 각 elements의 channel은 cfg.model.neck.in_channels과 동일해야 한다
         # x[n]: [B, Cn, H/n, W/n],     Cn == cfg.model.neck.in_channels,    n = [4, 8, 16, 32]
@@ -79,6 +133,7 @@ class MaskRCNN(BaseModule):
         # [2, 768, 24, 42]
         
         x = self.neck(x)
+
         # [2, 256, 192, 336]
         # [2, 256, 96, 168]
         # [2, 256, 48, 84]
@@ -93,14 +148,29 @@ class MaskRCNN(BaseModule):
         # type:dict, keys = ['loss_cls', 'loss_bbox'],      each len = num_levels, value: tensor(float)
         # len(proposal_list) = batch_size
         # proposal: [proposal_cfg.max_per_img, 5],    5: [x_min, y_min, x_max, y_max, score]
-        rpn_losses, proposal_list = self.rpn_head.forward_train(x, img_metas, gt_bboxes, proposal_cfg, 
+        # rpn_losses, proposal_list = self.rpn_head.forward_train(x, img_metas, gt_bboxes, proposal_cfg, 
+        #                                                         **kwargs)
+        rpn_losses, proposal_list = self.rpn_head.forward_train(x,
+                                                                img_metas,
+                                                                gt_bboxes,
+                                                                gt_labels=None,
+                                                                gt_bboxes_ignore=None,
+                                                                proposal_cfg=proposal_cfg,
                                                                 **kwargs)
         
+        losses.update(rpn_losses)
+     
+        # roi_losses = self.roi_head.forward_train(x, img_metas, proposal_list,
+        #                                          gt_bboxes, gt_labels, gt_masks,
+        #                                          **kwargs)
         roi_losses = self.roi_head.forward_train(x, img_metas, proposal_list,
-                                                 gt_bboxes, gt_labels, gt_masks,
+                                                 gt_bboxes, gt_labels, None, gt_masks,
                                                  **kwargs)
         
-        
+        losses.update(roi_losses)
+
+      
+        return losses 
     
     @property
     def with_neck(self):
@@ -158,7 +228,10 @@ class MaskRCNN(BaseModule):
     
         
         # self.에 포함된 모든 module의 forward()를 실행
-        losses = self(**data)       
+        losses = self(**data)  
+        for key, value in losses.items():
+            print(f"\nkey: {key}")
+            print(f"value : {value}")
         exit()
         
         loss, log_vars = self._parse_losses(losses)
