@@ -1,14 +1,11 @@
+from distutils.command.config import config
 import torch
-import torch.nn as nn
-
-
-from base_module import BaseModule, ModuleList
-from loss import CrossEntropyLoss
 from assigner import MaxIoUAssigner
 
 from models.maskrcnn.bbox_head import SingleRoIExtractor, Shared2FCBBoxHead
+from models.maskrcnn.mask_head import FCNMaskHead
 from datasets.sampler import RandomSampler
-from basic_module import ConvModule, ConvTranspose2d, Conv2d
+from base_module import BaseModule
 
 if torch.__version__ == 'parrots':
     TORCH_VERSION = torch.__version__
@@ -102,11 +99,11 @@ class RoIHead(BaseModule):
                 # AssignResult(num_gts=num_gt_instance, gt_inds.shape=(proposal_cfg.max_per_img,),
                 # max_overlaps.shape=(proposal_cfg.max_per_img,), labels.shape=(proposal_cfg.max_per_img,))
                 assign_result = self.bbox_assigner.assign(proposal_list[i], gt_bboxes[i], gt_labels = gt_labels[i])
-                
                 sampling_result = self.bbox_sampler.sample(assign_result,  
                                                            proposal_list[i], gt_bboxes[i], gt_labels[i],
                                                            feats=[lvl_feat[i][None] for lvl_feat in x])
-    
+
+                # SamplingResult
                 sampling_results.append(sampling_result)
         
         # bbox head forward and loss
@@ -117,13 +114,70 @@ class RoIHead(BaseModule):
             #   loss_bbox:dict,   'loss_cls': tensor([float]), 'acc': tensor([float]), 'loss_bbox': tensor([float])
             bbox_results = self._bbox_forward_train(x, sampling_results, gt_bboxes, gt_labels)
             losses.update(bbox_results['loss_bbox'])
-        
+
         # mask head forward and loss
         if self.with_mask:
-            mask_results = self._mask_forward_train(x, sampling_results,        # 이거서부터
+            mask_results = self._mask_forward_train(x, sampling_results,       
                                                     bbox_results['bbox_feats'],
-                                                    gt_masks, img_metas)
+                                                    gt_masks)
             losses.update(mask_results['loss_mask'])
+            
+    
+    def _mask_forward_train(self, x, sampling_results, bbox_feats, gt_masks):
+        """Run forward function and calculate loss for mask head in
+        training.
+        """
+        
+        if not self.share_roi_extractor:        # True
+            # sampling_results: list of SamplingResult
+            pos_rois = bbox2roi([res.pos_bboxes for res in sampling_results])   # [num_instance in batch images, num_levels]
+            mask_results = self._mask_forward(x, pos_rois)  
+        else:
+            pos_inds = []
+            device = bbox_feats.device
+            for res in sampling_results:
+                pos_inds.append(torch.ones(res.pos_bboxes.shape[0],device=device,
+                                           dtype=torch.uint8)
+                                )
+                pos_inds.append(torch.zeros(res.neg_bboxes.shape[0],device=device,
+                                            dtype=torch.uint8)
+                                )
+            pos_inds = torch.cat(pos_inds)
+
+            # dict,     
+            #   mask_pred (shape=[num_instance in batch images, 256, win_size*2, win_size*2])
+            #   mask_feats (shape=[num_instance in batch images, 256, win_size*4, win_size*4])
+            mask_results = self._mask_forward(x, pos_inds=pos_inds, bbox_feats=bbox_feats)
+        
+        # [num_instance in batch images, win_size*4, win_size*4]
+        mask_targets = self.mask_head.get_targets(sampling_results, gt_masks,
+                                                  self.train_cfg) 
+
+        # [num_instance in batch images]
+        pos_labels = torch.cat([res.pos_gt_labels for res in sampling_results])
+        loss_mask = self.mask_head.loss(mask_results['mask_pred'],
+                                        mask_targets, pos_labels)
+        
+        
+     
+            
+            
+    def _mask_forward(self, x, rois=None, pos_inds=None, bbox_feats=None):
+        """Mask head forward function used in both training and testing."""
+        assert ((rois is not None) ^
+                (pos_inds is not None and bbox_feats is not None))
+
+        if rois is not None:    # True
+            # mask_feats.shape= [num_instance in batch images, 256, win_size*2, win_size*2]
+            mask_feats = self.mask_roi_extractor(x[:self.mask_roi_extractor.num_inputs], rois)
+        else:
+            assert bbox_feats is not None
+            mask_feats = bbox_feats[pos_inds]
+
+        # mask_pred.shape= [num_instance in batch images, 256, win_size*4, win_size*4]
+        mask_pred = self.mask_head(mask_feats)
+        mask_results = dict(mask_pred=mask_pred, mask_feats=mask_feats)
+        return mask_results
             
             
     def _bbox_forward_train(self, x, sampling_results, gt_bboxes, gt_labels):
@@ -139,7 +193,7 @@ class RoIHead(BaseModule):
         # loss_bbox:dict,   'loss_cls': tensor([float]), 'acc': tensor([float]), 'loss_bbox': tensor([float])
         loss_bbox = self.bbox_head.loss(bbox_results['cls_score'],
                                         bbox_results['bbox_pred'], rois,
-                                        *bbox_targets)
+                                        *bbox_targets)        
         
         bbox_results.update(loss_bbox=loss_bbox)
         return bbox_results
@@ -178,16 +232,41 @@ class RoIHead(BaseModule):
         self.bbox_assigner = None
         self.bbox_sampler = None
         if self.train_cfg:
+            from mmdet_taeuk4958.core.bbox.assigners.max_iou_assigner import MaxIoUAssigner as MaxIoUAssigner_
+            self.bbox_assigner = MaxIoUAssigner_(**self.train_cfg.assigner)
+            # self.bbox_assigner = MaxIoUAssigner(**self.train_cfg.assigner)     
             
-            self.bbox_assigner = MaxIoUAssigner(**self.train_cfg.assigner)        
-            self.bbox_sampler = RandomSampler(**self.train_cfg.sampler)
+            from mmdet_taeuk4958.core.bbox.samplers.random_sampler import RandomSampler as RandomSampler_
+            self.bbox_sampler = RandomSampler_(**self.train_cfg.sampler)
+            # self.bbox_sampler = RandomSampler(**self.train_cfg.sampler)
             
     
     def init_bbox_head(self, bbox_roi_extractor, bbox_head):
         """Initialize ``bbox_head``"""
         
-        self.bbox_roi_extractor = SingleRoIExtractor(**bbox_roi_extractor)
-        self.bbox_head = Shared2FCBBoxHead(**bbox_head)
+        
+        
+        
+        # ----
+        from mmdet_taeuk4958.models.roi_heads.bbox_heads.convfc_bbox_head import Shared2FCBBoxHead as Shared2FCBBoxHead_####
+        from utils.config import Config        
+        bbox_head_1 = Config({'in_channels': 256, 
+                            'fc_out_channels': 1024, 
+                            'roi_feat_size': 7, 
+                            'num_classes': 6, 
+                            'bbox_coder': {'type': 'DeltaXYWHBBoxCoder', 
+                                           'target_means': [0.0, 0.0, 0.0, 0.0], 
+                                           'target_stds': [0.1, 0.1, 0.2, 0.2]}, 
+                            'reg_class_agnostic': False, 
+                            'loss_cls': {'type': 'CrossEntropyLoss', 
+                                         'use_sigmoid': False, 
+                                         'loss_weight': 1.0}, 
+                            'loss_bbox': {'type': 'L1Loss', 'loss_weight': 1.0}})
+        self.bbox_head = Shared2FCBBoxHead_(**bbox_head_1)
+        # ---
+        
+        # self.bbox_roi_extractor = SingleRoIExtractor(**bbox_roi_extractor)
+        # self.bbox_head = Shared2FCBBoxHead(**bbox_head)       # False
         
         
 
@@ -207,71 +286,7 @@ class RoIHead(BaseModule):
 
 
 
-class FCNMaskHead(BaseModule):
-    def __init__(self,
-                 num_convs=4,
-                 roi_feat_size=14,
-                 in_channels=256,
-                 conv_kernel_size=3,
-                 conv_out_channels=256,
-                 num_classes=80,
-                 class_agnostic=False,
-                 scale_factor=2,
-                 predictor_cfg=dict(type='Conv'),
-                 loss_mask=dict(use_mask=True, loss_weight=1.0),        # CrossEntropyLoss
-                 init_cfg=None):
-        assert init_cfg is None, 'To prevent abnormal initialization ' \
-                                 'behavior, init_cfg is not allowed to be set'
-        super(FCNMaskHead, self).__init__(init_cfg)
-        self.num_convs = num_convs
-        self.in_channels = in_channels
-        self.conv_kernel_size = conv_kernel_size
-        self.conv_out_channels = conv_out_channels
-        self.scale_factor = scale_factor
-        self.num_classes = num_classes
-        self.class_agnostic = class_agnostic
-        self.predictor_cfg = predictor_cfg
-        self.loss_mask = CrossEntropyLoss(**loss_mask)
-        
-        self.convs = ModuleList()
-        for i in range(self.num_convs):
-            in_channels = (
-                self.in_channels if i == 0 else self.conv_out_channels)
-            padding = (self.conv_kernel_size - 1) // 2
-            self.convs.append(
-                ConvModule(
-                    in_channels,
-                    self.conv_out_channels,
-                    self.conv_kernel_size,
-                    padding=padding))
-        upsample_in_channels = (
-            self.conv_out_channels if self.num_convs > 0 else in_channels)
-        
-        upsample_cfg_ = {}
-        upsample_cfg_.update(
-            in_channels=upsample_in_channels,
-            out_channels=self.conv_out_channels,
-            kernel_size=self.scale_factor,
-            stride=self.scale_factor)
-        self.upsample = ConvTranspose2d(**upsample_cfg_)
-        
-        out_channels = 1 if self.class_agnostic else self.num_classes
-        self.conv_logits = Conv2d(self.conv_out_channels, out_channels, 1)
-        
-        self.relu = nn.ReLU(inplace=True)
-        
-        self.debug_imgs = None
-        
-    def init_weights(self):
-        super(FCNMaskHead, self).init_weights()
-        for m in [self.upsample, self.conv_logits]:
-            if m is None:
-                continue
-            elif hasattr(m, 'weight') and hasattr(m, 'bias'):
-                nn.init.kaiming_normal_(
-                    m.weight, mode='fan_out', nonlinearity='relu')
-                nn.init.constant_(m.bias, 0)
-                
+
 
 
 

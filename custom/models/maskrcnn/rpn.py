@@ -958,7 +958,7 @@ class RPNHead(BaseModule):
             losses_cls.append(loss_cls)
             losses_bbox.append(loss_bbox)
         
-        return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)
+        return dict(loss_rpn_cls=losses_cls, loss_rpn_bbox=losses_bbox)
                 
         
             

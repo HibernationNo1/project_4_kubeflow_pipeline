@@ -124,7 +124,6 @@ class ConvModule(nn.Module):    # normalization, activate layers 없이 build.  
         return x
     
 def obsolete_torch_version(torch_version, version_threshold):
-    print(f"version_threshold : {version_threshold}")
     return torch_version == 'parrots' or torch_version <= version_threshold
          
 class ConvTranspose2d(nn.ConvTranspose2d):

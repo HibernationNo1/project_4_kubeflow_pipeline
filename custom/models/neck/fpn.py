@@ -1,7 +1,7 @@
 import torch.nn.functional as F
 import torch.nn as nn
 
-from base_module import BaseModule, ModuleList
+from base_module import BaseModule
 from basic_module import ConvModule
 
 class FPN(BaseModule):
@@ -77,9 +77,8 @@ class FPN(BaseModule):
         self.start_level = start_level
         self.end_level = end_level
 
-        self.lateral_convs = ModuleList()
-        self.fpn_convs = ModuleList()
-
+        self.lateral_convs = nn.ModuleList()        #  from base_module import ModuleList 사용시 loss상승
+        self.fpn_convs = nn.ModuleList()
         
         for i in range(self.start_level, self.backbone_end_level):
             l_conv = ConvModule(    # lateral_convs
