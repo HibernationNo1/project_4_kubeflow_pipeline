@@ -9,7 +9,7 @@ from utils.hook import (Hook,
                         OptimizerHook, 
                         CheckpointHook, 
                         IterTimerHook, 
-                        TextLoggerHook, 
+                        LoggerHook, 
                         NumClassCheckHook)
 from utils.checkpoint import save_checkpoint as sc_save_checkpoint 
 priority_dict = {'HIGHEST' : 0,
@@ -82,9 +82,18 @@ class EpochBasedRunner(BaseRunner):
     def run_iter(self, data_batch, train_mode):
         if train_mode:
             # MMDataParallel.train_step
+            # outputs: 
+            # loss:total loss, log_vars: log_vars, num_samples: batch_size
             outputs = self.model.train_step(data_batch, self.optimizer)
         else:   # TODO
             outputs = self.model.val_step(data_batch, self.optimizer)
+            
+        if not isinstance(outputs, dict):
+            raise TypeError('"batch_processor()" or "model.train_step()"'
+                            'and "model.val_step()" must return a dict')
+        if 'log_vars' in outputs:
+            self.log_buffer.update(outputs['log_vars'], outputs['num_samples'])
+        self.outputs = outputs
             
         
                 
@@ -97,16 +106,17 @@ class EpochBasedRunner(BaseRunner):
         for i, data_batch in enumerate(self.data_loader):
             # data_batch: dataset의 pipelines > data_loader의 collate를 거친 data
             # data_batch.keys() = ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks']
-        
+            print(f"iter : {i}")
             self.data_batch = data_batch        
             self._inner_iter = i
             self.call_hook('before_train_iter')
+            # self.outputs: 
+            # loss:total loss, log_vars: log_vars, num_samples: batch_size
             self.run_iter(data_batch, train_mode=True)
             self.call_hook('after_train_iter')
             del self.data_batch
             self._iter += 1
             if self.train_unit_type == "iter" and self.iter == self._max_iters - 1: break
-        exit()
         self.call_hook('after_train_epoch')
         self._epoch += 1
  
@@ -307,15 +317,17 @@ class EpochBasedRunner(BaseRunner):
         elif hook_type=="log": 
             # log hook은 여러개 사용 가능
             priority='VERY_LOW'
-            text_cfg = dict(interval = config['interval'],
+            text_cfg = dict(interval = config.interval,
+                            max_epochs = self._max_epochs,
+                            ev_iter=len(self.data_loader),
                             out_dir = self.work_dir,
                             out_suffix = '.log')
             
             for info in config['hooks']:
                 if info['type'] == 'TensorboardLoggerHook': 
                     pass        # TODO
-                elif info['type'] == 'TextLoggerHook': 
-                    hook = TextLoggerHook(**text_cfg)
+                elif info['type'] == 'LoggerHook': 
+                    hook = LoggerHook(**text_cfg)
                 self.register_hook(hook, priority=priority)
             return
             
@@ -323,7 +335,6 @@ class EpochBasedRunner(BaseRunner):
         self.register_hook(hook, priority=priority)
         
     
-    # TODO : hook사용 이유
     def register_training_hooks(self,
                                 lr_config,
                                 optimizer_config=None,
@@ -388,11 +399,11 @@ class EpochBasedRunner(BaseRunner):
                 f'meta should be a dict or None, but got {type(meta)}')
         
         if self.meta is not None:
-            # 같은 값을 가진 meta를 기대하지만, 아닐 경우
             meta.update(self.meta)
 
         meta.update(epoch=self.epoch + 1, iter=self.iter)
         
+   
         filename = filename_tmpl.format(self.epoch + 1)
         filepath = osp.join(out_dir, filename)
         optimizer = self.optimizer if save_optimizer else None
