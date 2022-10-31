@@ -2,16 +2,17 @@
 
 
 checkpoint_config = dict(
-    interval=1,
+    interval=1,         # number of epoch(or iter) to save model
     filename_tmpl = 'model_{}.pth'        # model name to be save :  {model_name}_{epoch}.pth
     )
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=50,        # number of epoch(or iter) to save log
     hooks=[
-        dict(type='TextLoggerHook'),
+        dict(type='LoggerHook'),
         # dict(type='TensorboardLoggerHook')
     ])
+
 # yapf:enable
 custom_hooks = [dict(type='NumClassCheckHook')]
 

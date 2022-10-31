@@ -234,12 +234,12 @@ def save_checkpoint(model: torch.nn.Module,
         # save class name to the meta
         meta.update(CLASSES=model.CLASSES)
     
-
+    # create dict that with parameters of model
     checkpoint = {
         'meta': meta,
         'state_dict': weights_to_cpu(get_state_dict(model))
     }
-
+ 
     # save optimizer state dict in the checkpoint
     if isinstance(optimizer, Optimizer):
         checkpoint['optimizer'] = optimizer.state_dict()
@@ -260,19 +260,20 @@ def weights_to_cpu(state_dict: OrderedDict) -> OrderedDict:
     Returns:
         OrderedDict: Model weights on GPU.
     """
+    
     state_dict_cpu = OrderedDict()
     for key, val in state_dict.items():
         state_dict_cpu[key] = val.cpu()
+        
     # Keep metadata in state_dict
-    state_dict_cpu._metadata = getattr(  # type: ignore
-        state_dict, '_metadata', OrderedDict())
+    state_dict_cpu._metadata = getattr(state_dict, '_metadata', OrderedDict())
     return state_dict_cpu
 
 
 def get_state_dict(module: torch.nn.Module,
                    destination: Optional[OrderedDict] = None,
                    prefix: str = '',
-                   keep_vars: bool = False) -> OrderedDict:
+                   keep_vars: bool = False):
     """Returns a dictionary containing a whole state of the module.
 
     Both parameters and persistent buffers (e.g. running averages) are
@@ -284,6 +285,7 @@ def get_state_dict(module: torch.nn.Module,
 
     Args:
         module (nn.Module): The module to generate state_dict.
+            
         destination (OrderedDict): Returned dict for the state of the
             module.
         prefix (str): Prefix of the key.
@@ -293,23 +295,18 @@ def get_state_dict(module: torch.nn.Module,
     Returns:
         dict: A dictionary containing a whole state of the module.
     """
-    
-    module = module.module
-    
     # below is the same as torch.nn.Module.state_dict()
     if destination is None:
         destination = OrderedDict()
         destination._metadata = OrderedDict()  # type: ignore
-    destination._metadata[prefix[:-1]] = local_metadata = dict(  # type: ignore
-        version=module._version)
-    
+    destination._metadata[prefix[:-1]] = local_metadata = dict(version=module._version)
     _save_to_state_dict(module, destination, prefix, keep_vars)
+    
     for name, child in module._modules.items():
         if child is not None:
-            get_state_dict(
-                child, destination, prefix + name + '.', keep_vars=keep_vars)
+            get_state_dict(child, destination, prefix + name + '.', keep_vars=keep_vars)
     
-    for hook in module._state_dict_hooks.values():
+    for hook in module._state_dict_hooks.values():  # None.
         hook_result = hook(module, destination, prefix, local_metadata)
         if hook_result is not None:
             destination = hook_result
@@ -331,8 +328,11 @@ def _save_to_state_dict(module: torch.nn.Module, destination: dict,
     for name, param in module._parameters.items():
         if param is not None:
             destination[prefix + name] = param if keep_vars else param.detach()
+            
     
     for name, buf in module._buffers.items():
         # remove check of _non_persistent_buffers_set to allow nn.BatchNorm2d
         if buf is not None:
             destination[prefix + name] = buf if keep_vars else buf.detach()
+    
+    

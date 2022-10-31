@@ -229,15 +229,10 @@ class MaskRCNN(BaseModule):
         
         # self.에 포함된 모든 module의 forward()를 실행
         losses = self(**data)  
-        for key, value in losses.items():
-            print(f"\nkey: {key}")
-            print(f"value : {value}")
-        exit()
-        
+                
         loss, log_vars = self._parse_losses(losses)
         
-        outputs = dict(
-            loss=loss, log_vars=log_vars, num_samples=len(data['img_metas']))
+        outputs = dict(loss=loss, log_vars=log_vars, num_samples=len(data['img_metas']))
 
         return outputs
     
@@ -263,13 +258,13 @@ class MaskRCNN(BaseModule):
             else:
                 raise TypeError(
                     f'{loss_name} is not a tensor or list of tensors')
+
+        # total loss
+        loss = sum(_value for _key, _value in log_vars.items() if 'loss' in _key)
+        
+        log_vars['loss'] = loss         
             
-        loss = sum(_value for _key, _value in log_vars.items()
-                   if 'loss' in _key)
-        
-        log_vars['loss'] = loss
-        
         for loss_name, loss_value in log_vars.items():
             log_vars[loss_name] = loss_value.item()
-        
+            
         return loss, log_vars
