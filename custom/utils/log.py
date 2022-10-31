@@ -262,6 +262,7 @@ class LogBuffer:
         self.val_history = dict()
         self.n_history = dict()
         self.output = dict()
+        self.log_output = dict()
         self.ready = False
 
     def clear(self) -> None:
@@ -291,6 +292,18 @@ class LogBuffer:
             avg = np.sum(values * nums) / np.sum(nums)
             self.output[key] = avg
         self.ready = True
+        
+    
+    def log(self, n):
+      
+        for key in self.val_history:
+            values = np.array(self.val_history[key][-n:])
+            nums = np.array(self.n_history[key][-n:])
+            avg = np.sum(values * nums) / np.sum(nums)
+            self.log_output[key] = avg
+    
+    def clear_log(self):
+        self.log_output.clear()
 
 
 
