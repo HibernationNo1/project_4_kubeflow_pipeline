@@ -4,6 +4,7 @@ tmp.py
 *.json
 *.jpg
 *.log
+*.pth
 PypI/mmdet_taeuk4958/build/
 PypI/mmdet_taeuk4958/dist/
 PypI/mmdet_taeuk4958/mmdet_taeuk4958.egg-info/
