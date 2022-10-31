@@ -189,7 +189,7 @@ class NumClassCheckHook(Hook):
                          f'{dataset.__class__.__name__}')
                         
 
-class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있도록 수정, 나머지 구현 못한 hook도 구현하기
+class LoggerHook(Hook):
     """Logger hook in text.
 
     In this logger hook, the information will be printed on terminal and
@@ -223,6 +223,8 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
     """
 
     def __init__(self,
+                 max_epochs,
+                 ev_iter,       # number of iter per epoch
                  by_epoch: bool = True,
                  interval: int = 10,
                  ignore_last: bool = True,
@@ -232,6 +234,8 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
                  out_suffix: str = '.log',
                  log_file_name: str = 'RUN_log',
                  keep_local: bool = True):
+        self.max_epochs = max_epochs
+        self.ev_iter = ev_iter
         self.interval = interval
         self.ignore_last = ignore_last
         self.reset_flag = reset_flag
@@ -288,7 +292,7 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
     
     def _get_max_memory(self, runner) :
         """
-            GPU에 할당된 tensor의 크기(단위: MB)
+            Size of tensor allocated to GPU (unit: MB)
         """
         device = getattr(runner.model, 'output_device', None)
         mem = torch.cuda.max_memory_allocated(device=device)
@@ -297,40 +301,14 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
                               device=device)
         return mem_mb.item()
     
+    def get_iter(self, runner, inner_iter: bool = False) -> int:
+        """Get the current training iteration step."""
+        if self.by_epoch and inner_iter:
+            current_iter = runner.inner_iter + 1
+        else:
+            current_iter = runner.iter + 1
+        return current_iter
     
-    def log(self, runner) :
-        if 'eval_iter_num' in runner.log_buffer.output:
-            # this doesn't modify runner.iter and is regardless of by_epoch
-            cur_iter = runner.log_buffer.output.pop('eval_iter_num')
-        else:
-            cur_iter = self.get_iter(runner, inner_iter=True)
-
-        log_dict = OrderedDict(
-            mode=self.get_mode(runner),
-            epoch=self.get_epoch(runner),
-            iter=cur_iter)
-        
-        # learning rate 할당
-        cur_lr = runner.current_lr()
-        if isinstance(cur_lr, list):
-            log_dict['lr'] = cur_lr[0]
-        else:
-            assert isinstance(cur_lr, dict)
-            log_dict['lr'] = {}
-            for k, lr_ in cur_lr.items():
-                assert isinstance(lr_, list)
-                log_dict['lr'].update({k: lr_[0]})
-                
-        if 'time' in runner.log_buffer.output:
-            # statistic memory
-            if torch.cuda.is_available():
-                log_dict['memory'] = self._get_max_memory(runner)
-        
-        log_dict = dict(log_dict, **runner.log_buffer.output)  # type: ignore  
-        self._log_info(log_dict, runner)
-        self.write_log([log_dict])
-
-        ### 
     def _log_info(self, log_dict: Dict, runner) -> None:
         # print exp name for users to distinguish experiments
         # at every ``interval_exp_name`` iterations and the end of each epoch
@@ -403,18 +381,18 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
 
         
         
-    def write_log(self, status, log_dict_list: list):    # TODO : text가 training도중에 내용이 계속 추가되며도 저장도 되는지 확인
+    def write_log(self, status, log_dict_list: list):    
         # dump log in .log format
 
         if not is_list_of(log_dict_list, dict): raise TypeError(f"element of list must be dict, but was not.")
         
         text_log = '\n'
         if status in ['before_run', 'after_run']:
-            num_bar = 30
+            num_bar = 60
         elif status in ['before_epoch', 'after_epoch']:
             num_bar = 45
         elif status in ['before_iter', 'after_iter']:
-            num_bar = 60
+            num_bar = 30
         
         for i in range(num_bar):
             if i == num_bar//2:
@@ -428,12 +406,17 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
             with open(self.log_file_path, 'a+') as f:
                 f.write(f"{text_log}")
         else:
-            with open(self.log_file_path, 'w') as f:        # 일단 학습중엔 저장함
+            with open(self.log_file_path, 'w') as f:        
                 f.write(f"{text_log}")
     
         
                 
     def before_run(self, runner):
+        for hook in runner.hooks[::-1]:
+            if isinstance(hook, LoggerHook):
+                hook.reset_flag = True
+                break
+            
         if self.out_dir is not None:
             runner.logger.info(
                 f'Text logs will be saved to {self.out_dir} after the training process.')
@@ -443,7 +426,6 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
               
         self.start_iter = runner.iter
         log_dict_list = []
-        log_dict_list.append(runner.meta)
         log_dict_list.append(dict(
             bach_size = runner.get('batch_size') ,
             training_iteration_unit = runner.get('train_unit_type'),
@@ -453,28 +435,65 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
         
         if len(log_dict_list) != 0:
             self.write_log('before_run', log_dict_list)    
+            
+        
         
     def before_train_epoch(self, runner):
         log_dict = dict(
-            start_epoch = runner.get('epoch'),
+            start_epoch = self.get_epoch(runner),
             iterd_per_epochs = runner.get('iters_per_epochs')
             )
         self.write_log('before_epoch', [log_dict])
         runner.log_buffer.clear()  # clear logs of last epoch
+        self.e_t = time.time()
     
     def before_train_iter(self, runner):
-        log_dict = dict(start_iter = runner.get('iter'))
-
+        log_dict = dict(current_iter = self.get_iter(runner, inner_iter=True))
         self.write_log('before_iter', [log_dict])
+        self.i_t = time.time()
         
-   
-    
-    def after_train_iter(self, runner) -> None:
-        if self.by_epoch and self.every_n_inner_iters(runner, self.interval):   # epoch단위, iter +1
+        self.max_epochs = max_epochs            ## 
+        self.ev_iter = ev_iter
+
+    def log(self, runner) :
+        if 'eval_iter_num' in runner.log_buffer.output:
+            # this doesn't modify runner.iter and is regardless of by_epoch
+            cur_iter = runner.log_buffer.output.pop('eval_iter_num')
+        else:
+            cur_iter = self.get_iter(runner, inner_iter=True)
+
+        log_dict = OrderedDict(
+            mode=self.get_mode(runner),
+            epoch=self.get_epoch(runner),
+            iter=cur_iter)
+        
+        # learning rate 할당
+        cur_lr = runner.current_lr()
+        if isinstance(cur_lr, list):
+            log_dict['lr'] = cur_lr[0]
+        else:
+            assert isinstance(cur_lr, dict)
+            log_dict['lr'] = {}
+            for k, lr_ in cur_lr.items():
+                assert isinstance(lr_, list)
+                log_dict['lr'].update({k: lr_[0]})
+                
+        if 'time' in runner.log_buffer.output:
+            # statistic memory
+            if torch.cuda.is_available():
+                log_dict['memory'] = self._get_max_memory(runner)
+        
+        log_dict = dict(log_dict, **runner.log_buffer.output) 
+        self._log_info(log_dict, runner)
+        
+    def after_train_iter(self, runner) -> None:   
+        log_mode = 'train'
+        if self.by_epoch and self.every_n_inner_iters(runner, self.interval):   # training unit: epoch, iter +1
+            log_mode = 'val'
+            runner.log_buffer.average(self.interval)   
+        elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # training unit: iter, iter +1
             runner.log_buffer.average(self.interval)
-        elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # iter단위, iter +1
-            runner.log_buffer.average(self.interval)
-        elif self.end_of_epoch(runner) and not self.ignore_last:    # last epoch일때
+        elif self.end_of_epoch(runner) and not self.ignore_last:    # at last epoch
             # not precise but more stable
             runner.log_buffer.average(self.interval)
 
@@ -482,13 +501,36 @@ class TextLoggerHook(Hook): # TODO : 학습 중 정보를 log로 남길 수 있�
             self.log(runner)
             if self.reset_flag:
                 runner.log_buffer.clear_output()
+        
+        
+        
+        log_dict = OrderedDict(
+            time_spent_iter = time.time() - self.i_t,
+            mode=log_mode,
+            epoch=self.get_epoch(runner),
+            end_iter=self.get_iter(runner, inner_iter=True))
+        runner.log_buffer.log(self.interval)
+
+        log_dict = dict(log_dict, **runner.log_buffer.log_output) 
+        self.write_log("after_iter", [log_dict])
+        runner.log_buffer.clear_log()
+        self.i_t = time.time()
+
+
+    def after_train_epoch(self, runner) -> None:
+        if runner.log_buffer.ready:
+            self.log(runner)
+        if self.reset_flag:
+            runner.log_buffer.clear_output()
+        
+        log_dict = dict(end_epoch=self.get_epoch(runner),
+                        time_spent_epoch = time.time() - self.i_e,
+                        )
+        self.write_log("after_epoch", [log_dict])
 
    
     # def after_run(self, runner):
-    #     # copy or upload logs to self.out_dir
-    #     if self.out_dir is not None:
-    #         for filename in os.listdir(self.out_dir):
-    #             if filename.split['.'][-1] == self.out_suffix:
+    #     
                     
                     
     
@@ -547,13 +589,13 @@ class CheckpointHook(Hook):
     """
 
     def __init__(self,
-                 interval=-1,           # CheckpointHook를 수행하는 epoch 또는 iter의 목표 단위
-                 by_epoch=True,         # True : CheckpointHook수행 epoch단위, False : CheckpointHook수행위iter단위 
+                 interval=-1,           # Target unit of epoch(or iter) performing CheckpointHook
+                 by_epoch=True,         # True : run CheckpointHook unit by epoch , False : unit by iter
                  save_optimizer=True,
                  out_dir=None,
-                 max_keep_ckpts=-1,     # save할 model의 개수 
-                                        # every epoch(or iter)마다 model을 save하면 그 수가 많아진다.
-                                        # 이 때, last epoch부터 max_keep_ckpts개수만큼만 남기고 삭제 )
+                 max_keep_ckpts=-1,     # number of model which save by .pth format  
+                                        # why?: when save model whevery epoch(or iter), the number increases.
+                                        # so, delete number from 'last epoch' to 'max_keep_ckpts'
                  save_last=True,
                  file_client_args=None,
                  **kwargs):
@@ -580,19 +622,19 @@ class CheckpointHook(Hook):
         if not self.by_epoch:
             return
 
-        # epoch 가 self.interval의 배수가 될 때마다 수행
+       
+        # run whenever epoch is a multiple of self.interval(default: 1)
         if self.every_n_epochs(runner, self.interval) \
                            or (self.save_last and self.is_last_epoch(runner)):
                                
             runner.logger.info(f'Saving checkpoint at {runner.epoch + 1} epochs')
-
             self._save_checkpoint(runner)
             
             
     def _save_checkpoint(self, runner):
         """Save the current checkpoint and delete unwanted checkpoint."""
-        runner.save_checkpoint(
-            self.out_dir, save_optimizer=self.save_optimizer, **self.args)
+        # save meta, parameters of model, optimazers 
+        runner.save_checkpoint(self.out_dir, save_optimizer=self.save_optimizer, **self.args)
         
         if runner.meta is not None:
             if self.by_epoch:
@@ -600,11 +642,12 @@ class CheckpointHook(Hook):
             else:
                 cur_ckpt_filename = self.args.get(
                     'filename_tmpl', 'iter_{}.pth').format(runner.iter + 1)
-        
+
             runner.meta.setdefault('hook_msgs', dict())
             runner.meta['hook_msgs']['last_ckpt'] = osp.join(self.out_dir, cur_ckpt_filename)
-    
-          # remove other checkpoints
+
+       
+        # remove other checkpoints      # do not 
         if self.max_keep_ckpts > 0:
             if self.by_epoch:
                 name = 'epoch_{}.pth'
