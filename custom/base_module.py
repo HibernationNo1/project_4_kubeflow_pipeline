@@ -432,8 +432,6 @@ class BaseRunner(metaclass=ABCMeta):
         if max_epochs is not None and max_iters is not None:
             raise ValueError(
                 'Only one of `max_epochs` or `max_iters` can be set.')
-        if max_epochs is not None:    self.train_unit_type = 'epoch'
-        else:                               self.train_unit_type = 'iter'
         self._max_epochs = max_epochs
         self._max_iters = max_iters
   

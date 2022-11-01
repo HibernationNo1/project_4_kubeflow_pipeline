@@ -41,7 +41,7 @@ class EpochBasedRunner(BaseRunner):
         if not isinstance(mode, str): 
             raise TypeError(f'mode in workflow must be a str, but got {type(mode)}') 
         if not isinstance(iter, int) : 
-            raise TypeError(f'{self.train_unit_type} in workflow must be a int, but got {type(iter)}') 
+            raise TypeError(f'epoch in workflow must be a int, but got {type(iter)}') 
                         
         work_dir = self.work_dir
         self.logger.info('Start running, host: %s, work_dir: %s',
@@ -50,34 +50,33 @@ class EpochBasedRunner(BaseRunner):
                          self.get_hook_info())
         if self._max_epochs is not None:        
             self.logger.info(f'mode: {mode}, max: {self._max_epochs} epochs')
-            self._max_iters = self._max_epochs * len(data_loader)            # user가 설정한 epoch횟수에 따라 예상되는 iter값
-        else:
-            self.logger.info(f'mode: {mode}, max: {self._max_iters} iters')
-            self._max_epochs = round(self._max_iters / len(data_loader), 2)  # user가 설정한 iter횟수에 따라 예상되는 epoch값 
+            
+            # expected total ite according to the number of epochs set by the user
+            self._max_iters = self._max_epochs * len(data_loader)            
+        else: raise ValueError(f"epoch must be specified in cfg.workflow, but got None.")   # TODO: Training in epochs unit
+
         self.iterd_per_epochs = len(data_loader)
         work_dir = self.work_dir
         
         if not hasattr(self, mode):
-            raise ValueError(f'runner has no method named "{mode}" \
-                               to run an epoch')
+            raise ValueError(f'runner has no method named "{mode}" to run an epoch')
         
         self.call_hook('before_run')
-        if self._max_epochs is not None:        # epoch단위로 학습
-            
-            while self.epoch < self._max_epochs:
-                
-                epoch_runner = getattr(self, mode)      # mode에 해당되는 method 호출(train, val, eval)
+        if self._max_epochs is not None:        
+            while self.epoch < self._max_epochs:        # Training in epochs unit
+                epoch_runner = getattr(self, mode)      # call method (train, val, eval)
                 
                 for _ in range(self._max_epochs):
                     epoch_runner(mode, data_loader, **kwargs)
-                    
-                
-        else:                                   # iter단위로 학습
+        else:                                   # TODO: Training in epochs unit
             
             while self.iter < self._max_iters:
                 pass
                 
             pass
+        time.sleep(1)  # wait for some hooks like loggers to finish
+        self.call_hook('after_run')
+        
             
     def run_iter(self, data_batch, train_mode):
         if train_mode:
@@ -106,7 +105,6 @@ class EpochBasedRunner(BaseRunner):
         for i, data_batch in enumerate(self.data_loader):
             # data_batch: dataset의 pipelines > data_loader의 collate를 거친 data
             # data_batch.keys() = ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks']
-            print(f"iter : {i}")
             self.data_batch = data_batch        
             self._inner_iter = i
             self.call_hook('before_train_iter')
@@ -116,7 +114,6 @@ class EpochBasedRunner(BaseRunner):
             self.call_hook('after_train_iter')
             del self.data_batch
             self._iter += 1
-            if self.train_unit_type == "iter" and self.iter == self._max_iters - 1: break
         self.call_hook('after_train_epoch')
         self._epoch += 1
  
@@ -319,7 +316,7 @@ class EpochBasedRunner(BaseRunner):
             priority='VERY_LOW'
             text_cfg = dict(interval = config.interval,
                             max_epochs = self._max_epochs,
-                            ev_iter=len(self.data_loader),
+                            ev_iter=config.iter_per_epoch,
                             out_dir = self.work_dir,
                             out_suffix = '.log')
             
