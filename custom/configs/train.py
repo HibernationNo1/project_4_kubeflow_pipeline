@@ -20,10 +20,10 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
 resume_from = None
-workflow = [('train', 5)]   # TODO : [('train', n_1), ('val', n_2)]    
-epoch_or_iter = "epoch"      # training을 epoch단위로할지 iter단위로할지 구성.  defaut: 'epoch'
-                             # iter시 그 횟수에 따라 몇 epoch가 진행될지 자동으로 계산됨
-                             # iter시 장점: 학습 시간을 좀 더 세밀하게 조정 가능
+workflow = [('train', 5)]   # TODO : [('train', n_1), ('val', n_2)]     n_1: epoch
+
+result = "result/train"
+device = 'cuda:0'
                              
 
 # disable opencv multithreading to avoid system being overloaded
