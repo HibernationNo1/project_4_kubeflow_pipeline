@@ -21,11 +21,17 @@ log_info: dict = {}
 
 TORCH_VERSION = torch.__version__
 
-def set_logger_info(path, log_level):
-    timestamp = get_time_str()
+def set_logger_info(cfg):
+    log_level = cfg.log_level
+    mode = cfg.workflow[0][0]
+    timestamp = get_time_str()     
     log_info['timestamp'] = timestamp
     
-    result_dir = osp.join(path, timestamp)
+    if mode == "test":
+        result_dir = osp.join(osp.join(os.getcwd(), cfg.result), os.path.basename(cfg.model_path))
+    else: 
+        result_dir = osp.join(osp.join(os.getcwd(), cfg.result), timestamp)
+    assert osp.isdir(result_dir), f"result path: {result_dir} is not exist!"
     log_info['result_dir'] = result_dir
     
     log_info['log_level'] = log_level
