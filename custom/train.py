@@ -1,6 +1,7 @@
 import argparse
 import os, os.path as osp
 import numpy as np
+import torch
 
 from utils.utils import get_device, set_meta
 from utils.config import Config
@@ -11,42 +12,66 @@ from builder import (build_model,
                      build_dp, 
                      build_optimizer, 
                      build_runner)
-import __init__ # 모든 module 및 function import 
+import __init__ # to import all module and function 
 
-# TODO : import torch.distributed as dist 사용해보기
 
-# python train.py --cfg configs/swin_maskrcnn.py
+# python train.py --cfg configs/swin_maskrcnn.py --epo 3 --val_iter 50
+# python train.py --cfg configs/test.py --model_path 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", required = True, help="name of config file")
-    parser.add_argument('--epo', type= int, help= "max epoch")
+    parser.add_argument('--epo', type= int, help= "max epoch in train mode")
+    parser.add_argument('--val_iter', type= int, help= "iters that run validation")
+    
+    parser.add_argument('--model_path', type = str, help= "path of model(.pth format)") 
     
     args = parser.parse_args()
     
     return args
 
-def set_config(cfg_path):
-    
+def set_config(args):
+    cfg_path = args.cfg
     config_file_path = osp.join(os.getcwd(), cfg_path)
     cfg = Config.fromfile(config_file_path)
     
-    
     cfg.seed = np.random.randint(2**31)
     cfg.device = get_device()    
+    
+    if cfg.workflow[0][0] == 'test':
+        if args.model_path is not None: cfg.model_path = args.model_path
+        assert os.path.isfile(cfg.model_path), f"model path: '{cfg.model_path}' is not exist!"
+        
+        
+                
+    
+    if args.epo is not None:
+        new_flow = []
+        for flow in cfg.workflow:
+            mode, epoch = flow
+            if mode == 'train':
+                epoch = args.epo
+            new_flow.append((mode, epoch))
+        cfg.workflow = new_flow
+        
+    if args.val_iter is not None: cfg.log_config.interval = args.val_iter
+    
+ 
     return cfg
 
 
     
     
 if __name__ == "__main__":
+    print(f'pytorch version: {torch.__version__}')
+    print(f'Cuda is available: {torch.cuda.is_available()}')
  
 
     args = parse_args()
-    cfg = set_config(args.cfg)
+    cfg = set_config(args)
     
     
-    logger_timestamp = set_logger_info(osp.join(os.getcwd(), cfg.result), cfg.log_level)
+    logger_timestamp = set_logger_info(cfg)
     logger = create_logger('enviroments')
     
     # log env info      
@@ -100,7 +125,6 @@ if __name__ == "__main__":
     
     # flow를 통해 train, evluate를 명령어 하나헤 한 번에 실행할 수 있게. (validate은 training도중 실행) 
     assert len(cfg.workflow) == len(data_loaders)
-    if cfg.get('epoch_or_iter', None) is None: cfg.epoch_or_iter = "epoch"
     for flow, data_loader in zip(cfg.workflow, data_loaders):   # TODO : epoch단위로할지 iter단위로할지 구성    해당config확인
         mode, epoch = flow
         if mode == "train":
@@ -110,13 +134,8 @@ if __name__ == "__main__":
                     work_dir=log_info['result_dir'],
                     logger=logger,
                     meta=runner_meta,
-                    batch_size = cfg.data.samples_per_gpu)
-            
-            if cfg.epoch_or_iter == "iter" : 
-                runner_build_cfg['max_iters'] = epoch
-            else:
-                runner_build_cfg['max_epochs'] = epoch
-   
+                    batch_size = cfg.data.samples_per_gpu,
+                    max_epochs = epoch)
             
             train_runner = build_runner(runner_build_cfg)
 
@@ -141,6 +160,7 @@ if __name__ == "__main__":
                     CLASSES=train_dataset.CLASSES)
                 
             # register hooks
+            cfg.log_config.iter_per_epoch = len(data_loader)
             train_runner.register_training_hooks(
                 cfg.lr_config,
                 cfg.optimizer_config,
@@ -159,10 +179,10 @@ if __name__ == "__main__":
             
             train_runner.run(data_loader, flow)
         
+        elif mode == "test":
+            pass
         
-        
-        
-        elif mode == "train":
+        elif mode == "val":
             pass
                 # TODO : validate 수행
                 # if validate:      
