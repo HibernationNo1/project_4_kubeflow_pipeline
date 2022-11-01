@@ -224,7 +224,7 @@ class LoggerHook(Hook):
 
     def __init__(self,
                  max_epochs,
-                 ev_iter,       # number of iter per epoch
+                 ev_iter,        # iters_per_epochs
                  by_epoch: bool = True,
                  interval: int = 10,
                  ignore_last: bool = True,
@@ -234,8 +234,9 @@ class LoggerHook(Hook):
                  out_suffix: str = '.log',
                  log_file_name: str = 'RUN_log',
                  keep_local: bool = True):
-        self.max_epochs = max_epochs
+        self.max_epochs = max_epochs 
         self.ev_iter = ev_iter
+        self.iter_count = 1
         self.interval = interval
         self.ignore_last = ignore_last
         self.reset_flag = reset_flag
@@ -428,33 +429,100 @@ class LoggerHook(Hook):
         log_dict_list = []
         log_dict_list.append(dict(
             bach_size = runner.get('batch_size') ,
-            training_iteration_unit = runner.get('train_unit_type'),
-            expected_iteration_value = runner.get('_max_iters'),
-            expected_epoche_value = runner.get('_max_epochs')
+            max_iteration = runner.get('_max_iters'),
+            max_epoche = runner.get('_max_epochs')
         ))
         
         if len(log_dict_list) != 0:
-            self.write_log('before_run', log_dict_list)    
+            self.write_log('before_run', log_dict_list)  
+        
+        self.r_t = time.time()  
             
         
         
     def before_train_epoch(self, runner):
         log_dict = dict(
-            start_epoch = self.get_epoch(runner),
-            iterd_per_epochs = runner.get('iters_per_epochs')
+            start_epoch = f'({self.get_epoch(runner)}/{self.max_epochs})',
+            iterd_per_epochs = self.ev_iter
             )
         self.write_log('before_epoch', [log_dict])
         runner.log_buffer.clear()  # clear logs of last epoch
-        self.e_t = time.time()
+        self.e_t = time.time()      # epoch start time 
     
-    def before_train_iter(self, runner):
-        log_dict = dict(current_iter = self.get_iter(runner, inner_iter=True))
-        self.write_log('before_iter', [log_dict])
-        self.i_t = time.time()
+    def before_train_iter(self, runner):            
+        log_dict_meta = dict(epoch=f'({self.get_epoch(runner)}/{self.max_epochs})',
+                             iter =f'({self.get_iter(runner, inner_iter=True)}/{self.ev_iter})')
+        self.write_log('before_iter', [log_dict_meta])
+        self.i_t = time.time()      # iter start time 
+                
         
-        self.max_epochs = max_epochs            ## 
-        self.ev_iter = ev_iter
+    def after_train_iter(self, runner) -> None:   
+        self.iter_count += 1
+        log_mode = 'train'
+        
+        if self.by_epoch and self.every_n_inner_iters(runner, self.interval):   # training unit: epoch, iter +1
+            log_mode = 'val'
+            runner.log_buffer.average(self.interval)   
+        elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # training unit: iter, iter +1
+            runner.log_buffer.average(self.interval)
+        elif self.end_of_epoch(runner) and not self.ignore_last:    # at last epoch
+            # not precise but more stable
+            runner.log_buffer.average(self.interval)
 
+        if runner.log_buffer.ready:
+            self.log(runner)
+            if self.reset_flag:
+                runner.log_buffer.clear_output()
+        
+        
+        current_iter = self.get_iter(runner, inner_iter=True)
+        time_spent_iter = round(time.time() - self.i_t, 2)
+        remain_time = self.compute_remain_time(time_spent_iter)['remain_time']
+        log_dict_meta = OrderedDict(
+            time_spent_iter = time_spent_iter,
+            mode=log_mode,
+            epoch=f'({self.get_epoch(runner)}/{self.max_epochs})',
+            iter=f'({current_iter}/{self.ev_iter})',
+            remain_time = remain_time)
+        
+        runner.log_buffer.log(self.interval)
+
+        log_dict_loss = dict(**runner.log_buffer.log_output) 
+        del log_dict_loss['data_time'], log_dict_loss['time']
+        self.write_log("after_iter", [log_dict_meta, log_dict_loss])
+        runner.log_buffer.clear_log()
+        
+        if log_mode == 'train':
+            print(f"Time remaining: [{remain_time}]\
+                    epoch: [{self.get_epoch(runner)}/{self.max_epochs}]\
+                    iter: [{self.get_iter(runner, inner_iter=True)}/{self.ev_iter}]")
+
+
+    def after_train_epoch(self, runner) -> None:
+        if runner.log_buffer.ready:
+            self.log(runner)
+        if self.reset_flag:
+            runner.log_buffer.clear_output()
+     
+        time_spent_epoch = time.time() - self.e_t
+        log_dict_meta = OrderedDict(
+            time_spent_epoch = self.compute_sec_to_h_d(time_spent_epoch),
+            end_epoch=self.get_epoch(runner), 
+            **self.compute_remain_time(time_spent_epoch))
+        
+        self.write_log("after_epoch", [log_dict_meta])
+
+   
+    def after_run(self, runner):
+        log_dict_meta = OrderedDict(
+            training_time = self.compute_sec_to_h_d(time.time() - self.r_t)
+            )
+        
+        log_dict_loss = dict(**runner.log_buffer.log_output) 
+        self.write_log("after_run", [log_dict_meta, log_dict_loss])
+        runner.log_buffer.clear_log()
+         
+    
     def log(self, runner) :
         if 'eval_iter_num' in runner.log_buffer.output:
             # this doesn't modify runner.iter and is regardless of by_epoch
@@ -486,53 +554,28 @@ class LoggerHook(Hook):
         log_dict = dict(log_dict, **runner.log_buffer.output) 
         self._log_info(log_dict, runner)
         
-    def after_train_iter(self, runner) -> None:   
-        log_mode = 'train'
-        if self.by_epoch and self.every_n_inner_iters(runner, self.interval):   # training unit: epoch, iter +1
-            log_mode = 'val'
-            runner.log_buffer.average(self.interval)   
-        elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # training unit: iter, iter +1
-            runner.log_buffer.average(self.interval)
-        elif self.end_of_epoch(runner) and not self.ignore_last:    # at last epoch
-            # not precise but more stable
-            runner.log_buffer.average(self.interval)
-
-        if runner.log_buffer.ready:
-            self.log(runner)
-            if self.reset_flag:
-                runner.log_buffer.clear_output()
         
+    def compute_sec_to_h_d(self, sec):
+        if sec < 60: return f'00:00:{f"{int(sec).zfill(2)}"}'
         
+        minute = sec//60
+        if minute < 60: return f"00:{f'{int(minute)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
         
-        log_dict = OrderedDict(
-            time_spent_iter = time.time() - self.i_t,
-            mode=log_mode,
-            epoch=self.get_epoch(runner),
-            end_iter=self.get_iter(runner, inner_iter=True))
-        runner.log_buffer.log(self.interval)
-
-        log_dict = dict(log_dict, **runner.log_buffer.log_output) 
-        self.write_log("after_iter", [log_dict])
-        runner.log_buffer.clear_log()
-        self.i_t = time.time()
-
-
-    def after_train_epoch(self, runner) -> None:
-        if runner.log_buffer.ready:
-            self.log(runner)
-        if self.reset_flag:
-            runner.log_buffer.clear_output()
+        hour = minute//60
+        if hour < 24: return f"{f'{int(hour)}'.zfill(2)}:{f'{int(minute%60)}'.zfill(2)}:{f'{int(sec%3600)}'.zfill(2)}"
         
-        log_dict = dict(end_epoch=self.get_epoch(runner),
-                        time_spent_epoch = time.time() - self.i_e,
-                        )
-        self.write_log("after_epoch", [log_dict])
-
-   
-    # def after_run(self, runner):
-    #     
-                    
-                    
+        day = hour//24
+        return f"{day}day {f'{int(hour%24)}'.zfill(2)}:{f'{int(minute%(60*24))}'.zfill(2)}:{f'{int(sec%(3600*24))}'.zfill(2)}"
+         
+         
+    def compute_remain_time(self, time_spent):
+        time_dict = dict()
+        
+        max_iter = self.max_epochs*self.ev_iter      # total iters for training 
+        remain_iter = max_iter - self.iter_count
+        time_dict['remain_time'] = self.compute_sec_to_h_d(time_spent * remain_iter)           
+        
+        return time_dict           
     
 
 class IterTimerHook(Hook):
