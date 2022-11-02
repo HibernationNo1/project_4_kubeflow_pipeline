@@ -24,17 +24,7 @@ def synchronize_stream(output, devices, streams):
     
 
 
-def get_input_device(input):
-    if isinstance(input, list):
-        for item in input:
-            input_device = get_input_device(item)
-            if input_device != -1:
-                return input_device
-        return -1
-    elif isinstance(input, torch.Tensor):
-        return input.get_device() if input.is_cuda else -1
-    else:
-        raise Exception(f'Unknown type {type(input)}.')
+
     
     
 def forward(target_gpus, input):
@@ -84,8 +74,8 @@ def scatter(input, devices, streams=None):
         return output
     else:
         raise Exception(f'Unknown type {type(input)}.')
-    
 
+    
 def get_input_device(input):
     """
         input이 gpu에 할당이 안되어있다면(if input.is_cuda is False) return -1
