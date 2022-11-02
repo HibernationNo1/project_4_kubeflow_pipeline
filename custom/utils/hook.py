@@ -9,7 +9,7 @@ import torch
 from torch.nn.utils import clip_grad
 
 from utils.utils import is_tuple_of, is_list_of, dict_to_pretty
-from base_module import BaseRunner
+from modules.base_module import BaseRunner
 from mmdet_taeuk4958.models.dense_heads.rpn_head import RPNHead ####
 # from models.maskrcnn.rpn import RPNHead
 
@@ -343,7 +343,7 @@ class LoggerHook(Hook):
                 time_sec_avg = self.time_sec_tot / (
                     runner.iter - self.start_iter + 1)
                 eta_sec = time_sec_avg * (runner.max_iters - runner.iter - 1)
-                eta_str = str(datetime.timedelta(seconds=int(eta_sec)))
+                eta_str = str(datetime.timedelta(seconds=int(eta_sec)))     
                 log_str += f'eta: {eta_str}, '
                 log_str += f'time: {log_dict["time"]:.3f}, ' \
                            f'data_time: {log_dict["data_time"]:.3f}, '
@@ -477,7 +477,7 @@ class LoggerHook(Hook):
         
         current_iter = self.get_iter(runner, inner_iter=True)
         time_spent_iter = round(time.time() - self.i_t, 2)
-        remain_time = self.compute_remain_time(time_spent_iter)['remain_time']
+        remain_time = self.compute_remain_time(time_spent_iter)['remain_time']      # TODO :이거 변경
         log_dict_meta = OrderedDict(
             time_spent_iter = time_spent_iter,
             mode=log_mode,
@@ -493,7 +493,8 @@ class LoggerHook(Hook):
         runner.log_buffer.clear_log()
         
         if log_mode == 'train':
-            print(f"Time remaining: [{remain_time}]\
+            # estimated time of arrival
+            print(f"eta: [{remain_time}]\
                     epoch: [{self.get_epoch(runner)}/{self.max_epochs}]\
                     iter: [{self.get_iter(runner, inner_iter=True)}/{self.ev_iter}]")
 
@@ -556,16 +557,18 @@ class LoggerHook(Hook):
         
         
     def compute_sec_to_h_d(self, sec):
-        if sec < 60: return f'00:00:{f"{int(sec).zfill(2)}"}'
+        if sec <=0: return "00:00:00"
+        
+        if sec < 60: return f'00:00:{f"{int(sec)}".zfill(2)}'
         
         minute = sec//60
         if minute < 60: return f"00:{f'{int(minute)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
         
         hour = minute//60
-        if hour < 24: return f"{f'{int(hour)}'.zfill(2)}:{f'{int(minute%60)}'.zfill(2)}:{f'{int(sec%3600)}'.zfill(2)}"
+        if hour < 24: return f"{f'{int(hour)}'.zfill(2)}:{f'{int(minute%60)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
         
         day = hour//24
-        return f"{day}day {f'{int(hour%24)}'.zfill(2)}:{f'{int(minute%(60*24))}'.zfill(2)}:{f'{int(sec%(3600*24))}'.zfill(2)}"
+        return f"{day}day {f'{int(hour%24)}'.zfill(2)}:{f'{int(minute%(60))}'.zfill(2)}:{f'{int(sec%(60))}'.zfill(2)}"
          
          
     def compute_remain_time(self, time_spent):
@@ -641,7 +644,7 @@ class CheckpointHook(Hook):
                                         # so, delete number from 'last epoch' to 'max_keep_ckpts'
                  save_last=True,
                  file_client_args=None,
-                 **kwargs):
+                 **kwargs):             # ['filename_tmpl', 'meta']
         self.interval = interval
         self.by_epoch = by_epoch    
         self.save_optimizer = save_optimizer

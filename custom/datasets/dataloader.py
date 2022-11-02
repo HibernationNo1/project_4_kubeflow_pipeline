@@ -58,6 +58,7 @@ def collate(batch, samples_per_gpu=1):
     # 2. cpu_only = False, stack = True,    // key: 'img', 'gt_semantic_seg'
     # 3. cpu_only = False, stack = False,   // key: 'proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels'
     """
+   
     if not isinstance(batch, Sequence):
         raise TypeError(f'{batch.dtype} is not supported.')
     if isinstance(batch[0], DataContainer):
@@ -74,7 +75,7 @@ def collate(batch, samples_per_gpu=1):
             return DataContainer(stacked, batch[0].stack, batch[0].padding_value, 
                                  cpu_only=True)
         elif batch[0].stack:        # cpu_only = False, stack = True
-            # 학습에 사용되는 tensor
+            # tensor used training
             # >>> expected: 
             #   len(stacked) == 1
             #   stacked[n].shape = [batch size, chennel, height, width]
@@ -82,7 +83,7 @@ def collate(batch, samples_per_gpu=1):
                 assert isinstance(batch[i].data, torch.Tensor)
 
                 if batch[i].pad_dims is not None:
-                    ndim = batch[i].dim()               # image의 dimension
+                    ndim = batch[i].dim()               # dimension of image
                     assert ndim > batch[i].pad_dims     # pad_dims = 2 (w, h)
                     max_shape = [0 for _ in range(batch[i].pad_dims)]
                   
@@ -116,7 +117,7 @@ def collate(batch, samples_per_gpu=1):
                         'pad_dims should be either None or integers (1-3)')
 
         else:       # cpu_only = False, stack = False
-            # 학습에 사용되는 tensor
+            # tensor used for training
             # >> expected: 
             #   len(stacked) == 1
             #   len(stacked[n]) == batchsize
@@ -129,9 +130,7 @@ def collate(batch, samples_per_gpu=1):
         transposed = zip(*batch)
         return [collate(samples, samples_per_gpu) for samples in transposed]
     elif isinstance(batch[0], Mapping):
-        return {
-            key: collate([d[key] for d in batch], samples_per_gpu)
-            for key in batch[0]
-        }
+        return {key: collate([d[key] for d in batch], samples_per_gpu)
+                             for key in batch[0] }
     else:
         return default_collate(batch)
