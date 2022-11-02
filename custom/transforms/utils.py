@@ -1,9 +1,68 @@
+import copy
 import numpy as np
 import cv2
 import torch
 import numbers
 
 from modules.maskrcnn.bbox_head import roi_align
+
+
+def replace_ImageToTensor(pipelines):
+    """Replace the ImageToTensor transform in a data pipeline to
+    DefaultFormatBundle, which is normally useful in batch inference.
+
+    Args:
+        pipelines (list[dict]): Data pipeline configs.
+
+    Returns:
+        list: The new pipeline list with all ImageToTensor replaced by
+            DefaultFormatBundle.
+
+    Examples:
+        >>> pipelines = [
+        ...    dict(type='LoadImageFromFile'),
+        ...    dict(
+        ...        type='MultiScaleFlipAug',
+        ...        img_scale=(1333, 800),
+        ...        flip=False,
+        ...        transforms=[
+        ...            dict(type='Resize', keep_ratio=True),
+        ...            dict(type='RandomFlip'),
+        ...            dict(type='Normalize', mean=[0, 0, 0], std=[1, 1, 1]),
+        ...            dict(type='Pad', size_divisor=32),
+        ...            dict(type='ImageToTensor', keys=['img']),
+        ...            dict(type='Collect', keys=['img']),
+        ...        ])
+        ...    ]
+        >>> expected_pipelines = [
+        ...    dict(type='LoadImageFromFile'),
+        ...    dict(
+        ...        type='MultiScaleFlipAug',
+        ...        img_scale=(1333, 800),
+        ...        flip=False,
+        ...        transforms=[
+        ...            dict(type='Resize', keep_ratio=True),
+        ...            dict(type='RandomFlip'),
+        ...            dict(type='Normalize', mean=[0, 0, 0], std=[1, 1, 1]),
+        ...            dict(type='Pad', size_divisor=32),
+        ...            dict(type='DefaultFormatBundle'),
+        ...            dict(type='Collect', keys=['img']),
+        ...        ])
+        ...    ]
+        >>> assert expected_pipelines == replace_ImageToTensor(pipelines)
+    """
+    pipelines = copy.deepcopy(pipelines)
+    for pipeline in pipelines:
+        if pipeline['type'] == 'MultiScaleFlipAug':
+            assert 'transforms' in pipeline
+            pipeline['transforms'] = replace_ImageToTensor(pipeline['transforms'])
+            
+            
+    return pipelines   
+
+        
+    
+
 
 cv2_interp_codes = {
     'nearest': cv2.INTER_NEAREST,
