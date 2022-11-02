@@ -27,7 +27,7 @@ BASE_KEY = '_base_'
 DELETE_KEY = '_delete_'
 DEPRECATION_KEY = '_deprecation_'
 RESERVED_KEYS = ['filename', 'text', 'pretty_text']
-
+CONFIGDICT_NAME = 'class_config'
 
 def import_modules_from_strings(imports, allow_failed_imports=False):
     """Import modules from the given list of strings.
@@ -79,6 +79,9 @@ def import_modules_from_strings(imports, allow_failed_imports=False):
 
 
 class ConfigDict(Dict) :
+    @property
+    def _class_name(self):
+        return CONFIGDICT_NAME
 
     def __missing__(self, name):
         raise KeyError(name)
@@ -139,7 +142,7 @@ class Config:
         "Config [path: /home/kchen/projects/mmcv/tests/data/config/a.py]: "
         "{'item1': [1, 2], 'item2': {'a': 0}, 'item3': True, 'item4': 'test'}"
     """
-
+    
     @staticmethod
     def _validate_py_syntax(filename):
         with open(filename, encoding='utf-8') as f:
