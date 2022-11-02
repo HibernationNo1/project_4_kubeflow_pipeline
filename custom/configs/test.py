@@ -1,4 +1,8 @@
 
+_base_ = [
+    './default.py'
+]
+
 models_dir = "models"
 model_name = "last.pth"
 
@@ -27,13 +31,11 @@ test_pipeline = [
 ]
 
 test_result = "result/test"
-eval_result = "result/evel"
+eval_result = 'eval'
 data_root = "dataset"
 test_data = "test"
 
 data = dict(
-    samples_per_gpu=2,  # batch_size
-    workers_per_gpu=1, 
     test=dict(
         data_root = data_root + "/" + test_data,
         batch_size = 10,
