@@ -1,7 +1,7 @@
 import torch
 import time
 import os.path as osp
-from base_module import BaseRunner
+from modules.base_module import BaseRunner
 from utils.utils import get_host_info
 
 from utils.hook import (Hook,
@@ -376,7 +376,8 @@ class EpochBasedRunner(BaseRunner):
                         out_dir,
                         filename_tmpl='epoch_{}.pth',
                         save_optimizer=True,
-                        meta=None):
+                        meta=None,
+                        model_cfg =None):
         """Save the checkpoint.
 
         Args:
@@ -398,7 +399,11 @@ class EpochBasedRunner(BaseRunner):
         if self.meta is not None:
             meta.update(self.meta)
 
-        meta.update(epoch=self.epoch + 1, iter=self.iter)
+        if model_cfg is not None:
+            meta.update(model_cfg = model_cfg)
+            
+        meta.update(epoch=self.epoch + 1, 
+                    iter=self.iter)
         
    
         filename = filename_tmpl.format(self.epoch + 1)

@@ -5,7 +5,7 @@ import torch.nn as nn
 import math
 from re import M
 
-from base_module import BaseInit
+from modules.base_module import BaseInit
 
 
 def _no_grad_trunc_normal_(tensor: Tensor, mean: float, std: float, a: float,

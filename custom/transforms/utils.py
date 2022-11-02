@@ -3,7 +3,7 @@ import cv2
 import torch
 import numbers
 
-from models.maskrcnn.bbox_head import roi_align
+from modules.maskrcnn.bbox_head import roi_align
 
 cv2_interp_codes = {
     'nearest': cv2.INTER_NEAREST,
