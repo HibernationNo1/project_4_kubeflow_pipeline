@@ -1,11 +1,11 @@
-import numpy as np
-import random
+from collections import OrderedDict
 import copy
 import torch
 from torch.nn.parallel import DataParallel
 from itertools import chain
 
 from utils.utils import auto_scale_lr
+from utils.config import CONFIGDICT_NAME
 from utils.registry import Registry, build_from_cfg
 from utils.optimizer import DefaultOptimizerConstructor
 from utils.runner import EpochBasedRunner
@@ -22,8 +22,12 @@ BACKBONES = Registry('backbone')
 def build_backbone(cfg):
     return build_from_cfg(cfg, BACKBONES)
 
-def build_model(cfg_model):
-    mask_rcnn = build_from_cfg(cfg_model, MODELS)
+def build_model(model_cfg):
+    
+    
+    if model_cfg._class_name != CONFIGDICT_NAME:
+        raise TypeError(f"config must be class: ConfigDict, but got {type(model_cfg)}")
+    mask_rcnn = build_from_cfg(model_cfg, MODELS)
 
     return mask_rcnn
 
@@ -110,14 +114,84 @@ class MMDataParallel(DataParallel):
                     f'found one of them on device: {t.device}')
         
        
-        inputs = scatter_inputs(inputs, self.device_ids)        # input data를 
+        inputs = scatter_inputs(inputs, self.device_ids)       
         return self.module.train_step(*inputs[0]) 
     
+
+def build_detector(config, model_path, device='cuda:0', logger = None):
+    from utils.checkpoint import load_checkpoint
+    
+    checkpoint = load_checkpoint(model_path, logger = logger)
+    
+    state_dict = checkpoint['state_dict']
+    metadata = getattr(state_dict, '_metadata', OrderedDict())
+    meta = checkpoint['meta']
+    optimizer = checkpoint['optimizer']
+ 
+    
+    model = build_model(meta['model_cfg'])
+    if 'CLASSES' in checkpoint.get('meta', {}):
+        model.CLASSES = checkpoint['meta']['CLASSES']
+
+    # load state_dict
+    load_state_dict(model, state_dict, logger)
+    
+    model.cfg = config  # save the config in the model for convenience
+    model.to(device)
+    model.eval()
+    return model
+
+
+
+def load_state_dict(module: torch.nn.Module, state_dict, logger = None):
+    """
+    Copies parameters and buffers from state_dict into module
+    """
+    
+    unexpected_keys = []
+    all_missing_keys = []
+    err_msg = []
     
     
-
+    metadata = getattr(state_dict, '_metadata', None)
+    state_dict = state_dict.copy()
+    if metadata is not None:
+        state_dict._metadata = metadata  # type: ignore
     
+    def load(module, prefix=''):
+        local_metadata = {} if metadata is None else metadata.get(
+            prefix[:-1], {})
+        
+        # method of nn.Module
+        module._load_from_state_dict(state_dict, prefix, local_metadata, True,
+                                     all_missing_keys, unexpected_keys,
+                                     err_msg)
+        for name, child in module._modules.items():
+            if child is not None:
+                load(child, prefix + name + '.')
 
-
+    load(module)
+    # break load->load reference cycle
+    load = None  # type: ignore
     
+    # ignore "num_batches_tracked" of BN layers
+    missing_keys = [
+        key for key in all_missing_keys if 'num_batches_tracked' not in key
+    ]
 
+
+    if unexpected_keys:
+        err_msg.append('unexpected key in source '
+                       f'state_dict: {", ".join(unexpected_keys)}\n')
+    if missing_keys:
+        err_msg.append(
+            f'missing keys in source state_dict: {", ".join(missing_keys)}\n')
+
+    if len(err_msg) > 0 :
+        err_msg.insert(
+            0, 'The model and loaded state dict do not match exactly\n')
+        err_msg = '\n'.join(err_msg)  # type: ignore
+        if logger is not None:
+            logger.warning(err_msg)
+        else:
+            print(err_msg)
