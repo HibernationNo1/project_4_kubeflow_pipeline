@@ -1,8 +1,8 @@
 
 import torch.nn as nn
 
-from base_module import BaseModule
-from basic_module import Linear, DropPath
+from modules.base_module import BaseModule
+from modules.basic_module import Linear, DropPath
 
 
 class FFN(BaseModule):

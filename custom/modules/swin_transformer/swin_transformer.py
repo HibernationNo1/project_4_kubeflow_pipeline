@@ -5,14 +5,14 @@ import torch.utils.checkpoint as cp
 
 from copy import deepcopy
 
-from models.swin_transformer.ffn import FFN
-from models.swin_transformer.shiftwindow_msa import ShiftWindowMSA
-from models.swin_transformer.patch import PatchEmbed, PatchMerging
+from modules.swin_transformer.ffn import FFN
+from modules.swin_transformer.shiftwindow_msa import ShiftWindowMSA
+from modules.swin_transformer.patch import PatchEmbed, PatchMerging
 
 from utils.utils import to_2tuple
 from utils.log import get_logger
-from utils.checkpoint import CheckpointLoader   
-from base_module import BaseModule, ModuleList
+from utils.checkpoint import load_checkpoint   
+from modules.base_module import BaseModule, ModuleList
 from builder import BACKBONES
 from initialization import trunc_normal_init, constant_init, _no_grad_trunc_normal_
 
@@ -261,7 +261,7 @@ class SwinTransformer(BaseModule):
                                                   f'`init_cfg` in ' \
                                                   f'{self.__class__.__name__} '
             # ckpt(dict): pre trained model의 각 layer에 대한 weight and bias 
-            ckpt = CheckpointLoader.load_checkpoint(filename = self.init_cfg.checkpoint, map_location='cpu', logger=logger)                                                  
+            ckpt = load_checkpoint(path = self.init_cfg.checkpoint, map_location='cpu', logger=logger)                                                  
             _state_dict = ckpt['model'] 
             if self.convert_weights:        # _state_dict는 각 layer에 backbone이 명시됨
                 # supported loading weight from original repo,

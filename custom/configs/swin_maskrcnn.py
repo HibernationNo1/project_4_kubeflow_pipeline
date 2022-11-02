@@ -2,9 +2,10 @@ _base_ = [
     'swin_maskrcnn/mask_rcnn.py',
     'swin_maskrcnn/dataset_config.py',
     'swin_maskrcnn/schedule_1x.py',
-    './train.py'
+    './default.py'
 ]
 
+train_result = "result/train"
 
 pretrained ='https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_tiny_patch4_window7_224.pth'
 model = dict(

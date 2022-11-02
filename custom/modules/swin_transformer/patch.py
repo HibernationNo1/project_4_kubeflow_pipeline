@@ -5,7 +5,7 @@ from typing import Sequence
 import torch.nn as nn
 import torch.nn.functional as F
 
-from base_module import BaseModule
+from modules.base_module import BaseModule
 from utils.utils import to_2tuple
 
 

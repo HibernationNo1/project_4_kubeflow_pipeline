@@ -5,8 +5,8 @@ import torch.nn.functional as F
 
 from utils.utils import to_2tuple
 
-from basic_module import DropPath
-from base_module import BaseModule
+from modules.basic_module import DropPath
+from modules.base_module import BaseModule
 
 from initialization import _no_grad_trunc_normal_
 

@@ -4,11 +4,11 @@ from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 from torch.nn.modules.utils import _pair
 
-from base_module import BaseModule
-from basic_module import ConvModule
+from modules.base_module import BaseModule
+from modules.basic_module import ConvModule
 from loss import CrossEntropyLoss, L1Loss
 from utils.utils import multi_apply, load_ext
-from models.maskrcnn.coder import DeltaXYWHBBoxCoder
+from modules.maskrcnn.coder import DeltaXYWHBBoxCoder
 
 ext_module = load_ext('_ext',['roi_align_forward', 'roi_align_backward'])
 

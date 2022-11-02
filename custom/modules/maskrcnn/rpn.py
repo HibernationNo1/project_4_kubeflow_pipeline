@@ -7,16 +7,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.utils import _pair
 
-from base_module import BaseModule
+from modules.base_module import BaseModule
 from loss import CrossEntropyLoss, L1Loss
 from assigner import MaxIoUAssigner
 from initialization import constant_init
 
 from datasets.sampler import RandomSampler
 
-from basic_module import ConvModule
-from models.maskrcnn.coder import DeltaXYWHBBoxCoder
-from models.maskrcnn.nms import batched_nms
+from modules.basic_module import ConvModule
+from modules.maskrcnn.coder import DeltaXYWHBBoxCoder
+from modules.maskrcnn.nms import batched_nms
 
 
 

@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 from torch.nn.modules.utils import _pair
 
-from base_module import BaseModule, ModuleList
-from basic_module import ConvModule, ConvTranspose2d, Conv2d
+from modules.base_module import BaseModule, ModuleList
+from modules.basic_module import ConvModule, ConvTranspose2d, Conv2d
 from loss import CrossEntropyLoss
 
 

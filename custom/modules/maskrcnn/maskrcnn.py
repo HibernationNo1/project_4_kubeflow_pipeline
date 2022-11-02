@@ -1,10 +1,10 @@
 import  torch
 
 from builder import build_backbone, MODELS
-from base_module import BaseModule
-from models.maskrcnn.rpn import RPNHead
-from models.neck.fpn import FPN
-from models.maskrcnn.roi import RoIHead
+from modules.base_module import BaseModule
+from modules.maskrcnn.rpn import RPNHead
+from modules.neck.fpn import FPN
+from modules.maskrcnn.roi import RoIHead
 
 @MODELS.register_module()
 class MaskRCNN(BaseModule):
@@ -31,7 +31,7 @@ class MaskRCNN(BaseModule):
         
         self.backbone = build_backbone(backbone)
         
-        _ = neck.pop("type")
+        if neck.get("type", None) is not None: _ = neck.pop("type")
         self.neck = FPN(**neck)
         
         # build_rpn_head : RPNHead
@@ -39,7 +39,6 @@ class MaskRCNN(BaseModule):
         # rpn_head_cfg = rpn_head.copy()
         # rpn_head_cfg.update(train_cfg=rpn_train_cfg, test_cfg=test_cfg.rpn)
         # self.rpn_head = RPNHead(**rpn_head_cfg)
-        
         rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None
         rpn_head_cfg = rpn_head.copy()
         rpn_train_cfg = {'assigner': {'type': 'MaxIoUAssigner', 
@@ -63,10 +62,6 @@ class MaskRCNN(BaseModule):
         self.rpn_head = RPNHead_(**rpn_head_cfg)    
         
         
-        # rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None
-        # rpn_train_cfg = 
-
-
         # rcnn_train_cfg = train_cfg.rcnn if train_cfg is not None else None
         # roi_head.update(train_cfg=rcnn_train_cfg)
         # roi_head.update(test_cfg=test_cfg.rcnn)

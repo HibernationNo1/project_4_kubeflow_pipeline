@@ -2,10 +2,10 @@ from distutils.command.config import config
 import torch
 from assigner import MaxIoUAssigner
 
-from models.maskrcnn.bbox_head import SingleRoIExtractor, Shared2FCBBoxHead
-from models.maskrcnn.mask_head import FCNMaskHead
+from modules.maskrcnn.bbox_head import SingleRoIExtractor, Shared2FCBBoxHead
+from modules.maskrcnn.mask_head import FCNMaskHead
 from datasets.sampler import RandomSampler
-from base_module import BaseModule
+from modules.base_module import BaseModule
 
 if torch.__version__ == 'parrots':
     TORCH_VERSION = torch.__version__

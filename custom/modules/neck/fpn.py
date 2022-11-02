@@ -1,8 +1,8 @@
 import torch.nn.functional as F
 import torch.nn as nn
 
-from base_module import BaseModule
-from basic_module import ConvModule
+from modules.base_module import BaseModule
+from modules.basic_module import ConvModule
 
 class FPN(BaseModule):
     r"""Feature Pyramid Network.
