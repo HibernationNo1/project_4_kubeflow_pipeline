@@ -26,16 +26,16 @@ def set_logger_info(cfg):
     mode = cfg.workflow[0][0]
     timestamp = get_time_str()     
     log_info['timestamp'] = timestamp
-    
     if mode == "test":
-        result_dir = osp.join(osp.join(os.getcwd(), cfg.result), os.path.basename(cfg.model_path))
+        result_dir = osp.join(osp.join(os.getcwd(), cfg.test_result), os.path.basename(cfg.model_path).split('.')[0])
+        eval_result = osp.join(result_dir, cfg.eval_result)
+        os.makedirs(eval_result, exist_ok= True)
     else: 
-        result_dir = osp.join(osp.join(os.getcwd(), cfg.result), timestamp)
-    assert osp.isdir(result_dir), f"result path: {result_dir} is not exist!"
-    log_info['result_dir'] = result_dir
-    
-    log_info['log_level'] = log_level
+        result_dir = osp.join(osp.join(os.getcwd(), cfg.train_result), timestamp)
     os.makedirs(result_dir, exist_ok= True)
+    log_info['result_dir'] = result_dir
+    log_info['log_level'] = log_level
+    
     return timestamp
 
 def create_logger(log_name = None):
