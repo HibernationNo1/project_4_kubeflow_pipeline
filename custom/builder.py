@@ -115,7 +115,18 @@ class MMDataParallel(DataParallel):
         
        
         inputs = scatter_inputs(inputs, self.device_ids)       
-        return self.module.train_step(*inputs[0]) 
+        return self.module.train_step(*inputs[0])
+    
+    
+    def forward(self, *inputs, **kwargs):
+        """Override the original forward function.
+
+        The main difference lies in the CPU inference where the data in
+        :class:`DataContainers` will still be gathered.
+        """
+        # kwargs.keys = ['return_loss', 'rescale', 'img_metas', 'img']
+       
+        return super().forward(*inputs, **kwargs)
     
 
 def build_detector(config, model_path, device='cuda:0', logger = None):
