@@ -30,6 +30,8 @@ test_pipeline = [
         ])
 ]
 
+show_score_thr = 0.3
+
 test_result = "result/test"
 eval_result = 'eval'
 data_root = "dataset"

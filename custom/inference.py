@@ -6,7 +6,7 @@ from transforms.compose import Compose
 from datasets.dataloader import collate
 from utils.scatter import parallel_scatter
 
-def inference_detector(model, imgs):
+def inference_detector(model, imgs, batch_size):
     """Inference image(s) with the detector.
 
     Args:
@@ -24,7 +24,8 @@ def inference_detector(model, imgs):
     else:
         imgs = [imgs]
         is_batch = False
-        
+    
+    
     cfg = model.cfg
     device = next(model.parameters()).device  # model device
     
@@ -45,20 +46,23 @@ def inference_detector(model, imgs):
         
     
     # just get the actual data from DataContainer
-    data = collate(datas, samples_per_gpu=len(imgs))
+    # len(data): batch_szie
+    data = collate(datas, samples_per_gpu=batch_size)
     
-    # len: 1
+    
     data['img_metas'] = [img_metas.data[0] for img_metas in data['img_metas']]
     data['img'] = [img.data[0] for img in data['img']]
     
     assert next(model.parameters()).is_cuda, f"modules must be is_cuda, but is not"
     # scatter to specified GPU
+    
+    # data.keys(): ['img_metas', 'img'],       len(data['key']): 1
+    # len(data['key'][0]): batch_size
     data = parallel_scatter(data, [device])[0]
 
     # forward the model
     with torch.no_grad():
-        results = model(return_loss=False, rescale=True, **data)
-        
+        results = model(return_loss=False, rescale=True, **data)        # call model.forward
     if not is_batch:
         return results[0]
     else:

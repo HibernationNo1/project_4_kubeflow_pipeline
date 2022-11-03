@@ -121,7 +121,7 @@ def forward_scatter(target_gpus, input):
 def parallel_scatter(inputs, target_gpus = [0], dim = 0):
     """Scatter inputs to target gpus.
     """
-
+  
     def scatter_map(obj):
         """
         Args:
@@ -148,7 +148,7 @@ def parallel_scatter(inputs, target_gpus = [0], dim = 0):
         # return [tuple(batch_list)]
                     
         if isinstance(obj, torch.Tensor):
-            assert target_gpus == [-1], "Use only GPU, not CPU"
+            assert target_gpus != [-1], "Use only GPU, not CPU"
             return OrigScatter.apply(target_gpus, None, dim, obj)
         
         if isinstance(obj, DataContainer): 

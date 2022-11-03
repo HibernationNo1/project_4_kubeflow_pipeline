@@ -151,13 +151,21 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
                 logger.info(f'\n{name} - {param.shape}: '
                             f"\n{self._params_init_info[param]['init_info']} \n ")
                 
+    
+        
+        
+     
+        
+    
+
         
 
     def __repr__(self):
         s = super().__repr__()
         if self.init_cfg:
             s += f'\ninit_cfg={self.init_cfg}'
-        return s  
+        return s 
+
  
 
 class BaseInit:

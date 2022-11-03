@@ -63,15 +63,10 @@ def collate(batch, samples_per_gpu=1):
         raise TypeError(f'{batch.dtype} is not supported.')
     if isinstance(batch[0], DataContainer):
         stacked = []        
-        if batch[0].cpu_only:  # cpu_only = True   
-            # >>> expected: 
-            #   len(stacked) == 1
-            #   len(stacked[n]) == batchsize
-            #   stacked[n][m].keys() = ['filename', 'ori_filename', 'ori_shape', 'img_shape', 'pad_shape', 'scale]
-            
+        if batch[0].cpu_only:  
+            # stack by batch_size
             for i in range(0, len(batch), samples_per_gpu):     # samples_per_gpu == batch size
                 stacked.append([sample.data for sample in batch[i:i + samples_per_gpu]])
-        
             return DataContainer(stacked, batch[0].stack, batch[0].padding_value, 
                                  cpu_only=True)
         elif batch[0].stack:        # cpu_only = False, stack = True
