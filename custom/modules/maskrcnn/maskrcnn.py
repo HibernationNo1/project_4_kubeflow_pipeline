@@ -105,7 +105,72 @@ class MaskRCNN(BaseModule):
         if return_loss:
             return self.forward_train(img, img_metas, **kwargs)
         else:
-            return self.forward_test(img, img_metas, **kwargs)  #  TODO
+            return self.forward_test(img, img_metas, **kwargs)    
+    
+    def forward_test(self, imgs, img_metas, **kwargs):
+        """
+        Args:
+            imgs (List[Tensor]): the outer list indicates test-time
+                augmentations and inner Tensor should have a shape NxCxHxW,
+                which contains all images in the batch.
+            img_metas (List[List[dict]]): the outer list indicates test-time
+                augs (multiscale, flip, etc.) and the inner list indicates
+                images in a batch.
+        """
+        
+        for var, name in [(imgs, 'imgs'), (img_metas, 'img_metas')]:
+            if not isinstance(var, list):
+                raise TypeError(f'{name} must be a list, but got {type(var)}')
+        
+        num_augs = len(imgs)
+        if num_augs != len(img_metas):
+            raise ValueError(f'num of augmentations ({len(imgs)}) '
+                             f'!= num of image meta ({len(img_metas)})')
+        
+        for img, img_meta in zip(imgs, img_metas):
+            batch_size = len(img_meta)
+            for img_id in range(batch_size):
+                img_meta[img_id]['batch_input_shape'] = tuple(img.size()[-2:])
+        
+        if num_augs == 1:
+            # proposals (List[List[Tensor]]): the outer list indicates
+            # test-time augs (multiscale, flip, etc.) and the inner list
+            # indicates images in a batch.
+            # The Tensor should have a shape Px4, where P is the number of
+            # proposals.
+            if 'proposals' in kwargs:
+                kwargs['proposals'] = kwargs['proposals'][0]
+
+            
+            
+            assert self.with_bbox, 'Bbox head must be implemented.'
+            
+            img, img_meta = imgs[0], img_metas[0]
+            x = self.backbone(img)
+            if self.with_neck:
+                x = self.neck(x)
+            
+            if kwargs.get("proposals", None) is None:
+                # len: batch_size
+                proposal_list = self.rpn_head.simple_test_rpn(x, img_meta)
+            else:
+                proposal_list = kwargs['proposals']
+        
+            # len: batch_size
+            # result[n].size: (6, 6)
+            results = self.roi_head.simple_test(x, proposal_list, img_meta, rescale=kwargs.get("rescale", False))           
+            
+            return results
+        
+        else:   # TODO
+            pass
+            # assert imgs[0].size(0) == 1, 'aug test does not support ' \
+            #                              'inference with batch size ' \
+            #                              f'{imgs[0].size(0)}'
+            # # TODO: support test augmentation for predefined proposals
+            # assert 'proposals' not in kwargs
+            # return self.aug_test(imgs, img_metas, **kwargs)
+            
         
     # gt_bboxes_ignore = None
     def forward_train(self, img, img_metas, gt_bboxes, gt_labels, gt_masks=None, proposals=None,
