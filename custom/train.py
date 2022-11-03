@@ -3,6 +3,7 @@ import os, os.path as osp
 import numpy as np
 import torch
 import glob
+import cv2
 from tqdm import tqdm
 
 from utils.utils import get_device, set_meta
@@ -15,6 +16,9 @@ from builder import (build_model,
                      build_optimizer, 
                      build_runner,
                      build_detector)
+from inference import inference_detector
+from visualization import show_result
+
 import __init__ # to import all module and function 
 
 
@@ -174,9 +178,11 @@ if __name__ == "__main__":
         
         elif mode == "test":
             test_logger = create_logger('test')
+            
             batch_size = cfg.data.test.batch_size
-            batch_imgs_path = glob.glob(os.path.join(cfg.data.test.data_root, "*.jpg"))
-            batch_imgs_list = [batch_imgs_path[x:x + batch_size] for x in range(0, len(batch_imgs_path), batch_size)]
+            all_imgs_path = glob.glob(os.path.join(cfg.data.test.data_root, "*.jpg"))
+            batch_imgs_list = [all_imgs_path[x:x + batch_size] for x in range(0, len(all_imgs_path), batch_size)]
+            
             
             model = build_detector(cfg, cfg.model_path, device = cfg.device, logger = test_logger)
 
@@ -186,19 +192,29 @@ if __name__ == "__main__":
             model.cfg = codel_config  
             outputs = []  
             
-            from inference import inference_detector
-            for batch_imgs in tqdm(batch_imgs_list):   
+            for batch_imgs in tqdm(batch_imgs_list):
                 with torch.no_grad():
-                    
-                    results = inference_detector(model, batch_imgs)
-                
+                    # len: batch_size
+                    results = inference_detector(model, batch_imgs, cfg.data.test.batch_size)   # TODO: 여기서 시간 너무많이 잡아먹힘
+            
+                # set path of result images
                 out_files = []
-                for img_path in batch_imgs_path:
+                for img_path in batch_imgs:
                     file_name = os.path.basename(img_path)
                     out_file = os.path.join(log_info['result_dir'], file_name)
                     out_files.append(out_file)
-                
-                
+                    
+                for img_path, out_file, result in zip(batch_imgs, out_files, results):
+                    img = cv2.imread(img_path)      
+
+                    show_result(img, 
+                                result,
+                                classes,
+                                out_file=out_file,
+                                score_thr=cfg.show_score_thr)
+            print("done")
+            exit()
+            
                 
         
         elif mode == "val":
