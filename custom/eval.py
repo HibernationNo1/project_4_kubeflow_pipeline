@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import itertools
 
 from transforms.utils import replace_ImageToTensor
 from transforms.compose import Compose
@@ -67,3 +68,36 @@ def inference_detector(model, imgs, batch_size):
         return results[0]
     else:
         return results
+    
+def get_inferece_result(result):
+    if isinstance(result, tuple):
+        bbox_result, segm_result = result
+        if isinstance(segm_result, tuple):
+            segm_result = segm_result[0]  # ms rcnn
+    else:
+        bbox_result, segm_result = result, None
+
+    # bboxes.shape: (num of instance, 5)    5: [x_min, y_min, x_max, y_max, score]
+    bboxes = np.vstack(bbox_result)
+    
+    labels = [
+        np.full(bbox.shape[0], i, dtype=np.int32)
+        for i, bbox in enumerate(bbox_result)
+    ]
+    # labels.shape[0]: num of instance
+    labels = np.concatenate(labels)
+    
+    # draw segmentation masks
+    segms = None
+    if segm_result is not None and len(labels) > 0:  # non empty
+        # len(segms): num of instance
+        segms = list(itertools.chain(*segm_result))
+
+        # segms.shape: (num of instance , height, widrh)
+        if isinstance(segms[0], torch.Tensor):
+            segms = torch.stack(segms, dim=0).detach().cpu().numpy()
+        else:
+            segms = np.stack(segms, axis=0)         
+
+    return bboxes, labels, segms
+
