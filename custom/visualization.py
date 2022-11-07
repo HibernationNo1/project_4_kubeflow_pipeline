@@ -1,13 +1,12 @@
-import itertools
 import cv2
 import os
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 import random
 
-def show_result(     
-                img,
+from eval import parse_inferece_result 
+
+def show_result(img,
                 result,
                 class_names,
                 score_thr=0.3,
@@ -26,36 +25,9 @@ def show_result(
     Returns:
         img (numpy): Only if not `show` or `out_file`
     """
-
-    if isinstance(result, tuple):
-        bbox_result, segm_result = result
-        if isinstance(segm_result, tuple):
-            segm_result = segm_result[0]  # ms rcnn
-    else:
-        bbox_result, segm_result = result, None
-
-    # bboxes.shape: (num of instance, 5)    5: [x_min, y_min, x_max, y_max, score]
-    bboxes = np.vstack(bbox_result)
     
-    labels = [
-        np.full(bbox.shape[0], i, dtype=np.int32)
-        for i, bbox in enumerate(bbox_result)
-    ]
-    # labels.shape[0]: num of instance
-    labels = np.concatenate(labels)
-    
-    # draw segmentation masks
-    segms = None
-    if segm_result is not None and len(labels) > 0:  # non empty
-        # len(segms): num of instance
-        segms = list(itertools.chain(*segm_result))
+    bboxes, labels, segms = parse_inferece_result(result)
 
-        # segms.shape: (num of instance , height, widrh)
-        if isinstance(segms[0], torch.Tensor):
-            segms = torch.stack(segms, dim=0).detach().cpu().numpy()
-        else:
-            segms = np.stack(segms, axis=0)         
-    
     # draw bounding boxes
     img = draw_to_img(img,
                       bboxes,
@@ -67,18 +39,23 @@ def show_result(
     if out_file is not None:
         cv2.imwrite(out_file, img)
         
-    return img
-
+        
+def mask_to_polygon(masks):
+    polygons = []
+    for mask in masks:       
+        polygon, _ = bitmap_to_polygon(mask)
+        polygons.append(polygon[0])
+    return polygons
 
 
 
 def draw_to_img(img,
-                      bboxes=None,
-                      labels=None,
-                      segms=None,
-                      class_names=None,
-                      score_thr=0
-                      ):
+                bboxes=None,
+                labels=None,
+                segms=None,
+                class_names=None,
+                score_thr=0
+                ):
     """Draw bboxes and class labels (with scores) on an image.
 
     Args:
@@ -148,10 +125,7 @@ def draw_to_img(img,
         object_labels.append(f"{object_name} {confidence}%")
     # object_labels len: num_instance,  each type: str,     e.g. object 34%
    
-    polygons = []
-    for seg in segms:       
-        polygon, _ = bitmap_to_polygon(seg)
-        polygons.append(polygon[0])
+    polygons = mask_to_polygon(segms)
     # len(polygons) : num_instance,     len(polygons[n]): num_points of polygon
     
     
