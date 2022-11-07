@@ -7,7 +7,7 @@ from transforms.compose import Compose
 from datasets.dataloader import collate
 from utils.scatter import parallel_scatter
 
-def inference_detector(model, imgs, batch_size):
+def inference_detector(model, imgs_path, batch_size):
     """Inference image(s) with the detector.
 
     Args:
@@ -20,31 +20,30 @@ def inference_detector(model, imgs, batch_size):
         will be returned, otherwise return the detection results directly.
     """
     
-    if isinstance(imgs, (list, tuple)):
+    if isinstance(imgs_path, (list, tuple)):
         is_batch = True
     else:
-        imgs = [imgs]
+        imgs_path = [imgs_path]
         is_batch = False
-    
     
     cfg = model.cfg
     device = next(model.parameters()).device  # model device
-    
-   
-    cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
-    
 
-    test_pipeline = Compose(cfg.data.test.pipeline)
+    if  cfg.get("test_pipeline", None) is not None: 
+        pipeline_cfg = cfg.test_pipeline
+    else: raise ValueError("val or test config must be specific, but both got None")
+
+    re_pipeline_cfg  = replace_ImageToTensor(pipeline_cfg)
+    pipeline = Compose(re_pipeline_cfg)
     
     datas = []
-    for img in imgs:
+    for img_path in imgs_path:
         # prepare data
-        data = dict(img_info=dict(filename=img), img_prefix=None)
+        data = dict(img_info=dict(filename=img_path), img_prefix=None)
         
         # build the data pipeline
-        data = test_pipeline(data)
+        data = pipeline(data)
         datas.append(data)
-        
     
     # just get the actual data from DataContainer
     # len(data): batch_szie
@@ -69,7 +68,7 @@ def inference_detector(model, imgs, batch_size):
     else:
         return results
     
-def get_inferece_result(result):
+def parse_inferece_result(result):
     if isinstance(result, tuple):
         bbox_result, segm_result = result
         if isinstance(segm_result, tuple):
@@ -80,13 +79,14 @@ def get_inferece_result(result):
     # bboxes.shape: (num of instance, 5)    5: [x_min, y_min, x_max, y_max, score]
     bboxes = np.vstack(bbox_result)
     
+  
     labels = [
         np.full(bbox.shape[0], i, dtype=np.int32)
         for i, bbox in enumerate(bbox_result)
     ]
     # labels.shape[0]: num of instance
     labels = np.concatenate(labels)
-    
+
     # draw segmentation masks
     segms = None
     if segm_result is not None and len(labels) > 0:  # non empty
