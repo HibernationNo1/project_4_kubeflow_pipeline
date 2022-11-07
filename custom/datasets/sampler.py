@@ -7,8 +7,7 @@ from torch.utils.data import Sampler
 
 class GroupSampler(Sampler):
     def __init__(self, dataset, batch_size=1):
-        assert hasattr(dataset, 'flag')
-        self.dataset = dataset      
+        assert hasattr(dataset, 'flag')  
         self.batch_size = batch_size
         
         # image의 width, height비교 flag

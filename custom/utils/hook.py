@@ -89,7 +89,7 @@ class Hook:
         return (runner.iter + 1) % n == 0 if n > 0 else False
 
     def end_of_epoch(self, runner):
-        return runner.inner_iter + 1 == len(runner.data_loader)
+        return runner.inner_iter + 1 == len(runner.train_dataloader)
 
     def is_last_epoch(self, runner):
         return runner.epoch + 1 == runner._max_epochs
@@ -133,7 +133,14 @@ class Hook:
         
         return [stage for stage in Hook.stages if stage in trigger_stages]
 
-class NumClassCheckHook(Hook):
+class Custom_Hook(Hook):
+    def __init__(self, val_iter):
+        self.val_iter = val_iter
+        
+    def after_train_iter(self, runner) -> None:   
+        if self.every_n_inner_iters(runner, self.val_iter):   # training unit: epoch, iter +1
+            runner.mode = 'val'     # change runner mode to val for run validation 
+            
     
     def before_val_epoch(self, runner):
         """Check whether the dataset in val epoch is compatible with head.
@@ -162,7 +169,7 @@ class NumClassCheckHook(Hook):
         """
       
         model = runner.model
-        dataset = runner.data_loader.dataset
+        dataset = runner.train_dataloader.dataset
         
         if dataset.CLASSES is None:
             runner.logger.warning(
@@ -332,7 +339,7 @@ class LoggerHook(Hook):
             # by iter:  Iter [100/100000]
             if self.by_epoch:
                 log_str = f'Epoch [{log_dict["epoch"]}]' \
-                          f'[{log_dict["iter"]}/{len(runner.data_loader)}]\t'
+                          f'[{log_dict["iter"]}/{len(runner.train_dataloader)}]\t'
             else:
                 log_str = f'Iter [{log_dict["iter"]}/{runner.max_iters}]\t'
             log_str += f'{lr_str}, '
@@ -905,7 +912,7 @@ class StepLrUpdaterHook(Hook):
     
     def before_train_epoch(self, runner: 'BaseRunner'):
         if self.warmup_iters is None:
-            epoch_len = len(runner.data_loader)  # type: ignore
+            epoch_len = len(runner.train_dataloader)  # type: ignore
             self.warmup_iters = self.warmup_epochs * epoch_len  # type: ignore
 
         if not self.by_epoch:

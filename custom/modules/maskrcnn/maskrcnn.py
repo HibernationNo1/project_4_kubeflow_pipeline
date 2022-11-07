@@ -182,7 +182,6 @@ class MaskRCNN(BaseModule):
 
         # img: [B=2, C=3, H=768, W=1344]
         x = self.backbone(img)
-
         # type(x): list,        len(x) == cfg.model.backbone.depths
         # 각 elements의 channel은 cfg.model.neck.in_channels과 동일해야 한다
         # x[n]: [B, Cn, H/n, W/n],     Cn == cfg.model.neck.in_channels,    n = [4, 8, 16, 32]

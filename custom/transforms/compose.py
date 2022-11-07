@@ -103,7 +103,7 @@ class LoadImageFromFile:
                                 results['img_info']['filename'])
         else:                                       # for inferene
             filename = results['img_info']['filename']
-
+        
         img = cv2.imread(filename)
         if self.to_float32:
             img = img.astype(np.float32)
@@ -121,8 +121,7 @@ class LoadImageFromFile:
         repr_str = (f'{self.__class__.__name__}('
                     f'to_float32={self.to_float32}, '
                     f"color_type='{self.color_type}', "
-                    f"channel_order='{self.channel_order}', "
-                    f'file_client_args={self.file_client_args})')
+                    f"channel_order='{self.channel_order}' ")
         return repr_str
 
 
@@ -236,7 +235,7 @@ class Collect:
             img_meta[key] = results[key]
         data['img_metas'] = DC(img_meta, cpu_only=True)
         
-        for key in self.keys:           # 최종 학습에 사용할 key만 추려낸다. (self.keys에 속한 key)
+        for key in self.keys:           # select keys to be used for trining
             data[key] = results[key]
         
         return data
@@ -290,10 +289,11 @@ class DefaultFormatBundle:
                 default bundle.
         """
 
-        # 학습에 사용할 data들을 전부 datacontainer 타입으로 변환하여 관리
+        # convert all data to be used for learning into DataContainer type
         # 1. cpu_only = True,                   // key: 'gt_masks', 'img_metas'
         # 2. cpu_only = False, stack = True,    // key: 'img', 'gt_semantic_seg'
         # 3. cpu_only = False, stack = False,   // key: 'proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels'
+        
         
  
         if 'img' in results:                    # cpu_only = False, stack = True
@@ -902,8 +902,6 @@ class Resize:
     def __repr__(self):
         repr_str = self.__class__.__name__
         repr_str += f'(img_scale={self.img_scale}, '
-        repr_str += f'multiscale_mode={self.multiscale_mode}, '
-        repr_str += f'ratio_range={self.ratio_range}, '
         repr_str += f'keep_ratio={self.keep_ratio}, '
         repr_str += f'bbox_clip_border={self.bbox_clip_border})'
         return repr_str
@@ -912,7 +910,7 @@ class Resize:
     
 @PIPELINES.register_module()    
 class LoadAnnotations:
-    # coco dataset ket-value구조의 dataset에 맞춰 구현되어 있음 
+    # structured for coco dataset ket-value
     """Load multiple types of annotations.
 
     Args:
@@ -958,8 +956,9 @@ class LoadAnnotations:
         Returns:
             dict: The dict contains loaded bounding box annotations.
         """
-
+        assert results.get("ann_info", None) is not None, f"results.keys() : {results.keys()}"
         ann_info = results['ann_info']
+        
         results['gt_bboxes'] = ann_info['bboxes'].copy()
 
         if self.denorm_bbox:
@@ -1073,15 +1072,13 @@ class LoadAnnotations:
         repr_str += f'(with_bbox={self.with_bbox}, '
         repr_str += f'with_label={self.with_label}, '
         repr_str += f'with_mask={self.with_mask}, '
-        repr_str += f'with_seg={self.with_seg}, '
-        repr_str += f'poly2mask={self.poly2mask}, '
-        repr_str += f'poly2mask={self.file_client_args})'
+        repr_str += f'with_seg={self.with_seg} )'
         return repr_str
     
     
 
 @PIPELINES.register_module()
-class MultiScaleFlipAug:        # TODO: 이해하기
+class MultiScaleFlipAug:        
     """Test-time augmentation with multiple scales and flipping.
 
     An example configuration is as followed:

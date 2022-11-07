@@ -31,7 +31,6 @@ def _build_dataloader(dataset,
         collate_fn=partial(collate, samples_per_gpu=batch_size),    
         pin_memory=False,
         worker_init_fn=init_fn) # TODO : run에서 persistent_workers사용하는지 확인
-    
     return data_loader
 
 

@@ -56,7 +56,8 @@ class CustomDataset(Dataset):
                  img_prefix,
                  classes=None,
                  filter_empty_gt=True):
-        
+
+
         self.data_root = data_root if osp.isabs(data_root) else  osp.join(os.getcwd(), data_root) 
         self.ann_file = ann_file if osp.isabs(ann_file) else  osp.join(self.data_root, ann_file)
         self.img_prefix = img_prefix if osp.isabs(img_prefix) else  osp.join(self.data_root, img_prefix)        
@@ -67,6 +68,8 @@ class CustomDataset(Dataset):
       
         with open(self.ann_file, "r") as file:
             self.data_ann = json.load(file)
+        
+        
         
         self.CLASSES = self.get_classes(self.data_ann, classes)
         self.PALETTE = self.get_palette()
@@ -158,7 +161,7 @@ class CustomDataset(Dataset):
 
         assert len(set(total_ann_ids)) == len(
             total_ann_ids), f"Annotation ids in '{ann_file}' are not unique!"
-        
+      
         return data_infos
     
     # print dataset to table
@@ -369,10 +372,11 @@ class CustomDataset(Dataset):
                 True).
         """
         while True:
-            data = self.prepare_train_img(idx)      # data : preprocessing을 전부 마치고 하나로 모아진 data
+            data = self.prepare_train_img(idx)    
             if data is None:
                 idx = self._rand_another(idx)
                 continue
+                
             return data
     
     def _rand_another(self, idx):
@@ -395,7 +399,6 @@ class CustomDataset(Dataset):
         ann_info = self.get_ann_info(idx)
         results = dict(img_info=img_info, ann_info=ann_info)
         
-            
         self.pre_pipeline(results)
         return self.pipeline(results)
         
