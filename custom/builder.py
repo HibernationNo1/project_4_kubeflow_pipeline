@@ -31,16 +31,25 @@ def build_model(model_cfg):
 
     return mask_rcnn
 
-def build_dataset(cfg):
-    return CustomDataset(**cfg)
+def build_dataset(train_cfg, val_cfg = None):
+    train_dataset = CustomDataset(**train_cfg)
+    if val_cfg is not None:
+        val_data_cfg = val_cfg.copy()
+        _ = val_data_cfg.pop("batch_size", None)
+        val_dataset = CustomDataset(**val_data_cfg)
+        return train_dataset, val_dataset
+    
+    return train_dataset, val_cfg
 
-def build_dataloader(dataset,
-                     batch_size,
+def build_dataloader(train_dataset, train_batch_size,
+                     val_dataset, val_batch_size,
                      num_workers,
-                     seed,
-                     shuffle = True):
-
-   return _build_dataloader(dataset, batch_size, num_workers, seed, shuffle = shuffle)
+                     seed, shuffle = True):
+    train_dataloader = _build_dataloader(train_dataset, train_batch_size, num_workers, seed, shuffle = shuffle)
+    if val_dataset is not None:
+        val_dataloader = _build_dataloader(val_dataset, val_batch_size, num_workers, seed, shuffle = shuffle)
+        return train_dataloader, val_dataloader   
+    return train_dataloader, val_dataset
 
 
 def build_runner(cfg: dict):
