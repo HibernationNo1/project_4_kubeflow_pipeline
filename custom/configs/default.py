@@ -14,7 +14,11 @@ log_config = dict(
     ])
 
 # yapf:enable
-custom_hooks = [dict(type='NumClassCheckHook')]
+custom_hook_config = [dict(
+    type='Custom_Hook',
+    priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
+    val_iter = 2
+    )]
 
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
