@@ -16,14 +16,14 @@ from builder import (build_model,
                      build_optimizer, 
                      build_runner,
                      build_detector)
-from inference import inference_detector
+from eval import inference_detector
 from visualization import show_result
 
 import __init__ # to import all module and function 
 
 
 # python train.py --cfg configs/swin_maskrcnn.py --epo 50 --val_iter 50
-# python train.py --cfg configs/test.py --model_path model/model_2.pth
+# python train.py --cfg configs/swin_maskrcnn.py --model_path model/model_3.pth  --test
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -97,28 +97,35 @@ if __name__ == "__main__":
     # flow를 통해 train, evluate를 명령어 하나헤 한 번에 실행할 수 있게. (validate은 training도중 실행) 
     for flow in cfg.workflow:   
         mode, epoch = flow
+        logger = create_logger(f'{mode}')
+
         if mode == "train":
-            logger = create_logger('train')
-            
             # build dataloader
-            dataset = build_dataset(cfg.data.train)
+            train_dataset, val_dataset = build_dataset(cfg.data.train, cfg.data.val)
+            
             if cfg.model.type == 'MaskRCNN':
-                cfg.model.roi_head.bbox_head.num_classes = len(dataset.CLASSES) 
-                cfg.model.roi_head.mask_head.num_classes = len(dataset.CLASSES)    
+                cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
+                cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)    
                 # cfg.model.rpn_head.num_classes = len(train_dataset.CLASSES)   # TODO: 이거 추가 안되어있는데, 추가하고 학습에 차이있는지 확인
             
-            train_loader_cfg = dict(batch_size=cfg.data.samples_per_gpu,
+             
+
+            train_loader_cfg = dict(train_dataset = train_dataset,
+                                    val_dataset = val_dataset,
+                                    train_batch_size=cfg.data.samples_per_gpu,
+                                    val_batch_size = cfg.data.val.get("batch_size", None),
                                     num_workers=cfg.data.workers_per_gpu,
                                     seed = cfg.seed,
                                     shuffle = True)
-            data_loader = build_dataloader(dataset, **train_loader_cfg)
-    
-            
+            train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
+                
+                    
             # build model
             assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
             model = build_model(cfg.model)
             if cfg.pretrained is not None: model.init_weights()
             model = build_dp(model, cfg.device)
+            model.cfg = cfg
             
             # build optimizer
             optimizer = build_optimizer(model, cfg, logger)     # TODO 어떤 layer에 optimizer를 적용시켰는지 확인
@@ -152,18 +159,18 @@ if __name__ == "__main__":
                 
                 # set CLASSES
                 cfg.checkpoint_config.meta = dict(
-                    CLASSES=dataset.CLASSES)
+                    CLASSES=train_dataset.CLASSES)
                 
                 cfg.checkpoint_config.model_cfg = cfg.model
 
             # register hooks
-            cfg.log_config.iter_per_epoch = len(data_loader)
+            cfg.log_config.iter_per_epoch = len(train_dataloader)
             train_runner.register_training_hooks(
                 cfg.lr_config,
                 cfg.optimizer_config,
                 cfg.checkpoint_config,
                 cfg.log_config,
-                custom_hooks_config=cfg.get('custom_hooks', None))
+                custom_hooks_config=cfg.get('custom_hook_config', None))
 
             resume_from = cfg.get('resume_from', None)
             load_from = cfg.get('load_from', None)
@@ -174,28 +181,33 @@ if __name__ == "__main__":
             elif cfg.load_from:
                 train_runner.load_checkpoint(cfg.load_from)
             
-            train_runner.run(data_loader, flow)
-        
-        elif mode == "test":
-            test_logger = create_logger('test')
+            run_cfg = dict(train_dataloader = train_dataloader,
+                           val_dataloader = val_dataloader,
+                           flow = flow,
+                           val_batch_size =  cfg.data.val.batch_size,
+                           val_score_thr = cfg.show_score_thr)
             
+            train_runner.run(**run_cfg)
+        
+        elif mode == "test":            
             batch_size = cfg.data.test.batch_size
             all_imgs_path = glob.glob(os.path.join(cfg.data.test.data_root, "*.jpg"))
             batch_imgs_list = [all_imgs_path[x:x + batch_size] for x in range(0, len(all_imgs_path), batch_size)]
             
             
-            model = build_detector(cfg, cfg.model_path, device = cfg.device, logger = test_logger)
+            model = build_detector(cfg, cfg.model_path, device = cfg.device, logger = logger)
 
             classes = model.CLASSES
-            codel_config = model.cfg  
+            model_config = model.cfg  
             model = build_dp(model, cfg.device)
-            model.cfg = codel_config  
+            
+            model.cfg = model_config  
             outputs = []  
             
             for batch_imgs in tqdm(batch_imgs_list):
                 with torch.no_grad():
                     # len: batch_size
-                    results = inference_detector(model, batch_imgs, cfg.data.test.batch_size)   # TODO: 여기서 시간 너무많이 잡아먹힘
+                    results = inference_detector(model, batch_imgs, batch_size)   # TODO: 여기서 시간 너무많이 잡아먹힘
             
                 # set path of result images
                 out_files = []
@@ -207,17 +219,15 @@ if __name__ == "__main__":
                 for img_path, out_file, result in zip(batch_imgs, out_files, results):
                     img = cv2.imread(img_path)      
 
-                    show_result(img, 
-                                result,
-                                classes,
+                    # draw bbox, seg, label and save drawn_img
+                    show_result(img, result, classes,   
                                 out_file=out_file,
                                 score_thr=cfg.show_score_thr)
-            print("done")
-            exit()
             
-                
+         
         
-        elif mode == "val":
+        elif mode == "val":     # is different from the validation as run during training.
+                                # need validation dataloader 
             # TODO: validation dataset을 build하고 validation dataloader도 build하기
             # val_dataset = build_dataset(cfg.data.val)
             pass
