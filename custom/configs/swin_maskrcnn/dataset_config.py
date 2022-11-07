@@ -17,6 +17,18 @@ train_pipeline = [
 ]
 
 val_pipeline = [
+    dict(type='LoadImageFromFile'),                                     
+    dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
+    dict(type='RandomFlip', flip_ratio=0.5),               
+    dict(type='Normalize', **img_norm_cfg),                
+    dict(type='DefaultFormatBundle'),                      
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),  
+]
+
+
+
+
+test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
@@ -34,8 +46,14 @@ val_pipeline = [
 
 
 
+
 data_root = "dataset"
 train_data = "train"
+val_data= "val"
+test_data = "test"
+
+test_result = "result/test"
+eval_result = 'eval'
 
 data = dict(
     samples_per_gpu=2,  # batch_size
@@ -44,12 +62,27 @@ data = dict(
         data_root = data_root + "/" + train_data,
         ann_file= 'train_dataset.json',
         img_prefix= "",          
-        pipeline=train_pipeline),
-    val=dict(
-        data_root = data_root,      # TODO : train dataset안에서 묶어서 val진행
+        pipeline=train_pipeline
+        ),
+    val=dict(      
+        data_root = data_root + "/" + val_data, 
         ann_file= 'val_dataset.json',
         img_prefix= "",          
-        pipeline=val_pipeline)
+        pipeline=val_pipeline,   
+        batch_size = 4),
+    test=dict(
+        data_root = data_root + "/" + test_data,
+        batch_size = 10,
+        ann_file= None,                                                          # work_dir/model_dir/dataset.json
+        img_prefix="",                 # test할 image의 dir        
+        pipeline=test_pipeline)
     )
+
+models_dir = "models"
+model_name = "last.pth"
+model_path = models_dir + "/" + model_name
+
+show_score_thr = 0.3
+
 evaluation = dict(metric=['bbox', 'segm'])      # choise in ['bbox', 'segm']
 
