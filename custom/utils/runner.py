@@ -120,84 +120,7 @@ class EpochBasedRunner(BaseRunner):
             self.call_hook('after_train_iter')
             
             if self.mode=="val" and self.val_batch_size is not None:
-                
-                for i, val_data_batch in enumerate(val_dataloader):
-                    
-                    gt_bboxes_list = val_data_batch['gt_bboxes'].data
-                    gt_labels_list = val_data_batch['gt_labels'].data
-                    img_list = val_data_batch['img'].data
-                    gt_masks_list = val_data_batch['gt_masks'].data
-                    assert len(gt_bboxes_list) == 1 and (len(gt_bboxes_list) ==
-                                                         len(gt_labels_list) ==
-                                                         len(img_list) == 
-                                                         len(gt_masks_list))
-                    
-                    # len: batch_size
-                    batch_gt_bboxes = gt_bboxes_list[0]           
-                    batch_gt_labels = gt_labels_list[0]  
-                    batch_gt_masks = gt_masks_list[0]     
-                    
-                    img_metas = val_data_batch['img_metas'].data[0]
-                    batch_images_path = []    
-                    for img_meta in img_metas:
-                        batch_images_path.append(img_meta['filename'])
-                    
-                  
-               
-                    model_for_val = self.model
-                    batch_results = inference_detector(model_for_val, batch_images_path, self.val_batch_size)
-                
-                    
-                    assert (len(batch_gt_bboxes) == 
-                            len(batch_gt_labels) ==
-                            len(batch_images_path) ==
-                            len(batch_gt_masks) ==
-                            len(batch_results))
-                            
-                   
-                    for gt_mask, gt_bbox, gt_label, result in zip(
-                        batch_gt_masks, batch_gt_bboxes, batch_gt_labels, batch_results
-                        ):
-                        i_bboxes, i_labels, i_mask = parse_inferece_result(result)
-                        
-                        if self.val_score_thr > 0:
-                            assert i_bboxes is not None and i_bboxes.shape[1] == 5
-                            scores = i_bboxes[:, -1]
-                            inds = scores > self.val_score_thr
-                            i_bboxes = i_bboxes[inds, :]
-                            i_labels = i_labels[inds]
-                            if i_mask is not None:
-                                i_mask = i_mask[inds, ...]
-                        
-                        i_cores = i_bboxes[:, -1]      # [num_instance]
-                        gt_score = [1.0 for _ in i_cores] 
-                        
-                        i_bboxes = i_bboxes[:, :4]      # [num_instance, [x_min, y_min, x_max, y_max]]
-
-                        
-                        i_polygons = mask_to_polygon(i_mask)
-                        gt_polygons = mask_to_polygon(gt_mask.masks)
-                        
-                        
-                        
-                        # 두개 비교하기
-                        print(f"\ninfer_bboxes.shape: {i_bboxes.shape},     gt_bbox.shape: {gt_bbox.shape}")
-                        print(f"len(i_polygons): {len(i_polygons)},       len(gt_polygons): {len(gt_polygons)}")
-                        print(f"infer_labels: {i_labels.shape},        gt_label: {gt_label.shape}")
-                        exit()
-                        
-                     
-                                            
-                    
-                    # for img_path, out_file, result in zip(batch_imgs, out_files, results):
-                    #     img = cv2.imread(img_path)      
-
-                    # # draw bbox, seg, label and save drawn_img
-                    # show_result(img, result, classes,   
-                    #             out_file=out_file,
-                    #             score_thr=cfg.show_score_thr)
-                    exit()
-                
+                print("run val")
                 self.mode = "train"
                     
                 
@@ -341,7 +264,7 @@ class EpochBasedRunner(BaseRunner):
         if hasattr(hook, 'priority'):
             raise ValueError('"priority" is a reserved attribute for hooks')
 
-        # 우선 순위 설정
+        # priority setting
         for key in list(priority_dict.keys()):
             if priority == key : 
                 priority = priority_dict[key]
@@ -360,17 +283,15 @@ class EpochBasedRunner(BaseRunner):
             self._hooks.insert(0, hook)
             
     
-    def load_hook(self, config, hook_type: str):
-        # hook을 반드시 사용하는 것으로 설계
-        
+    def load_hook(self, config, hook_type: str):        
         if hook_type == "custom_hooks":
-             # custom hook은 여러개 사용 가능
             if not isinstance(config, list):
                 config = [config]
             
             for i, item in enumerate(config):
-                if not isinstance(item, dict): raise TypeError(f"{hook_type}_config[{i}] type must be dict,\
-                                                               but type is {type(item)}")
+                if not isinstance(item, dict): raise TypeError(f"{hook_type}_config[{i}] type must be dict,"
+                                                               f"but type is {type(item)}")
+                
                 hook_cfg = item.copy()
                 priority = hook_cfg.pop('priority', 'NORMAL')
                 custom_hook_type = hook_cfg.pop('type', 'Custom_Hook')
@@ -387,7 +308,7 @@ class EpochBasedRunner(BaseRunner):
             hook = StepLrUpdaterHook(**config) 
             priority = 'VERY_HIGH'
             
-        elif hook_type=="optimizer": 
+        elif hook_type=="optimizer":
             hook = OptimizerHook(**config) 
             priority='ABOVE_NORMAL'
             
@@ -396,17 +317,15 @@ class EpochBasedRunner(BaseRunner):
             priority='NORMAL'
         
         elif hook_type=="timer": 
-            # config : no contents
             hook = IterTimerHook(**config) 
             priority='LOW'
             
         elif hook_type=="log": 
-            # log hook은 여러개 사용 가능
             priority='VERY_LOW'
             text_cfg = dict(interval = config.interval,
-                            max_epochs = self._max_epochs,
-                            ev_iter=config.iter_per_epoch,
                             out_dir = self.work_dir,
+                            max_epochs = config.max_epochs,
+                            ev_iter = config.ev_iter,
                             out_suffix = '.log')
             
             for info in config['hooks']:
@@ -429,12 +348,14 @@ class EpochBasedRunner(BaseRunner):
                                 timer_config=dict(),
                                 custom_hooks_config=None):
 
+        
         self.load_hook(lr_config, "lr")
         self.load_hook(optimizer_config, "optimizer")
         self.load_hook(checkpoint_config, "checkpoint")
         self.load_hook(timer_config, "timer")
         self.load_hook(log_config, "log")
-        self.load_hook(custom_hooks_config, "custom_hooks")
+        self.load_hook(custom_hooks_config, "custom_hooks")     # must call first
+        
       
     def get_hook_info(self):
         # Get hooks info in each stage
