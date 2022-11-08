@@ -50,41 +50,48 @@ class CustomDataset(Dataset):
     PALETTE = None
 
     def __init__(self,
-                 ann_file,
-                 pipeline,
-                 data_root,
-                 img_prefix,
+                 ann_file=None,
+                 pipeline=None,
+                 data_root=None,
+                 img_prefix=None,
                  classes=None,
                  filter_empty_gt=True):
-
-
-        self.data_root = data_root if osp.isabs(data_root) else  osp.join(os.getcwd(), data_root) 
-        self.ann_file = ann_file if osp.isabs(ann_file) else  osp.join(self.data_root, ann_file)
-        self.img_prefix = img_prefix if osp.isabs(img_prefix) else  osp.join(self.data_root, img_prefix)        
-        self.filter_empty_gt = filter_empty_gt
-        assert osp.isfile(self.ann_file), f"The file: {self.ann_file} dose not exist."
-        assert osp.isdir(self.data_root), f"The directory: {self.data_root} dose not exist."
-        assert osp.isdir(self.img_prefix), f"The directory: {self.img_prefix} dose not exist."
-      
-        with open(self.ann_file, "r") as file:
-            self.data_ann = json.load(file)
         
+        if self.confirm_return([ann_file, pipeline, data_root, img_prefix]):
+            self.data_root = data_root if osp.isabs(data_root) else  osp.join(os.getcwd(), data_root) 
+            self.ann_file = ann_file if osp.isabs(ann_file) else  osp.join(self.data_root, ann_file)
+            self.img_prefix = img_prefix if osp.isabs(img_prefix) else  osp.join(self.data_root, img_prefix)        
+            self.filter_empty_gt = filter_empty_gt
+            assert osp.isfile(self.ann_file), f"The file: {self.ann_file} dose not exist."
+            assert osp.isdir(self.data_root), f"The directory: {self.data_root} dose not exist."
+            assert osp.isdir(self.img_prefix), f"The directory: {self.img_prefix} dose not exist."
         
+            with open(self.ann_file, "r") as file:
+                self.data_ann = json.load(file)
+            
+            
+            
+            self.CLASSES = self.get_classes(self.data_ann, classes)
+            self.PALETTE = self.get_palette()
+            self.data_infos = self.load_annotations(self.ann_file)        
+                    
+            self.pipeline = Compose(pipeline)
         
-        self.CLASSES = self.get_classes(self.data_ann, classes)
-        self.PALETTE = self.get_palette()
-        self.data_infos = self.load_annotations(self.ann_file)        
-                
-        self.pipeline = Compose(pipeline)
+            
+            valid_inds = self._filter_imgs()    # isntance가 0개인 image는 버린다.
+            self.data_infos = [self.data_infos[i] for i in valid_inds]
+            
+            # set group flag for the sampler
+            self._set_group_flag()  
+        else:
+            pass
        
+    def confirm_return(self, arg_list):
+        for arg in arg_list:
+            if arg is None: return False
+        return True
+    
         
-        valid_inds = self._filter_imgs()    # isntance가 0개인 image는 버린다.
-        self.data_infos = [self.data_infos[i] for i in valid_inds]
-        
-        # set group flag for the sampler
-        self._set_group_flag()  
-       
-       
     def __len__(self):
         """Total number of samples of data."""
         return len(self.data_infos)

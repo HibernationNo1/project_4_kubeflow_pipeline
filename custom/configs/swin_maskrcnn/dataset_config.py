@@ -19,8 +19,8 @@ train_pipeline = [
 val_pipeline = [
     dict(type='LoadImageFromFile'),                                     
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='RandomFlip', flip_ratio=0.5),               
-    dict(type='Normalize', **img_norm_cfg),                
+    # dict(type='RandomFlip', flip_ratio=0.5),               
+    # dict(type='Normalize', **img_norm_cfg),                
     dict(type='DefaultFormatBundle'),                      
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),  
 ]

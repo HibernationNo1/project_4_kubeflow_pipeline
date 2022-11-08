@@ -17,6 +17,7 @@ def _build_dataloader(dataset,
                       num_workers,
                       seed,
                       shuffle = True):
+    if dataset is None: return None
     sampler = GroupSampler(dataset, batch_size) if shuffle else None
     batch_sampler = None
     

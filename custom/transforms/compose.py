@@ -212,6 +212,7 @@ class Collect:
                             'flip_direction', 'img_norm_cfg')):
         self.keys = keys
         self.meta_keys = meta_keys
+      
     
 
     def __call__(self, results):
@@ -232,10 +233,12 @@ class Collect:
         data = {}
         img_meta = {}
         for key in self.meta_keys:
+            if key not in list(results.keys()): continue
             img_meta[key] = results[key]
         data['img_metas'] = DC(img_meta, cpu_only=True)
         
-        for key in self.keys:           # select keys to be used for trining
+        for key in self.keys:           
+            if key not in list(results.keys()): continue
             data[key] = results[key]
         
         return data
