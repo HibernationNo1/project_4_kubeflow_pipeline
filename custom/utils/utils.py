@@ -187,7 +187,12 @@ def set_meta(cfg, args, env_info):
     meta['exp_name'] = os.path.basename(args.cfg) 
     return meta    
 
-
+def confirm_model_path(cfg, args):
+    assert cfg.model_path is not None and args.model_path is not None, f"model path is not set!"
+    if args.model_path is not None: cfg.model_path = args.model_path
+    assert osp.isfile(cfg.model_path), f"model path: '{cfg.model_path}' is not exist!"
+    cfg.model_path = osp.join(os.getcwd(), cfg.model_path)
+            
 
 def get_time_str():
     return time.strftime('%Y%m%d_%H%M%S', time.localtime())
