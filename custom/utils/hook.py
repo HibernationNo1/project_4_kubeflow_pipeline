@@ -35,7 +35,7 @@ class Hook:
     stages = ('before_run', 'before_train_epoch', 'before_train_iter',
               'after_train_iter', 'after_train_epoch', 'before_val_epoch',
               'before_val_iter', 'after_val_iter', 'after_val_epoch',
-              'after_run')
+              'after_run')        
 
     def before_run(self, runner):
         pass
@@ -100,16 +100,16 @@ class Hook:
     def get_triggered_stages(self):
         """
             각각의 stage에 대해 활성화 할 hook을 select한다. 
-            stage : before_run              학습 시작 전
-                    before_train_epoch      epoch시작 전    
-                    before_train_iter       iter시작 전
-                    after_train_iter        1 iter이 끝난 후
-                    after_train_epoch       1 epoch가 끝난 후 
+            stage : before_run              
+                    before_train_epoch      
+                    before_train_iter       
+                    after_train_iter        
+                    after_train_epoch        
                     before_val_epoch        
                     before_val_iter          
                     after_val_iter
                     after_val_epoch
-                    after_run               학습 종료 후
+                    after_run               
         """
         trigger_stages = set()
         for stage in Hook.stages:
@@ -132,14 +132,88 @@ class Hook:
 
         
         return [stage for stage in Hook.stages if stage in trigger_stages]
+    
+    
+    def compute_remain_time(self, time_spent):
+        time_dict = dict()
+        
+        max_iter = self.max_epochs*self.ev_iter      # total iters for training 
+        remain_iter = max_iter - self.iter_count
+        time_dict['remain_time'] = self.compute_sec_to_h_d(time_spent * remain_iter)           
+        
+        return time_dict   
+    
+    def get_iter(self, runner, inner_iter: bool = False):
+        """Get the current training iteration step."""
+        current_iter = runner.inner_iter + 1
+
+        return current_iter
+    
+    
+    def get_epoch(self, runner):
+        if runner.mode == 'train':
+            epoch = runner.epoch + 1
+        elif runner.mode == 'val':
+            # normal val mode
+            # runner.epoch += 1 has been done before val workflow
+            epoch = runner.epoch
+        else:
+            raise ValueError(f"runner mode should be 'train' or 'val', "
+                             f'but got {runner.mode}')
+        return epoch
+    
+    
+    def compute_sec_to_h_d(self, sec):
+        if sec <=0: return "00:00:00"
+        
+        if sec < 60: return f'00:00:{f"{int(sec)}".zfill(2)}'
+        
+        minute = sec//60
+        if minute < 60: return f"00:{f'{int(minute)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
+        
+        hour = minute//60
+        if hour < 24: return f"{f'{int(hour)}'.zfill(2)}:{f'{int(minute%60)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
+        
+        day = hour//24
+        return f"{day}day {f'{int(hour%24)}'.zfill(2)}:{f'{int(minute%(60))}'.zfill(2)}:{f'{int(sec%(60))}'.zfill(2)}"
+         
+         
+    
+    
 
 class Custom_Hook(Hook):
-    def __init__(self, val_iter):
+    def __init__(self, 
+                 show_eta_iter, 
+                 val_iter, 
+                 max_epochs,
+                 ev_iter,        # iters_per_epochs          
+                 by_epoch: bool = True):  
+        self.iter_count = 1
         self.val_iter = val_iter
+        self.max_epochs = max_epochs 
+        self.ev_iter = ev_iter
+        self.by_epoch = by_epoch
+        self.show_eta_iter = show_eta_iter
+ 
+        
+    def before_train_iter(self, runner):          
+        self.i_t = time.time()      # iter start time 
+        
         
     def after_train_iter(self, runner) -> None:   
+        time_spent_iter = round(time.time() - self.i_t, 2)
+        self.iter_count+=1
+        
         if self.every_n_inner_iters(runner, self.val_iter):   # training unit: epoch, iter +1
             runner.mode = 'val'     # change runner mode to val for run validation 
+        
+        if self.every_n_inner_iters(runner, self.show_eta_iter):  
+            remain_time = self.compute_remain_time(time_spent_iter)['remain_time']     
+            
+            # estimated time of arrival
+            print(f"eta: [{remain_time}]\
+                    epoch: [{self.get_epoch(runner)}/{self.max_epochs}]\
+                    iter: [{self.get_iter(runner, inner_iter=True)}/{self.ev_iter}]")
             
     
     def before_val_epoch(self, runner):
@@ -231,8 +305,7 @@ class LoggerHook(Hook):
 
     def __init__(self,
                  max_epochs,
-                 ev_iter,        # iters_per_epochs
-                 by_epoch: bool = True,
+                 ev_iter,
                  interval: int = 10,
                  ignore_last: bool = True,
                  reset_flag: bool = False,
@@ -241,14 +314,13 @@ class LoggerHook(Hook):
                  out_suffix: str = '.log',
                  log_file_name: str = 'RUN_log',
                  keep_local: bool = True):
+        self.iter_count = 1
         self.max_epochs = max_epochs 
         self.ev_iter = ev_iter
-        self.iter_count = 1
+        
         self.interval = interval
         self.ignore_last = ignore_last
         self.reset_flag = reset_flag
-        self.by_epoch = by_epoch
-        self.by_epoch = by_epoch
         self.time_sec_tot = 0
         self.interval_exp_name = interval_exp_name
         
@@ -285,17 +357,7 @@ class LoggerHook(Hook):
                              f'but got {runner.mode}')
         return mode
     
-    def get_epoch(self, runner) -> int:
-        if runner.mode == 'train':
-            epoch = runner.epoch + 1
-        elif runner.mode == 'val':
-            # normal val mode
-            # runner.epoch += 1 has been done before val workflow
-            epoch = runner.epoch
-        else:
-            raise ValueError(f"runner mode should be 'train' or 'val', "
-                             f'but got {runner.mode}')
-        return epoch
+    
     
     
     def _get_max_memory(self, runner) :
@@ -309,20 +371,14 @@ class LoggerHook(Hook):
                               device=device)
         return mem_mb.item()
     
-    def get_iter(self, runner, inner_iter: bool = False) -> int:
-        """Get the current training iteration step."""
-        if self.by_epoch and inner_iter:
-            current_iter = runner.inner_iter + 1
-        else:
-            current_iter = runner.iter + 1
-        return current_iter
+    
     
     def _log_info(self, log_dict: Dict, runner) -> None:
         # print exp name for users to distinguish experiments
         # at every ``interval_exp_name`` iterations and the end of each epoch
         if runner.meta is not None and 'exp_name' in runner.meta:
             if (self.every_n_iters(runner, self.interval_exp_name)) or (
-                    self.by_epoch and self.end_of_epoch(runner)):
+                    self.end_of_epoch(runner)):
                 exp_info = f'Exp name: {runner.meta["exp_name"]}'
                 runner.logger.info(exp_info)
 
@@ -337,12 +393,10 @@ class LoggerHook(Hook):
 
             # by epoch: Epoch [4][100/1000]
             # by iter:  Iter [100/100000]
-            if self.by_epoch:
-                log_str = f'Epoch [{log_dict["epoch"]}]' \
-                          f'[{log_dict["iter"]}/{len(runner.train_dataloader)}]\t'
-            else:
-                log_str = f'Iter [{log_dict["iter"]}/{runner.max_iters}]\t'
-            log_str += f'{lr_str}, '
+            
+            log_str = f'Epoch [{log_dict["epoch"]}]' \
+                        f'[{log_dict["iter"]}/{len(runner.train_dataloader)}]\t'
+           
 
             import datetime
             if 'time' in log_dict.keys():
@@ -362,11 +416,10 @@ class LoggerHook(Hook):
             # here 1000 is the length of the val dataloader
             # by epoch: Epoch[val] [4][1000]
             # by iter: Iter[val] [1000]
-            if self.by_epoch:
-                log_str = f'Epoch({log_dict["mode"]}) ' \
-                    f'[{log_dict["epoch"]}][{log_dict["iter"]}]\t'
-            else:
-                log_str = f'Iter({log_dict["mode"]}) [{log_dict["iter"]}]\t'
+            log_str = f'Epoch({log_dict["mode"]}) ' \
+                f'[{log_dict["epoch"]}][{log_dict["iter"]}]\t'
+        
+            # log_str = f'Iter({log_dict["mode"]}) [{log_dict["iter"]}]\t'
 
         
         
@@ -467,11 +520,11 @@ class LoggerHook(Hook):
         self.iter_count += 1
         log_mode = 'train'
         
-        if self.by_epoch and self.every_n_inner_iters(runner, self.interval):   # training unit: epoch, iter +1
+        if self.every_n_inner_iters(runner, self.interval):   # training unit: epoch, iter +1
             log_mode = 'val'
             runner.log_buffer.average(self.interval)   
-        elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # training unit: iter, iter +1
-            runner.log_buffer.average(self.interval)
+        # elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # training unit: iter, iter +1
+        #     runner.log_buffer.average(self.interval)
         elif self.end_of_epoch(runner) and not self.ignore_last:    # at last epoch
             # not precise but more stable
             runner.log_buffer.average(self.interval)
@@ -482,15 +535,12 @@ class LoggerHook(Hook):
                 runner.log_buffer.clear_output()
         
         
-        current_iter = self.get_iter(runner, inner_iter=True)
-        time_spent_iter = round(time.time() - self.i_t, 2)
-        remain_time = self.compute_remain_time(time_spent_iter)['remain_time']      # TODO :이거 변경
+        current_iter = self.get_iter(runner, inner_iter=True)   
         log_dict_meta = OrderedDict(
-            time_spent_iter = time_spent_iter,
             mode=log_mode,
             epoch=f'({self.get_epoch(runner)}/{self.max_epochs})',
-            iter=f'({current_iter}/{self.ev_iter})',
-            remain_time = remain_time)
+            iter=f'({current_iter}/{self.ev_iter})')
+        
         
         runner.log_buffer.log(self.interval)
 
@@ -499,11 +549,7 @@ class LoggerHook(Hook):
         self.write_log("after_iter", [log_dict_meta, log_dict_loss])
         runner.log_buffer.clear_log()
         
-        if log_mode == 'train':
-            # estimated time of arrival
-            print(f"eta: [{remain_time}]\
-                    epoch: [{self.get_epoch(runner)}/{self.max_epochs}]\
-                    iter: [{self.get_iter(runner, inner_iter=True)}/{self.ev_iter}]")
+     
 
 
     def after_train_epoch(self, runner) -> None:
@@ -563,32 +609,13 @@ class LoggerHook(Hook):
         self._log_info(log_dict, runner)
         
         
-    def compute_sec_to_h_d(self, sec):
-        if sec <=0: return "00:00:00"
-        
-        if sec < 60: return f'00:00:{f"{int(sec)}".zfill(2)}'
-        
-        minute = sec//60
-        if minute < 60: return f"00:{f'{int(minute)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
-        
-        hour = minute//60
-        if hour < 24: return f"{f'{int(hour)}'.zfill(2)}:{f'{int(minute%60)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
-        
-        day = hour//24
-        return f"{day}day {f'{int(hour%24)}'.zfill(2)}:{f'{int(minute%(60))}'.zfill(2)}:{f'{int(sec%(60))}'.zfill(2)}"
-         
-         
-    def compute_remain_time(self, time_spent):
-        time_dict = dict()
-        
-        max_iter = self.max_epochs*self.ev_iter      # total iters for training 
-        remain_iter = max_iter - self.iter_count
-        time_dict['remain_time'] = self.compute_sec_to_h_d(time_spent * remain_iter)           
-        
-        return time_dict           
+
+            
     
 
 class IterTimerHook(Hook):
+    def __init__(config):
+        pass
     
     def before_epoch(self, runner):
         self.t = time.time()
@@ -817,7 +844,6 @@ class StepLrUpdaterHook(Hook):
                  step: Union[int, List[int]],
                  gamma: float = 0.1,            # learning rate에 변화를 줄 때 사용되는 상수
                  min_lr: Optional[float] = None,
-                 by_epoch: bool = True,
                  warmup: Optional[str] = None,
                  warmup_iters: int = 0,
                  warmup_ratio: float = 0.1,
@@ -846,7 +872,7 @@ class StepLrUpdaterHook(Hook):
             assert 0 < warmup_ratio <= 1.0, \
                 '"warmup_ratio" must be in range (0,1]'
         
-        self.by_epoch = by_epoch
+        
         self.warmup = warmup
         self.warmup_iters: Optional[int] = warmup_iters
         self.warmup_ratio = warmup_ratio
@@ -864,9 +890,9 @@ class StepLrUpdaterHook(Hook):
         
 
     def get_lr(self, runner: 'BaseRunner', base_lr: float):
-        # learning rate에 특정 값을 복하여 변화를 준다
-        progress = runner.epoch if self.by_epoch else runner.iter
-
+        # learning rate에 특정 값을 곱하여 변화를 준다
+        progress = runner.epoch
+        
         # calculate exponential term
         if isinstance(self.step, int):
             exp = progress // self.step
@@ -915,30 +941,20 @@ class StepLrUpdaterHook(Hook):
             epoch_len = len(runner.train_dataloader)  # type: ignore
             self.warmup_iters = self.warmup_epochs * epoch_len  # type: ignore
 
-        if not self.by_epoch:
-            return
-
         self.regular_lr = self.get_regular_lr(runner)   # 변동된(또는 되지 않은) learning rate
         self._set_lr(runner, self.regular_lr)           # 각 parameter group에 대해 learning rete적용
     
     
     def before_train_iter(self, runner: 'BaseRunner'):
         cur_iter = runner.iter
-        if not self.by_epoch:
-            self.regular_lr = self.get_regular_lr(runner)
-            if self.warmup is None or cur_iter >= self.warmup_iters:
-                self._set_lr(runner, self.regular_lr)
-            else:
-                warmup_lr = self.get_warmup_lr(cur_iter)
-                self._set_lr(runner, warmup_lr)
-        elif self.by_epoch:
-            if self.warmup is None or cur_iter > self.warmup_iters:
-                return
-            elif cur_iter == self.warmup_iters:
-                self._set_lr(runner, self.regular_lr)
-            else:
-                warmup_lr = self.get_warmup_lr(cur_iter)
-                self._set_lr(runner, warmup_lr)
+
+        if self.warmup is None or cur_iter > self.warmup_iters:
+            return
+        elif cur_iter == self.warmup_iters:
+            self._set_lr(runner, self.regular_lr)
+        else:
+            warmup_lr = self.get_warmup_lr(cur_iter)
+            self._set_lr(runner, warmup_lr)
     
     
     def get_warmup_lr(self, cur_iters: int):
