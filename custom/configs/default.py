@@ -2,12 +2,12 @@
 
 
 checkpoint_config = dict(
-    interval=1,         # number of epoch(or iter) to save model
+    interval=1,         # epoch(or iter) unit to save model
     filename_tmpl = 'model_{}.pth'        # model name to be save :  {model_name}_{epoch}.pth
     )
 # yapf:disable
 log_config = dict(
-    interval=50,        # number of epoch(or iter) to save log
+    interval=50,        # iter unit to write log
     hooks=[
         dict(type='LoggerHook'),
         # dict(type='TensorboardLoggerHook')
@@ -17,7 +17,8 @@ log_config = dict(
 custom_hook_config = [dict(
     type='Custom_Hook',
     priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-    val_iter = 2
+    val_iter = 200,
+    show_eta_iter = 10
     )]
 
 dist_params = dict(backend='nccl')
@@ -27,7 +28,9 @@ resume_from = None
 workflow = [('train', 5)]   # TODO : [('train', n_1), ('val', n_2)]     n_1: epoch
 
 device = 'cuda:0'
-                             
+
+iou_threshold = 0.7      
+confidence_threshold = 0.8          
 
 # disable opencv multithreading to avoid system being overloaded
 opencv_num_threads = 0
