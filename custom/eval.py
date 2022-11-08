@@ -101,3 +101,28 @@ def parse_inferece_result(result):
 
     return bboxes, labels, segms
 
+
+
+
+def comfute_iou(infer_box, gt_box):
+    """
+    infer_box : x_min, y_min, x_max, y_max
+    gt_box : x_min, y_min, x_max, y_max
+    """
+    box1_area = (infer_box[2] - infer_box[0]) * (infer_box[3] - infer_box[1])
+    box2_area = (gt_box[2] - gt_box[0]) * (gt_box[3] - gt_box[1])
+    
+    # obtain x1, y1, x2, y2 of the intersection
+    x1 = max(infer_box[0], gt_box[0])       # x_min 중 큰 것
+    y1 = max(infer_box[1], gt_box[1])       # y_min 중 큰 것   # (x1, y1) : 두 left_top points 중 큰 값, intersction의 lest_top
+    x2 = min(infer_box[2], gt_box[2])       # x_max 중 작은 것
+    y2 = min(infer_box[3], gt_box[3])       # y_max 중 작은 것  # (x2, y2) : 두 right_bottom points 중 작은 값  intersction의 right_bottom
+
+    # compute the width and height of the intersection
+    w = max(0, x2 - x1)
+    h = max(0, y2 - y1)
+
+    inter = w * h
+    iou = inter / (box1_area + box2_area - inter)
+    return iou
+
