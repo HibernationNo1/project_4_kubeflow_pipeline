@@ -31,25 +31,28 @@ def build_model(model_cfg):
 
     return mask_rcnn
 
-def build_dataset(train_cfg, val_cfg = None):
-    train_dataset = CustomDataset(**train_cfg)
-    if val_cfg is not None:
-        val_data_cfg = val_cfg.copy()
-        _ = val_data_cfg.pop("batch_size", None)
-        val_dataset = CustomDataset(**val_data_cfg)
-        return train_dataset, val_dataset
-    
-    return train_dataset, val_cfg
+def _build_dataset(dataset_cfg):
+    if dataset_cfg is None: return None
+    else: return CustomDataset(**dataset_cfg)
+        
+def build_dataset(train_cfg = None, val_cfg = None):
+    train_dataset = _build_dataset(train_cfg)
+    val_dataset = _build_dataset(val_cfg)    
+    if train_dataset is not None and val_dataset is None:   return train_dataset, None        # only train dataset
+    elif val_dataset is not None and train_dataset is None: return None, val_dataset          # only val dataset
+    else: return train_dataset, val_dataset     
 
-def build_dataloader(train_dataset, train_batch_size,
-                     val_dataset, val_batch_size,
-                     num_workers,
-                     seed, shuffle = True):
+def build_dataloader(num_workers, seed,
+                     train_dataset=None, train_batch_size=None,
+                     val_dataset=None, val_batch_size=None,
+                     shuffle = True):
     train_dataloader = _build_dataloader(train_dataset, train_batch_size, num_workers, seed, shuffle = shuffle)
-    if val_dataset is not None:
-        val_dataloader = _build_dataloader(val_dataset, val_batch_size, num_workers, seed, shuffle = shuffle)
-        return train_dataloader, val_dataloader   
-    return train_dataloader, val_dataset
+    val_dataloader = _build_dataloader(val_dataset, val_batch_size, num_workers, seed, shuffle = shuffle)
+    
+    if train_dataloader is not None and val_dataloader is None: return train_dataloader, None        # only train dataset
+    elif val_dataloader is not None and train_dataloader is None: return None, val_dataloader          # only val dataset
+ 
+    return train_dataloader, val_dataloader
 
 
 def build_runner(cfg: dict):
