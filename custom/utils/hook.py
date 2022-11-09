@@ -189,6 +189,7 @@ class Custom_Hook(Hook):
                  ev_iter,        # iters_per_epochs          
                  by_epoch: bool = True):  
         self.iter_count = 1
+        self.sum_time_iter = 0
         self.val_iter = val_iter
         self.max_epochs = max_epochs 
         self.ev_iter = ev_iter
@@ -201,18 +202,18 @@ class Custom_Hook(Hook):
         
         
     def after_train_iter(self, runner) -> None:   
-        time_spent_iter = round(time.time() - self.i_t, 2)
+        self.sum_time_iter +=round(time.time() - self.i_t, 2)
         self.iter_count+=1
         
         if self.every_n_inner_iters(runner, self.val_iter):   # training unit: epoch, iter +1
             runner.mode = 'val'     # change runner mode to val for run validation 
         
         if self.every_n_inner_iters(runner, self.show_eta_iter):  
-            remain_time = self.compute_remain_time(time_spent_iter)['remain_time']     
+            remain_time = self.compute_remain_time(self.sum_time_iter/self.iter_count)['remain_time']     
             
             # estimated time of arrival
             print(f"eta: [{remain_time}]\
-                    epoch: [{self.get_epoch(runner)}/{self.max_epochs}]\
+                    epoch: [{runner.epoch+1}/{self.max_epochs}]\
                     iter: [{self.get_iter(runner, inner_iter=True)}/{self.ev_iter}]")
             
     
@@ -382,44 +383,36 @@ class LoggerHook(Hook):
                 exp_info = f'Exp name: {runner.meta["exp_name"]}'
                 runner.logger.info(exp_info)
 
-        if log_dict['mode'] == 'train':
-            if isinstance(log_dict['lr'], dict):
-                lr_str = []
-                for k, val in log_dict['lr'].items():
-                    lr_str.append(f'lr_{k}: {val:.3e}')
-                lr_str = ' '.join(lr_str)  # type: ignore
-            else:
-                lr_str = f'lr: {log_dict["lr"]:.3e}'  # type: ignore
-
-            # by epoch: Epoch [4][100/1000]
-            # by iter:  Iter [100/100000]
-            
-            log_str = f'Epoch [{log_dict["epoch"]}]' \
-                        f'[{log_dict["iter"]}/{len(runner.train_dataloader)}]\t'
-           
-
-            import datetime
-            if 'time' in log_dict.keys():
-                self.time_sec_tot += (log_dict['time'] * self.interval)
-                time_sec_avg = self.time_sec_tot / (
-                    runner.iter - self.start_iter + 1)
-                eta_sec = time_sec_avg * (runner.max_iters - runner.iter - 1)
-                eta_str = str(datetime.timedelta(seconds=int(eta_sec)))     
-                log_str += f'eta: {eta_str}, '
-                log_str += f'time: {log_dict["time"]:.3f}, ' \
-                           f'data_time: {log_dict["data_time"]:.3f}, '
-                # statistic memory
-                if torch.cuda.is_available():
-                    log_str += f'memory: {log_dict["memory"]}, '
-        else:
-            # val/test time
-            # here 1000 is the length of the val dataloader
-            # by epoch: Epoch[val] [4][1000]
-            # by iter: Iter[val] [1000]
-            log_str = f'Epoch({log_dict["mode"]}) ' \
-                f'[{log_dict["epoch"]}][{log_dict["iter"]}]\t'
         
-            # log_str = f'Iter({log_dict["mode"]}) [{log_dict["iter"]}]\t'
+        if isinstance(log_dict['lr'], dict):
+            lr_str = []
+            for k, val in log_dict['lr'].items():
+                lr_str.append(f'lr_{k}: {val:.3e}')
+            lr_str = ' '.join(lr_str)  # type: ignore
+        else:
+            lr_str = f'lr: {log_dict["lr"]:.3e}'  # type: ignore
+
+        # by epoch: Epoch [4][100/1000]
+        # by iter:  Iter [100/100000]
+        
+        log_str = f'Epoch [{log_dict["epoch"]}]' \
+                    f'[{log_dict["iter"]}/{len(runner.train_dataloader)}]\t'
+        log_str += f'{lr_str}, '
+
+        import datetime
+        if 'time' in log_dict.keys():
+            self.time_sec_tot += (log_dict['time'] * self.interval)
+            time_sec_avg = self.time_sec_tot / (
+                runner.iter - self.start_iter + 1)
+            eta_sec = time_sec_avg * (runner.max_iters - runner.iter - 1)
+            eta_str = str(datetime.timedelta(seconds=int(eta_sec)))     
+            log_str += f'eta: {eta_str}, '
+            log_str += f'time: {log_dict["time"]:.3f}, ' \
+                        f'data_time: {log_dict["data_time"]:.3f}, '
+            # statistic memory
+            if torch.cuda.is_available():
+                log_str += f'memory: {log_dict["memory"]}, '
+        
 
         
         
@@ -520,6 +513,7 @@ class LoggerHook(Hook):
         self.iter_count += 1
         log_mode = 'train'
         
+ 
         if self.every_n_inner_iters(runner, self.interval):   # training unit: epoch, iter +1
             log_mode = 'val'
             runner.log_buffer.average(self.interval)   
@@ -557,12 +551,14 @@ class LoggerHook(Hook):
             self.log(runner)
         if self.reset_flag:
             runner.log_buffer.clear_output()
-     
+
+ 
+        
         time_spent_epoch = time.time() - self.e_t
         log_dict_meta = OrderedDict(
             time_spent_epoch = self.compute_sec_to_h_d(time_spent_epoch),
             end_epoch=self.get_epoch(runner), 
-            **self.compute_remain_time(time_spent_epoch))
+            **self.compute_remain_time(time_spent_epoch/self.ev_iter))
         
         self.write_log("after_epoch", [log_dict_meta])
 
@@ -586,7 +582,7 @@ class LoggerHook(Hook):
 
         log_dict = OrderedDict(
             mode=self.get_mode(runner),
-            epoch=self.get_epoch(runner),
+            epoch=runner.epoch + 1,  # self.get_epoch(runner),
             iter=cur_iter)
         
         # learning rate 할당
@@ -787,6 +783,12 @@ class OptimizerHook(Hook):
         self.detect_anomalous_params = detect_anomalous_params
 
     
+    def clip_grads(self, params):
+        params = list(filter(lambda p: p.requires_grad and p.grad is not None, params))
+        if len(params) > 0:
+            return clip_grad.clip_grad_norm_(params, **self.grad_clip)
+        
+        
     def after_train_iter(self, runner):
         """
             최적화 수행
@@ -798,15 +800,19 @@ class OptimizerHook(Hook):
             
         # Computes the gradient of current tensor 
         runner.outputs['loss'].backward()
+        
+        if self.grad_clip is not None:
+            grad_norm = self.clip_grads(runner.model.parameters())
+            if grad_norm is not None:
+                # Add grad norm to the logger
+                runner.log_buffer.update({'grad_norm': float(grad_norm)},
+                                         runner.outputs['num_samples'])
+                
 
         # optimize (back propagation)
         runner.optimizer.step()    
         
     
-    def clip_grads(self, params):
-        params = list(filter(lambda p: p.requires_grad and p.grad is not None, params))
-        if len(params) > 0:
-            return clip_grad.clip_grad_norm_(params, **self.grad_clip)
         
         
     def detect_anomalous_parameters(self, loss, runner):
