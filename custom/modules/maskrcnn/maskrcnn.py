@@ -16,23 +16,23 @@ class MaskRCNN(BaseModule):
                  train_cfg=None,
                  test_cfg=None,
                  init_cfg=None):
-        
         super(MaskRCNN, self).__init__(init_cfg)
         self.fp16_enabled = False       # TODO fp16으로 변환하여 학습 진행해보기
-        # mmcv > runner > ffp16_utils.py > def auto_fp16
-        
-        # from mmdet_taeuk4958.models.backbones.swin import SwinTransformer as SwinTransformer_   ####
-        # _ = backbone.pop("type")
-        # self.backbone = SwinTransformer_(**backbone)
-        
-        # from mmdet_taeuk4958.models.necks.fpn import FPN as FPN_####
-        # _ = neck.pop("type")
-        # self.neck = FPN_(**neck)
+        # mmcv > runner > ffp16_utils.py > def auto_fp16        
         
         self.backbone = build_backbone(backbone)
+        # from mmdet_taeuk4958.models.backbones.swin import SwinTransformer as SwinTransformer_   ####
+        # if backbone.get("type", None) is not None:
+        #     _ = backbone.pop("type")
+        # self.backbone = SwinTransformer_(**backbone)
         
         if neck.get("type", None) is not None: _ = neck.pop("type")
         self.neck = FPN(**neck)
+        # from mmdet_taeuk4958.models.necks.fpn import FPN as FPN_####
+        # if neck.get("type", None) is not None:
+        #     _ = neck.pop("type")
+            
+        # self.neck = FPN_(**neck)
         
         # build_rpn_head : RPNHead
         # rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None
@@ -58,7 +58,7 @@ class MaskRCNN(BaseModule):
         rpn_head_cfg.update(train_cfg=rpn_train_cfg, test_cfg=test_cfg.rpn)
         from mmdet_taeuk4958.models.dense_heads.rpn_head import RPNHead as RPNHead_
         from utils.config import Config
-        rpn_head_cfg = Config(rpn_head_cfg)  
+        rpn_head_cfg = Config(rpn_head_cfg) 
         self.rpn_head = RPNHead_(**rpn_head_cfg)    
         
         

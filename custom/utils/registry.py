@@ -24,7 +24,6 @@ def build_from_cfg(cfg, registry: 'Registry') :
     args = cfg.copy()
     obj_type = args.pop('type')
     
-    
     if not isinstance(obj_type, str):
         raise TypeError(
             f'type must be a str type, but got {type(obj_type)}')
@@ -34,7 +33,6 @@ def build_from_cfg(cfg, registry: 'Registry') :
     if obj_cls is None:
         raise KeyError(
             f'{obj_type} is not in the {registry.name} registry')
-    
     try:
         return obj_cls(**args)
     except Exception as e:

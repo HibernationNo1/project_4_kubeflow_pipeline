@@ -63,12 +63,12 @@ def build_runner(cfg: dict):
 
 def build_optimizer(model, whole_cfg, logger):
     auto_scale_lr(whole_cfg, logger)
-    cfg = whole_cfg.optimizer
-    optimizer_cfg = copy.deepcopy(cfg)
+    optimizer_cfg = copy.deepcopy(whole_cfg.optimizer)
     paramwise_cfg = optimizer_cfg.pop('paramwise_cfg', None)
     
     Constructor_cfg = dict(optimizer_cfg=optimizer_cfg,
                            paramwise_cfg=paramwise_cfg)
+    
     optim_constructor = DefaultOptimizerConstructor(**Constructor_cfg)
     
     optimizer = optim_constructor(model)
@@ -150,9 +150,14 @@ def build_detector(config, model_path, device='cuda:0', logger = None):
     metadata = getattr(state_dict, '_metadata', OrderedDict())
     meta = checkpoint['meta']
     optimizer = checkpoint['optimizer']
- 
     
-    model = build_model(meta['model_cfg'])
+    if meta.get("model_cfg", None) is not None:
+        model = build_model(meta['model_cfg'])
+    else:
+        model = build_model(config.model)
+        
+        
+    
     if 'CLASSES' in checkpoint.get('meta', {}):
         model.CLASSES = checkpoint['meta']['CLASSES']
 
