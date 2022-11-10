@@ -16,7 +16,7 @@ from builder import (build_model,
                      build_optimizer, 
                      build_runner,
                      build_detector)
-from eval import inference_detector, parse_inferece_result, comfute_iou
+from eval import inference_detector, parse_inferece_result, compute_iou, get_divided_polygon
 from visualization import show_result, mask_to_polygon
 
 import __init__ # to import all module and function 
@@ -130,7 +130,6 @@ if __name__ == "__main__":
                                     seed = cfg.seed,
                                     shuffle = True)
             train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
-                
                     
             # build model
             assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
@@ -138,9 +137,15 @@ if __name__ == "__main__":
             if cfg.pretrained is not None: model.init_weights()
             model = build_dp(model, cfg.device)
             model.cfg = cfg
-            
             # build optimizer
+            
             optimizer = build_optimizer(model, cfg, logger)     # TODO 어떤 layer에 optimizer를 적용시켰는지 확인
+                           
+            # from mmcv.runner import build_optimizer as _build_optimizer
+            # optimizer_cfg = {'type': 'AdamW', 'lr': 0.0001, 'betas': (0.9, 0.999), 'weight_decay': 0.05, 'paramwise_cfg': {'custom_keys': {'absolute_pos_embed': {'decay_mult': 0.0}, 'relative_position_bias_table': {'decay_mult': 0.0}, 'norm': {'decay_mult': 0.0}}}}
+            # optimizer = _build_optimizer(model, cfg.optimizer)
+                
+          
             
             # build runner
             runner_build_cfg = dict(
@@ -152,7 +157,7 @@ if __name__ == "__main__":
                     batch_size = cfg.data.samples_per_gpu,
                     max_epochs = epoch)
             train_runner = build_runner(runner_build_cfg)
-
+            
             train_runner.timestamp = logger_timestamp
 
             if cfg.checkpoint_config is not None: 
@@ -199,12 +204,16 @@ if __name__ == "__main__":
                 train_runner.load_checkpoint(cfg.load_from)
             
             run_cfg = dict(train_dataloader = train_dataloader,
-                           val_dataloader = val_dataloader,
-                           flow = flow,
-                           val_batch_size =  cfg.data.val.batch_size,
-                           val_score_thr = cfg.show_score_thr)
+                        val_dataloader = val_dataloader,
+                        flow = flow,
+                        val_batch_size =  cfg.data.val.batch_size,
+                        val_score_thr = cfg.show_score_thr)
             
             train_runner.run(**run_cfg)
+        
+            
+            
+            
         
         elif mode == "test":            
             batch_size = cfg.data.test.batch_size
@@ -274,16 +283,21 @@ if __name__ == "__main__":
                 for img_meta in img_metas:
                     batch_images_path.append(img_meta['filename'])
                     
-                model_for_val = build_detector(cfg, cfg.model_path, device = cfg.device, logger = logger)
-                
+                model_for_val = build_detector(cfg, cfg.model_path, device = cfg.device, logger = logger)                              
                 batch_results = inference_detector(model_for_val, batch_images_path, cfg.data.val.batch_size)
+                
+                classes = model_for_val.CLASSES
+                class_dict = dict()
+                for class_name in classes:
+                    class_dict[class_name] = dict(num_gt = 0,
+                                                  num_pred = 0,
+                                                  num_ture = 0)
                 
                 assert (len(batch_gt_bboxes) == 
                             len(batch_gt_labels) ==
                             len(batch_images_path) ==
                             len(batch_gt_masks) ==
                             len(batch_results))
-                            
                    
                 for gt_mask, gt_bboxes, gt_labels, result, img_path in zip(
                     batch_gt_masks, batch_gt_bboxes, batch_gt_labels, batch_results, batch_images_path
@@ -314,50 +328,41 @@ if __name__ == "__main__":
                                    polygons = gt_polygons,
                                    labels = gt_labels)
                     
-                    for i_label in i_labels:
-                        print(f"i_label ; {i_label}")
-                    for gt_label in gt_labels:
-                        print(f"gt_label ; {gt_label}")
-                    exit()
-                        
-                    # for i in range(len(infer_dict['bboxes'])):
-                    #     i_bboxes = infer_dict['bboxes'][i]
-                    #     i_xmin, i_ymin, i_xmax, i_ymax  = i_bboxes
-                    #     i_lt, i_rb = (int(i_xmin), int(i_ymin)), (int(i_xmax), int(i_ymax))
-                    #     cv2.rectangle(img, i_lt, i_rb, color = (255, 255, 0), thickness = 2)
-                    # cv2.imshow("img", img)
-                    # while True:
-                    #     if cv2.waitKey() == 27: break   
-                        
-                    # for j in range(len(gt_dict['bboxes'])):
-                    #     gt_bboxes = gt_dict['bboxes'][j]
-                    #     gt_xmin, gt_ymin, gt_xmax, gt_ymax  = gt_bboxes
-                    #     gt_lt, gt_rb = (int(gt_xmin), int(gt_ymin)), (int(gt_xmax), int(gt_ymax))
-                    #     cv2.rectangle(img, gt_lt, gt_rb, color = (0, 255, 255), thickness = 2)
-                        
                     instance_dict = {}
-                    for i in range(len(infer_dict['bboxes'])):
-                        for j in range(len(gt_dict['bboxes'])):
+                    match_idx = []
+                    num_pred = len(infer_dict['bboxes'])                    
+                    num_gt = len(gt_dict['bboxes'])
+                    for i in range(num_pred):
+                        class_dict[classes[infer_dict['labels'][i]]]['num_pred'] +=1
+                        for j in range(num_gt):
+                            if i == 0:
+                                class_dict[classes[gt_dict['labels'][i]]]['num_pred'] +=1
                             i_bboxes, gt_bboxes = infer_dict['bboxes'][i], gt_dict['bboxes'][j]
-                            iou = comfute_iou(i_bboxes, gt_bboxes)
-                            if (iou > cfg.iou_threshold and 
+                            iou = compute_iou(i_bboxes, gt_bboxes)
+                            
+                            if (iou > cfg.iou_threshold and          
                                 infer_dict['score'][i] > cfg.confidence_threshold and
-                                infer_dict['score'][i] == infer_dict['score'][i]):
+                                infer_dict['labels'][i] == gt_dict['labels'][j]):
                                 
-                                break
-                            i_xmin, i_ymin, i_xmax, i_ymax  = i_bboxes
-                            gt_xmin, gt_ymin, gt_xmax, gt_ymax  = gt_bboxes
-                            i_lt, i_rb = (int(i_xmin), int(i_ymin)), (int(i_xmax), int(i_ymax))
-                            gt_lt, gt_rb = (int(gt_xmin), int(gt_ymin)), (int(gt_xmax), int(gt_ymax))
+                                i_polygons, gt_polygons = infer_dict['polygons'][i], gt_dict['polygons'][j]
+                                i_xsort_bbox_list, i_ysort_bbox_list = get_divided_polygon(i_polygons, 3)
+                                gt_xsort_bbox_list, gt_ysort_bbox_list = get_divided_polygon(gt_polygons, 3)
                             
-                            cv2.rectangle(img, gt_lt, gt_rb, color = (0, 255, 255), thickness = 2)
-                            cv2.rectangle(img, i_lt, i_rb, color = (255, 255, 0), thickness = 2)
-                            
-                         
-                    cv2.imshow("img", img)
-                    while True:
-                        if cv2.waitKey() == 27: break   
-                    exit()
+                                for i_xsort_bbox, gt_xsort_bbox in zip(i_xsort_bbox_list, gt_xsort_bbox_list):
+                                    if compute_iou(i_xsort_bbox, gt_xsort_bbox) < cfg.iou_threshold:  continue
+                                for i_ysort_bbox, gt_ysort_bbox in zip(i_ysort_bbox_list, gt_ysort_bbox_list):
+                                    if compute_iou(i_ysort_bbox, gt_ysort_bbox) < cfg.iou_threshold:  continue
+                                
+                                class_dict[classes[infer_dict['labels'][i]]]['num_ture'] +=1
+                                
+                                
+                                match_idx.append([i, j])
+                                
+                    for class_name, class_d in class_dict.items():
+                        recall = class_d['num_true']/class_d['num_gt']
+                        precision = class_d['num_true']/class_d['num_pred']
+                        class_dict['class_name']['F1_score'] = 2*(precision*recall)/(precision+recall)
+
                     
                         
                 
