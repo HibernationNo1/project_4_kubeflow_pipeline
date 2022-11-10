@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import itertools
+import cv2
 
 from transforms.utils import replace_ImageToTensor
 from transforms.compose import Compose
@@ -104,7 +105,7 @@ def parse_inferece_result(result):
 
 
 
-def comfute_iou(infer_box, gt_box):
+def compute_iou(infer_box, gt_box):
     """
     infer_box : x_min, y_min, x_max, y_max
     gt_box : x_min, y_min, x_max, y_max
@@ -126,3 +127,84 @@ def comfute_iou(infer_box, gt_box):
     iou = inter / (box1_area + box2_area - inter)
     return iou
 
+
+
+def get_divided_polygon(polygon, window_num):
+    """
+        divide polygon by the number of `window_num` piece by sort in x and y direction
+    Args:
+        polygon (list): 
+        window_num (int): 
+    
+    Return 
+        [x_lt_rb_list, y_lt_rb_list]
+            len(x_lt_rb_list) == `window_num`
+            x_lt_rb_list[0]: [x_min, y_min, x_max, y_max]
+    """
+    if isinstance(polygon, np.ndarray): polygon = polygon.tolist()
+  
+    piece_point = int(len(polygon)/window_num)
+    polygon_xsort = polygon.copy()
+    polygon_xsort.sort(key=lambda x: x[0])
+    polygon_ysort = polygon.copy()
+    polygon_ysort.sort(key=lambda x: x[1])
+    
+    
+    xsort_div_pol = divide_polygon(polygon_xsort, window_num, piece_point)
+    ysort_div_pol = divide_polygon(polygon_ysort, window_num, piece_point)
+
+    x_lt_rb_list, y_lt_rb_list = [], []
+    for x_pol, y_pol in zip(xsort_div_pol, ysort_div_pol):
+        x_lt_rb_list.append(get_box_from_pol(x_pol))
+        y_lt_rb_list.append(get_box_from_pol(y_pol))
+    
+    
+    return [x_lt_rb_list, y_lt_rb_list]
+    
+    
+ 
+def divide_polygon(polygon_sorted, window_num, piece_point):
+    """divide polygon by the number of `window_num` piece
+
+    Args:
+        polygon_sorted (list): 
+        window_num (int): 
+        piece_point (int): 
+
+    Returns:
+        sort_list: list, len== [`window_num`],      window_num[n]: list
+    """
+    sort_list = []
+    last_num = 0
+    for i in range(window_num):
+        if i == window_num-1:
+            sort_list.append(polygon_sorted[last_num:])
+            break
+        
+        sort_list.append(polygon_sorted[last_num:piece_point*(i+1)])
+        last_num = piece_point*(i+1)
+    
+    return sort_list    
+    
+
+def get_box_from_pol(polygon):
+    x_min, y_min, x_max, y_max = 100000, 100000, -1, -1
+    
+    for point in polygon:
+        x, y = point[0], point[1]
+        if x < x_min and x > x_max:
+            x_min = x_max = x
+        elif x < x_min:
+            x_min = x
+        elif x > x_max:
+            x_max = x
+        
+        if y < y_min and y > y_max:
+            y_min = y_max = y
+        elif y < y_min:
+            y_min = y
+        elif y > y_max:
+            y_max = y
+    
+    return [x_min, y_min, x_max, y_max]
+        
