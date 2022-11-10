@@ -8,6 +8,7 @@ from torch.nn import GroupNorm, LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.modules.instancenorm import _InstanceNorm
 
+
 class DefaultOptimizerConstructor:
     """Default constructor for optimizers.
 
@@ -106,10 +107,7 @@ class DefaultOptimizerConstructor:
         if hasattr(model, 'module'):
             model = model.module
         
-       
-        
         optimizer_cfg = self.optimizer_cfg.copy()
-       
         # if no paramwise option is specified, just use the global setting
         if not self.paramwise_cfg:
             optimizer_cfg['params'] = model.parameters()
@@ -122,9 +120,10 @@ class DefaultOptimizerConstructor:
         # lr, weight_decay등의 값을 적용하기 위한 list(dict) : params
         self.add_params(params, model)
         optimizer_cfg['params'] = params
-
-
+  
         return self.select_optimizer(optimizer_cfg)
+    
+    
         
         
     def _validate_cfg(self) :
@@ -150,9 +149,11 @@ class DefaultOptimizerConstructor:
     def select_optimizer(self, optimizer_cfg):
         opt_type = optimizer_cfg.pop('type', 'AdamW')
         if opt_type == "AdamW": 
-            optimizer = optim.Adam(**optimizer_cfg)
-        elif opt_type == "AdamW": 
+            optimizer = optim.AdamW(**optimizer_cfg)
+        elif opt_type == "SGD": 
             optimizer = optim.SGD(**optimizer_cfg)
+        elif opt_type == "Adam":
+             optimizer = optim.Adam(**optimizer_cfg)
         else : raise TypeError('optimizer type must be specified, but opt_type is {opt_type}')
         
         return optimizer
