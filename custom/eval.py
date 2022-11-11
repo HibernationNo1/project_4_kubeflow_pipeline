@@ -1,109 +1,5 @@
 import numpy as np
-import torch
-import itertools
-import cv2
-
-from transforms.utils import replace_ImageToTensor
-from transforms.compose import Compose
-from datasets.dataloader import collate
-from utils.scatter import parallel_scatter
-
-def inference_detector(model, imgs_path, batch_size):
-    """Inference image(s) with the detector.
-
-    Args:
-        model (nn.Module): The loaded detector.
-        imgs (str/ndarray or list[str/ndarray] or tuple[str/ndarray]):
-           Either image files or loaded images.
-
-    Returns:
-        If imgs is a list or tuple, the same length list type results
-        will be returned, otherwise return the detection results directly.
-    """
-    
-    if isinstance(imgs_path, (list, tuple)):
-        is_batch = True
-    else:
-        imgs_path = [imgs_path]
-        is_batch = False
-    
-    cfg = model.cfg
-    device = next(model.parameters()).device  # model device
-
-    if  cfg.get("test_pipeline", None) is not None: 
-        pipeline_cfg = cfg.test_pipeline
-    else: raise ValueError("val or test config must be specific, but both got None")
-
-    re_pipeline_cfg  = replace_ImageToTensor(pipeline_cfg)
-    pipeline = Compose(re_pipeline_cfg)
-    
-    datas = []
-    for img_path in imgs_path:
-        # prepare data
-        data = dict(img_info=dict(filename=img_path), img_prefix=None)
-        
-        # build the data pipeline
-        data = pipeline(data)
-        datas.append(data)
-    
-    # just get the actual data from DataContainer
-    # len(data): batch_szie
-    data = collate(datas, samples_per_gpu=batch_size)
-    
-    
-    data['img_metas'] = [img_metas.data[0] for img_metas in data['img_metas']]
-    data['img'] = [img.data[0] for img in data['img']]
-    
-    assert next(model.parameters()).is_cuda, f"modules must be is_cuda, but is not"
-    # scatter to specified GPU
-    
-    # data.keys(): ['img_metas', 'img'],       len(data['key']): 1
-    # len(data['key'][0]): batch_size
-    data = parallel_scatter(data, [device])[0]
-
-    # forward the model
-    with torch.no_grad():
-        results = model(return_loss=False, rescale=True, **data)        # call model.forward
-    if not is_batch:
-        return results[0]
-    else:
-        return results
-    
-def parse_inferece_result(result):
-    if isinstance(result, tuple):
-        bbox_result, segm_result = result
-        if isinstance(segm_result, tuple):
-            segm_result = segm_result[0]  # ms rcnn
-    else:
-        bbox_result, segm_result = result, None
-
-    # bboxes.shape: (num of instance, 5)    5: [x_min, y_min, x_max, y_max, score]
-    bboxes = np.vstack(bbox_result)
-    
-  
-    labels = [
-        np.full(bbox.shape[0], i, dtype=np.int32)
-        for i, bbox in enumerate(bbox_result)
-    ]
-    # labels.shape[0]: num of instance
-    labels = np.concatenate(labels)
-
-    # draw segmentation masks
-    segms = None
-    if segm_result is not None and len(labels) > 0:  # non empty
-        # len(segms): num of instance
-        segms = list(itertools.chain(*segm_result))
-
-        # segms.shape: (num of instance , height, widrh)
-        if isinstance(segms[0], torch.Tensor):
-            segms = torch.stack(segms, dim=0).detach().cpu().numpy()
-        else:
-            segms = np.stack(segms, axis=0)         
-
-    return bboxes, labels, segms
-
-
-
+from inference import inference_detector, parse_inferece_result
 
 def compute_iou(infer_box, gt_box):
     """
@@ -126,7 +22,6 @@ def compute_iou(infer_box, gt_box):
     inter = w * h
     iou = inter / (box1_area + box2_area - inter)
     return iou
-
 
 
 def get_divided_polygon(polygon, window_num):
@@ -208,3 +103,152 @@ def get_box_from_pol(polygon):
     
     return [x_min, y_min, x_max, y_max]
         
+
+
+def get_precision_recall_value(model, cfg, val_dataloader, func_mask_to_polygon):
+    classes = model.CLASSES
+    num_thrshd_divi = cfg.num_thrshd_divi
+    thrshd_value = (cfg.iou_threshold[-1] - cfg.iou_threshold[0]) / num_thrshd_divi
+    iou_threshold = [round(cfg.iou_threshold[0] + (thrshd_value*i), 2) for i in range(num_thrshd_divi+1)]
+    
+    confusion_dict = dict()
+    for class_name in classes:
+        confusion_dict[class_name] = []
+        for i in range(len(iou_threshold)):
+            confusion_dict[class_name].append(dict(iou_threshold = iou_threshold[i],
+                                            num_gt = 0, 
+                                            num_pred = 0, 
+                                            num_true = 0)
+                                        )
+    
+    for i, val_data_batch in enumerate(val_dataloader):
+        gt_bboxes_list = val_data_batch['gt_bboxes'].data
+        gt_labels_list = val_data_batch['gt_labels'].data
+        img_list = val_data_batch['img'].data
+        gt_masks_list = val_data_batch['gt_masks'].data
+        assert len(gt_bboxes_list) == 1 and (len(gt_bboxes_list) ==
+                                                len(gt_labels_list) ==
+                                                len(img_list) == 
+                                                len(gt_masks_list))
+        # len: batch_size
+        batch_gt_bboxes = gt_bboxes_list[0]           
+        batch_gt_labels = gt_labels_list[0]  
+        batch_gt_masks = gt_masks_list[0]    
+        
+        img_metas = val_data_batch['img_metas'].data[0]
+        batch_images_path = []    
+        for img_meta in img_metas:
+            batch_images_path.append(img_meta['filename'])
+        batch_results = inference_detector(model, batch_images_path, cfg.data.val.batch_size)
+        
+        assert (len(batch_gt_bboxes) == 
+                    len(batch_gt_labels) ==
+                    len(batch_images_path) ==
+                    len(batch_gt_masks) ==
+                    len(batch_results))
+        batch_conf_list = [batch_gt_masks, batch_gt_bboxes, batch_gt_labels, batch_results]
+        
+        confusion_dict = get_confusion_value(batch_conf_list, confusion_dict, 
+                                                    iou_threshold, cfg.confidence_threshold, 
+                                                    classes, 
+                                                    func_mask_to_polygon)
+    
+    confusion_value_dict= confusion_dict   
+    precision_recall_dict = compute_precision_recall(confusion_value_dict)
+                            
+    return precision_recall_dict
+            
+            
+def compute_precision_recall(confusion_value_dict):
+    for class_name, threshold_list in confusion_value_dict.items():
+        for idx, threshold in enumerate(threshold_list):
+            if threshold['num_pred'] == 0: precision = 0
+            else: precision = threshold['num_true']/threshold['num_pred']
+                
+            recall = threshold['num_true']/threshold['num_gt']
+            
+            confusion_value_dict[class_name][idx]['recall'] = recall
+            confusion_value_dict[class_name][idx]['precision'] = precision
+        
+            if recall == 0 and precision == 0: confusion_value_dict[class_name][idx]['F1_score'] =0
+            else: confusion_value_dict[class_name][idx]['F1_score'] = 2*(precision*recall)/(precision+recall)
+    
+    return confusion_value_dict
+                    
+                    
+def get_confusion_value(batch_conf_list, confusion_dict, 
+                        iou_threshold, confidence_threshold, 
+                        classes, func_mask_to_polygon):
+    batch_gt_masks, batch_gt_bboxes, batch_gt_labels, batch_results = batch_conf_list
+    
+    for gt_mask, gt_bboxes, gt_labels, result in zip(
+        batch_gt_masks, batch_gt_bboxes, batch_gt_labels, batch_results
+        ):
+        i_bboxes, i_labels, i_mask = parse_inferece_result(result)
+        if iou_threshold[0] > 0:
+            assert i_bboxes is not None and i_bboxes.shape[1] == 5
+            scores = i_bboxes[:, -1]
+            inds = scores > iou_threshold[0]
+            i_bboxes = i_bboxes[inds, :]
+            i_labels = i_labels[inds]
+            if i_mask is not None:
+                i_mask = i_mask[inds, ...]
+        
+        i_cores = i_bboxes[:, -1]      # [num_instance]
+        i_bboxes = i_bboxes[:, :4]      # [num_instance, [x_min, y_min, x_max, y_max]]
+
+        
+        i_polygons = func_mask_to_polygon(i_mask)
+        gt_polygons = func_mask_to_polygon(gt_mask.masks)
+        
+        infer_dict = dict(bboxes = i_bboxes,
+                        polygons = i_polygons,
+                        labels = i_labels,
+                        score = i_cores)
+        gt_dict = dict(bboxes = gt_bboxes,
+                    polygons = gt_polygons,
+                    labels = gt_labels)
+        
+        
+        confusion_value_dict = get_num_posi_nega(iou_threshold, classes, 
+                                            gt_dict, infer_dict, 
+                                            confusion_dict, 
+                                            confidence_threshold)  
+    return confusion_value_dict 
+                
+                
+def get_num_posi_nega(iou_threshold, classes, gt_dict, infer_dict, class_dict, confidence_threshold):
+    num_pred = len(infer_dict['bboxes'])                    
+    num_gt = len(gt_dict['bboxes'])
+    for idx, threshold in enumerate(iou_threshold): 
+        done_gt = []
+        for i in range(num_pred):
+            pred_class_name = classes[infer_dict['labels'][i]]
+            for j in range(num_gt):
+                gt_class_name = classes[gt_dict['labels'][j]]
+                if i == 0:  class_dict[gt_class_name][idx]['num_gt'] +=1
+                if j in done_gt: continue
+                
+                i_bboxes, gt_bboxes = infer_dict['bboxes'][i], gt_dict['bboxes'][j]
+                iou = compute_iou(i_bboxes, gt_bboxes)
+                
+                if (iou > threshold and          
+                    infer_dict['score'][i] > confidence_threshold ):
+                    
+                    # compute iou by sliced polygon 
+                    i_polygons, gt_polygons = infer_dict['polygons'][i], gt_dict['polygons'][j]
+                    i_xsort_bbox_list, i_ysort_bbox_list = get_divided_polygon(i_polygons, 3)
+                    gt_xsort_bbox_list, gt_ysort_bbox_list = get_divided_polygon(gt_polygons, 3)
+                
+                    for i_xsort_bbox, gt_xsort_bbox in zip(i_xsort_bbox_list, gt_xsort_bbox_list):
+                        if compute_iou(i_xsort_bbox, gt_xsort_bbox) < threshold:  continue
+                    for i_ysort_bbox, gt_ysort_bbox in zip(i_ysort_bbox_list, gt_ysort_bbox_list):
+                        if compute_iou(i_ysort_bbox, gt_ysort_bbox) < threshold:  continue
+                    
+                    class_dict[pred_class_name][idx]['num_pred'] +=1
+                    
+                    if pred_class_name == gt_class_name: 
+                        class_dict[pred_class_name][idx]['num_true'] +=1
+                    
+                    done_gt.append(j)
+    return class_dict
