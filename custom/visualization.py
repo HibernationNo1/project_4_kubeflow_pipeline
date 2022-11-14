@@ -44,7 +44,10 @@ def mask_to_polygon(masks):
     polygons = []
     for mask in masks:       
         polygon, _ = bitmap_to_polygon(mask)
-        polygons.append(polygon[0])
+        if len(polygon) == 0:
+            polygons.append([])
+        else:
+            polygons.append(polygon[0])
     return polygons
 
 
