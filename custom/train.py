@@ -16,7 +16,7 @@ from builder import (build_model,
                      build_optimizer, 
                      build_runner,
                      build_detector)
-from eval import get_precision_recall_value
+from eval import Evaluate
 from inference import inference_detector
 from visualization import show_result, mask_to_polygon
 
@@ -131,13 +131,16 @@ if __name__ == "__main__":
                                     seed = cfg.seed,
                                     shuffle = True)
             train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
-                    
             # build model
             assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
             model = build_model(cfg.model)
+            
             if cfg.pretrained is not None: model.init_weights()
-            model = build_dp(model, cfg.device)
-            model.cfg = cfg
+            dp_cfg = dict(model = model, device = cfg.device,
+                          cfg = cfg,
+                          classes = train_dataset.CLASSES)
+            model = build_dp(**dp_cfg)
+          
             # build optimizer
             
             optimizer = build_optimizer(model, cfg, logger)     # TODO 어떤 layer에 optimizer를 적용시켰는지 확인
@@ -205,15 +208,11 @@ if __name__ == "__main__":
                 train_runner.load_checkpoint(cfg.load_from)
             
             run_cfg = dict(train_dataloader = train_dataloader,
-                        val_dataloader = val_dataloader,
-                        flow = flow,
-                        val_batch_size =  cfg.data.val.batch_size,
-                        val_score_thr = cfg.show_score_thr)
-            
+                           val_dataloader = val_dataloader,
+                           flow = flow,
+                           val_cfg = cfg,
+                           mask_to_polygon = mask_to_polygon)
             train_runner.run(**run_cfg)
-        
-            
-            
             
         
         elif mode == "test":            
@@ -221,14 +220,14 @@ if __name__ == "__main__":
             all_imgs_path = glob.glob(os.path.join(cfg.data.test.data_root, "*.jpg"))
             batch_imgs_list = [all_imgs_path[x:x + batch_size] for x in range(0, len(all_imgs_path), batch_size)]
             
-            
             model = build_detector(cfg, cfg.model_path, device = cfg.device, logger = logger)
-
             classes = model.CLASSES
-            model_config = model.cfg  
-            model = build_dp(model, cfg.device)
-            
-            model.cfg = model_config  
+
+            dp_cfg = dict(model = model, 
+                          device = cfg.device,
+                          cfg = model.cfg,
+                          classes = model.CLASSES)
+            model = build_dp(model, cfg.device, cfg = model.cfg)
             outputs = []  
             
             for batch_imgs in tqdm(batch_imgs_list):
@@ -258,172 +257,27 @@ if __name__ == "__main__":
             _ = val_data_cfg.pop("batch_size", None)
             _, val_dataset = build_dataset(val_cfg = val_data_cfg)
             
+            tmp_list = glob.glob(val_dataset.img_prefix +"*.jpg")
+           
             val_loader_cfg = dict(val_dataset = val_dataset,
-                                    val_batch_size = cfg.data.val.get("batch_size", None),
+                                    val_batch_size = len(tmp_list), #cfg.data.val.get("batch_size", None),
                                     num_workers=cfg.data.workers_per_gpu,
                                     seed = cfg.seed,
                                     shuffle = True)
             _, val_dataloader = build_dataloader(**val_loader_cfg)
             
             model_for_val = build_detector(cfg, cfg.model_path, device = cfg.device, logger = logger)    
+                
+            eval_cfg = dict(model= model_for_val, 
+                       cfg= cfg,
+                       dataloader= val_dataloader,
+                       mask_to_polygon= mask_to_polygon)    
+            eval = Evaluate(**eval_cfg)
+            mAP = eval.compute_mAP()
+            # F1_score = eval.compute_F1_score()
             
-            precision_recall_dict = get_precision_recall_value(model_for_val, cfg, val_dataloader, mask_to_polygon)
+            print(f"mAP : {mAP}")
             
-            
-            # def compute_PR_area()         
-                                
-            
-        
-            import matplotlib.pyplot as plt
-            
-            for class_name, threshold_list in precision_recall_dict.items():
-                print(f"\n---class_name : {class_name}")
-                 
-                sorted_pr_value = []
-                
-                prcs_rcl_list = []
-                for idx, threshold in enumerate(threshold_list):
-                    prcs_rcl_list.append([threshold['precision'], threshold['recall']])
-                prcs_rcl_list.reverse()
-                
-                # for idx, prcs_rcl in enumerate(prcs_rcl_list):
-                #     precision, recall = prcs_rcl
-                #     print(f"recall, precision ; {recall, precision}")
-                ap_area = 0
-                before_recall =0
-                continue_count = -1
-                for idx, prcs_rcl in enumerate(prcs_rcl_list):
-                    if continue_count > 0: 
-                        continue_count -=1 
-                        if continue_count == 0 : continue_count = -1
-                        continue
-                    precision, recall = prcs_rcl
-                    
-                    if idx+1 < len(prcs_rcl_list) and prcs_rcl_list[idx+1][1] == recall:
-                        tmp_precision_list = []
-                        for i in range(idx, len(prcs_rcl_list)):
-                            if recall == prcs_rcl_list[i][1]:       # same recall
-                                continue_count +=1
-                                tmp_precision_list.append(prcs_rcl_list[i][0])
-                            else: break
-                        precision = max([precis for precis in tmp_precision_list])
-                    
-                    print(f"before_recall : {before_recall:.2f}, recall : {recall:.2f}      ::: {abs(before_recall - recall):.2f}, {precision:.2f}     area = {abs(before_recall - recall)*precision:.2f}")
-                    area = abs(before_recall - recall)*precision
-                    ap_area += area
-                    print(f"ap_area : {ap_area}")
-                    
-                    before_recall = recall
-                
-                if ap_area > 1: exit()
-                print(f"sum_ap_area : {ap_area}")  
-                # TODO : ap_area가 1보다 큰 경우는 우쨰?
-            exit()
-                    
-                # before_recall = None
-                # curve_flag = False
-                # max_recall = -1
-                # prec_recall_list = []
-                # tmp_precision_list, tmp_recall_list = [], []
-                # for idx, threshold in enumerate(threshold_list):
-                #     recall, precision = threshold['recall'], threshold['precision']
-                #     prec_recall_list.append([precision, recall])
-                #     tmp_precision_list.append(precision)
-                #     tmp_recall_list.append(recall)
-                        
-                    
-                #     if before_recall is None:
-                #         before_recall = recall
-                #         continue
-                    
-                #     if before_recall - recall < 0:
-                #         curve_flag = True
-                        
-                #     if max_recall < recall : max_recall = recall
-                    
-                    
-                #     before_recall = recall
-                
-            
-                        
-                # ap_area = 0
-                # if curve_flag:
-                #     assert max_recall != -1
-                    
-                # else:
-                    # prec_recall_list.sort(key= lambda x:x[1])
-                    
-                    # before_recall =0
-                    # continue_count = -1
-                    # for idx, prec_recall in enumerate(prec_recall_list):
-                    #     if continue_count > 0: 
-                    #         continue_count -=1 
-                    #         continue
-                    #     precision, recall = prec_recall
-                        
-                    #     if idx+1 < len(prec_recall_list) and prec_recall_list[idx+1][1] == recall:
-                    #         tmp_precision_list = []
-                    #         for i in range(idx, len(prec_recall_list)):
-                    #             if recall == prec_recall_list[i][1]:
-                    #                 continue_count +=1
-                    #                 tmp_precision_list.append(prec_recall_list[i][0])
-                    #             else: break
-                    #         precision = max([precis for precis in tmp_precision_list])
-                            
-                    #     area = abs(before_recall - recall)*precision
-                    #     ap_area += area
-                        
-                    #     before_recall = recall
-                    
-                    
-                        
-                        
-          
-                        
-                        
-                    
-                    # if len(stac_pre_rcal) > 0:
-                        
-                        
-                    
-                    # print(f"\nthreshold: {threshold['iou_threshold']}")
-                    # print(f"num_gt : {threshold['num_gt']},       num_pred : {threshold['num_pred']},       num_true : {threshold['num_true']}")
-                    # print(f"recall: {threshold['recall']:.3f},    precision: {threshold['precision']:.3f}")
-                    # print(f"F1_score: {threshold['F1_score']:.3f}")
-                   
-                    
-                    
-                
-                    
-            exit()
-                # sorted_pr_value.sort(key = lambda x: x[1])
-                # precision_list, recall_list = [], []
-                # for precision, recall in sorted_pr_value:
-                #     precision_list.append(precision)
-                #     recall_list.append(recall)
-                
-                
-                
-                # pr_area = 0
-                # before_precision, before_recall = None, None
-                # for precision, recall in sorted_pr_value:
-                #     print(f"precision, recall : {precision, recall}")
-                #     if before_precision is None:
-                #         before_precision, before_recall = precision, recall
-                #         continue
-                    
-                #     if recall == before_recall: continue
-                    
-                #     difference_recall = before_recall-recall
-                #     pr_area += (difference_recall*before_precision)
-                #     before_precision, before_recall = precision, recall                    
-
-                # plt.plot(recall_list, precision_list)
-                # # plt.scatter(recall_list, precision_list, color='darkmagenta')
-                # plt.show()
-                
-                
-            exit()
             
                 # TODO : validate 수행
                 # if validate:      
