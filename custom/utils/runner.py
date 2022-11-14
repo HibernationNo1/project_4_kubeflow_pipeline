@@ -11,8 +11,7 @@ from utils.hook import (Hook,
                         IterTimerHook, 
                         LoggerHook, 
                         Custom_Hook)
-from eval import inference_detector, parse_inferece_result
-from visualization import mask_to_polygon
+from eval import Evaluate
 from utils.checkpoint import save_checkpoint as sc_save_checkpoint 
 priority_dict = {'HIGHEST' : 0,
                  'VERY_HIGH' : 10,
@@ -26,9 +25,7 @@ priority_dict = {'HIGHEST' : 0,
 
         
 class EpochBasedRunner(BaseRunner):
-    def run(self, train_dataloader, val_dataloader, flow, 
-            val_batch_size = None, 
-            val_score_thr = 0.3,
+    def run(self, train_dataloader, val_dataloader, flow,
             **kwargs):
         """Start running.
 
@@ -40,8 +37,8 @@ class EpochBasedRunner(BaseRunner):
                 running 2 epochs for training and 1 epoch for validation,
                 iteratively.
         """
-        self.val_batch_size = val_batch_size
-        self.val_score_thr = val_score_thr
+        self.val_cfg = kwargs.get('val_cfg', None)
+        self.mask_to_polygon = kwargs.get('mask_to_polygon', None)
         
         mode, iter = flow
         if not isinstance(mode, str): 
@@ -119,9 +116,18 @@ class EpochBasedRunner(BaseRunner):
             self.run_iter(data_batch, train_mode=True)
             self.call_hook('after_train_iter')
             
-            if self.mode=="val" and self.val_batch_size is not None:
-                print("run val")
+            if self.mode=="val" and self.val_cfg is not None:
+                self.model.eval()
+                eval_cfg = dict(model= self.model.eval(), 
+                                cfg= self.val_cfg,
+                                dataloader= val_dataloader,
+                                mask_to_polygon= self.mask_to_polygon)    
+                eval = Evaluate(**eval_cfg)
+                mAP = eval.compute_mAP()
+                print(f"mAP ; {mAP}")
+                
                 self.mode = "train"
+                self.model.train()
                     
                 
             del self.data_batch
