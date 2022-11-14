@@ -207,7 +207,6 @@ class Custom_Hook(Hook):
         
         if self.every_n_inner_iters(runner, self.val_iter):   # training unit: epoch, iter +1
             runner.mode = 'val'     # change runner mode to val for run validation 
-        
         if self.every_n_inner_iters(runner, self.show_eta_iter):  
             remain_time = self.compute_remain_time(self.sum_time_iter/self.iter_count)['remain_time']     
             
@@ -515,7 +514,6 @@ class LoggerHook(Hook):
         
  
         if self.every_n_inner_iters(runner, self.interval):   # training unit: epoch, iter +1
-            log_mode = 'val'
             runner.log_buffer.average(self.interval)   
         # elif not self.by_epoch and self.every_n_iters(runner, self.interval):   # training unit: iter, iter +1
         #     runner.log_buffer.average(self.interval)

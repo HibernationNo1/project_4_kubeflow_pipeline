@@ -29,8 +29,10 @@ workflow = [('train', 5)]   # TODO : [('train', n_1), ('val', n_2)]     n_1: epo
 
 device = 'cuda:0'
 
-iou_threshold = 0.7      
-confidence_threshold = 0.8          
+# validation
+iou_threshold = [0.3, 0.9]      # range of iou threshold
+num_thrshd_divi = 10            # divide range of `iou_threshold` by number of `num_thrshd_divi`
+confidence_threshold = 0.6             
 
 # disable opencv multithreading to avoid system being overloaded
 opencv_num_threads = 0

@@ -38,6 +38,7 @@ def _build_dataset(dataset_cfg):
 def build_dataset(train_cfg = None, val_cfg = None):
     train_dataset = _build_dataset(train_cfg)
     val_dataset = _build_dataset(val_cfg)    
+
     if train_dataset is not None and val_dataset is None:   return train_dataset, None        # only train dataset
     elif val_dataset is not None and train_dataset is None: return None, val_dataset          # only val dataset
     else: return train_dataset, val_dataset     
@@ -76,11 +77,15 @@ def build_optimizer(model, whole_cfg, logger):
 
 
 
-def build_dp(model, device='cuda', dim=0):
+def build_dp(model, cfg, device='cuda', dim=0, **kwargs):
     if device == 'cuda': 
         model = model.cuda()
     
-    return MMDataParallel(model, dim=dim)
+    model = MMDataParallel(model, dim=dim) 
+    if kwargs.get('classes', None) is not None:
+        model.CLASSES = kwargs['classes']
+    model.cfg = cfg
+    return model
     
     
 class MMDataParallel(DataParallel):

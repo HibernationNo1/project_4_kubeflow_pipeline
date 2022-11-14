@@ -68,7 +68,8 @@ def inference_detector(model, imgs_path, batch_size):
         return results[0]
     else:
         return results
-    
+
+ 
 def parse_inferece_result(result):
     if isinstance(result, tuple):
         bbox_result, segm_result = result
@@ -77,6 +78,7 @@ def parse_inferece_result(result):
     else:
         bbox_result, segm_result = result, None
 
+    
     # bboxes.shape: (num of instance, 5)    5: [x_min, y_min, x_max, y_max, score]
     bboxes = np.vstack(bbox_result)
     
@@ -99,5 +101,5 @@ def parse_inferece_result(result):
             segms = torch.stack(segms, dim=0).detach().cpu().numpy()
         else:
             segms = np.stack(segms, axis=0)         
-
+        
     return bboxes, labels, segms
