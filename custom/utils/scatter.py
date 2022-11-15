@@ -30,7 +30,7 @@ def synchronize_stream(output, devices, streams):
 def forward(target_gpus, input):
     input_device = get_input_device(input)
     streams = None
-    # input_device == -1면 CPU에 data가 할당되어 있는 경우
+    # input_device == -1: data is assigned to CPU
     if input_device == -1 and target_gpus != [-1]:  
         # Perform CPU to GPU copies in a background stream
         streams = [_get_stream(device) for device in target_gpus]
@@ -67,7 +67,7 @@ def scatter(input, devices, streams=None):
         stream = streams[0] if output.numel() > 0 else None
     
         if devices != [-1]:
-            # tensor를 gpu에 할당
+            # assign tensor to gpu 
             with torch.cuda.device(devices[0]), torch.cuda.stream(stream):
                 output = output.cuda(devices[0], non_blocking=True)
 
@@ -78,7 +78,7 @@ def scatter(input, devices, streams=None):
     
 def get_input_device(input):
     """
-        input이 gpu에 할당이 안되어있다면(if input.is_cuda is False) return -1
+        if input.is_cuda is False return -1
         
         expected: return -1
     """
@@ -102,7 +102,7 @@ def forward_scatter(target_gpus, input):
     input_device = get_input_device(input)
 
     streams = None
-    # input_device == -1면 아직 CPU에 data가 할당되어 있는 경우
+    # input_device == -1: data is assigned to CPU
     if input_device == -1 and target_gpus != [-1]:  
         # Perform CPU to GPU copies in a background stream
         streams = [_get_stream(device) for device in target_gpus]
@@ -116,7 +116,7 @@ def forward_scatter(target_gpus, input):
     
     
 
-# 단일 GPU를 목적으로 설계했기 때문에 기존 scatter와 달라진 점 거의 없음
+# for only single cpu
 # org : parallel > scatter_gather.py > scatter
 def parallel_scatter(inputs, target_gpus = [0], dim = 0):
     """Scatter inputs to target gpus.
@@ -188,7 +188,7 @@ def scatter_inputs(inputs, target_gpus = [0], dim=0):
         #      else, len(key) == batch_size
         # type(inputs[0]): optimizer
         cattered_inputs = parallel_scatter(inputs, target_gpus, dim) if inputs else [] 
-        # list로 한 차원 더 씌워지는 것 말고 구조변화는 없음
+        # no structural change other than one more dimension being covered by the list
         # type(cattered_inputs): list,          len(cattered_inputs): 1
         # type(cattered_inputs[0]): tuple ,      len(cattered_inputs[0]): 2   
         #    type(cattered_inputs[0][0]): dict,     

@@ -17,7 +17,7 @@ class MaskRCNN(BaseModule):
                  test_cfg=None,
                  init_cfg=None):
         super(MaskRCNN, self).__init__(init_cfg)
-        self.fp16_enabled = False       # TODO fp16으로 변환하여 학습 진행해보기
+        self.fp16_enabled = False       # TODO run train apply fp16
         # mmcv > runner > ffp16_utils.py > def auto_fp16        
         
         self.backbone = build_backbone(backbone)
@@ -183,7 +183,7 @@ class MaskRCNN(BaseModule):
         # img: [B=2, C=3, H=768, W=1344]
         x = self.backbone(img)
         # type(x): list,        len(x) == cfg.model.backbone.depths
-        # 각 elements의 channel은 cfg.model.neck.in_channels과 동일해야 한다
+        # each channel of elements must be equal to `cfg.model.neck.in_channels`과
         # x[n]: [B, Cn, H/n, W/n],     Cn == cfg.model.neck.in_channels,    n = [4, 8, 16, 32]
 
         # [2, 96, 192, 336]
@@ -286,7 +286,7 @@ class MaskRCNN(BaseModule):
         #      else, len(key) == batch_size
     
         
-        # self.에 포함된 모든 module의 forward()를 실행
+        # run `forward()` that all modules have 
         losses = self(**data)  
                 
         loss, log_vars = self._parse_losses(losses)

@@ -6,14 +6,14 @@ train_pipeline = [
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
     dict(type='Resize', img_scale=img_scale, keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),                # flip_ratio = [0.3, 0.5, 0.2], direction = ['horizontal', 'vertical', 'diagonal']
-                                                            # 전체 중 0.3%확률로 horizontal flip적용,
-                                                            # 전체 중 0.5%확률로 vertical flip적용,
-                                                            # 전체 중 0.2%확률로 diagonal flip적용,         
-                                                            # 0.1확률로 flip적용 안함
+                                                            # apply horizontal flip to 0.3% of the total,
+                                                            # apply vertical flip to 0.5% of the total
+                                                            # apply diagonal flip to 0.2% of the total
+                                                            # kept as original to 0.1% of the total
     dict(type='Normalize', **img_norm_cfg),                
-    dict(type='Pad', size_divisor=32),      # width, height가 각각 size_divisor의 배수가 되는 size까지 padding         
+    dict(type='Pad', size_divisor=32),      # padding up to size where width and height are multiples of `size_divisor`         
     dict(type='DefaultFormatBundle'),                      
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),   # 최종 학습에 사용할 data
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),   # 
 ]
 
 val_pipeline = [
@@ -73,8 +73,8 @@ data = dict(
     test=dict(
         data_root = data_root + "/" + test_data,
         batch_size = 10,
-        ann_file= None,                                                          # work_dir/model_dir/dataset.json
-        img_prefix="",                 # test할 image의 dir        
+        ann_file= None,                            # work_dir/model_dir/dataset.json
+        img_prefix="",                      
         pipeline=test_pipeline)
     )
 

@@ -45,8 +45,8 @@ class ShiftWindowMSA(BaseModule):
                  drop_prob=0.,
                  init_cfg=None):
         super().__init__(init_cfg)
-
-        self.window_size = window_size
+        
+        self.window_size = window_size  # TODO_katib, training after fix `window_size`
         self.shift_size = shift_size
         assert 0 <= self.shift_size < self.window_size
 
@@ -72,11 +72,11 @@ class ShiftWindowMSA(BaseModule):
         pad_r = (self.window_size - W % self.window_size) % self.window_size        # 0 (pad to width-right)
         pad_b = (self.window_size - H % self.window_size) % self.window_size        # 4 (pad to height-bottom)
         query = F.pad(query, (0, 0, 0, pad_r, 0, pad_b))                            # [batch_size, 196, 336, 96]  
-        # (0, 0)으로 last dim을 pad,   (0, pad_r)으로 1 dim을 pad ,     (0, pad_b)으로 2 dim을 pad   
+        # padding last dimension to (0, 0),   padding 1 dimension to (0, pad_r),     padding 2 dimension to  (0, pad_b)
         H_pad, W_pad = query.shape[1], query.shape[2]       
    
         # cyclic shift
-        if self.shift_size > 0:     #  TODO: katib      self.shift_size==0이상 값으로 실험해보기
+        if self.shift_size > 0:   
             shifted_query = torch.roll(query, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
             
             # calculate attention mask for SW-MSA
@@ -162,7 +162,7 @@ class ShiftWindowMSA(BaseModule):
         """
         B, H, W, C = x.shape        # [batch_size, 196, 336, 96]
         window_size = self.window_size
-        x = x.view(B, H // window_size, window_size,    # [batch_size, 28, 7, 48, 7, 96], window_size= 7    # TODO: katib, window_size변경 후 학습
+        x = x.view(B, H // window_size, window_size,    # [batch_size, 28, 7, 48, 7, 96], window_size= 7    
                    W // window_size, window_size, C)
         windows = x.permute(0, 1, 3, 2, 4, 5).contiguous()          # [batch_size, 28, 48, 7, 7, 96]        
         windows = windows.view(-1, window_size, window_size, C)     # [2688, 7, 7, 96]      # number of windows * batch size = 2688

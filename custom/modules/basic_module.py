@@ -7,7 +7,7 @@ from initialization import kaiming_init
 TORCH_VERSION = torch.__version__
 
 
-class ConvModule(nn.Module):    # normalization, activate layers 없이 build.  TODO: 추가해서 학습
+class ConvModule(nn.Module):    # TODO: add normalization, activate layers
     """A conv block that bundles conv/norm/activation layers.
 
     This block simplifies the usage of convolution layers, which are commonly
@@ -61,9 +61,9 @@ class ConvModule(nn.Module):    # normalization, activate layers 없이 build.  
                  dilation=1,
                  groups=1,
                  bias=True,  
-                 act_cfg=dict(type='ReLU'), # ConvModule를 호출하는 neck에서는 activation layer사용 안함 // roi_head의 mask_head에서는 사용함
+                 act_cfg=dict(type='ReLU'), # not use activation layer at neck()
                  inplace=True,
-                 padding_mode='zeros',      # support ['zeros' 'circular', 'reflect'] 찾아서 공부해서 적용해보기
+                 padding_mode='zeros',      # todo: add ['zeros' 'circular', 'reflect'] 
                  order=('conv', 'norm', 'act')):
         super().__init__()
         

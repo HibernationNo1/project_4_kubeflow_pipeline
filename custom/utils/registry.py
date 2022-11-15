@@ -165,9 +165,9 @@ class Registry:
     def _register_module(self, module, module_name=None, force=False):
         """
         Args:
-            module (class): registry에 추가할 class
-            module_name (str, optional): 해당 class의 별명 
-            force (bool, optional): True일 경우 modelu이 이미 registry에 존재해도 덮어씌우기. False일 경우 raise Error
+            module (class): class to add to registry
+            module_name (str, optional): nickname of class 
+            force (bool, optional): True: override if module exist in registry.  False: raise Error
 
         Raises:
             TypeError: _description_

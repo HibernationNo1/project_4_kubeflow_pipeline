@@ -127,7 +127,7 @@ def _ntuple(n):
 
 to_2tuple = _ntuple(2)
 
-# multi GPU사용할때 
+# using multi GPU 
 def is_mlu_available():
     """Returns a bool indicating if MLU is currently available."""
     return hasattr(torch, 'is_mlu_available') and torch.is_mlu_available()
@@ -142,7 +142,7 @@ def get_device():
     device_list = [k for k, v in is_device_available.items() if v]
     return device_list[0] if len(device_list) == 1 else 'cpu'
 
-# not use. 나중에 여유 될때 사용해서 training해보기
+# TODO: using  
 def auto_scale_lr(cfg, logger, num_gpus = 1):   
     """Automatically scaling LR according to GPU number and sample per GPU.
 
@@ -192,8 +192,23 @@ def confirm_model_path(cfg, args):
     if args.model_path is not None: cfg.model_path = args.model_path
     assert osp.isfile(cfg.model_path), f"model path: '{cfg.model_path}' is not exist!"
     cfg.model_path = osp.join(os.getcwd(), cfg.model_path)
+      
             
-
+def compute_sec_to_h_d(sec):
+    if sec <=0: return "00:00:00"
+    
+    if sec < 60: return f'00:00:{f"{int(sec)}".zfill(2)}'
+    
+    minute = sec//60
+    if minute < 60: return f"00:{f'{int(minute)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
+    
+    hour = minute//60
+    if hour < 24: return f"{f'{int(hour)}'.zfill(2)}:{f'{int(minute%60)}'.zfill(2)}:{f'{int(sec%60)}'.zfill(2)}"
+    
+    day = hour//24
+    return f"{day}day {f'{int(hour%24)}'.zfill(2)}:{f'{int(minute%(60))}'.zfill(2)}:{f'{int(sec%(60))}'.zfill(2)}"
+    
+    
 def get_time_str():
     return time.strftime('%Y%m%d_%H%M%S', time.localtime())
 

@@ -31,7 +31,7 @@ def _build_dataloader(dataset,
         batch_sampler=batch_sampler,
         collate_fn=partial(collate, samples_per_gpu=batch_size),    
         pin_memory=False,
-        worker_init_fn=init_fn) # TODO : run에서 persistent_workers사용하는지 확인
+        worker_init_fn=init_fn) 
     return data_loader
 
 
@@ -116,7 +116,7 @@ def collate(batch, samples_per_gpu=1):
             # >> expected: 
             #   len(stacked) == 1
             #   len(stacked[n]) == batchsize
-            #   stacked[n].shape = [m, 4],      m: instance의 개수??    # TODO
+        #   stacked[n].shape = [m, 4],    m: num of instance
             for i in range(0, len(batch), samples_per_gpu):
                 stacked.append([sample.data for sample in batch[i:i + samples_per_gpu]])
         return DataContainer(stacked, batch[0].stack, batch[0].padding_value)

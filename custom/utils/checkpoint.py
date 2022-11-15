@@ -4,7 +4,6 @@ from torch.optim import Optimizer
 import os
 import os.path as osp
 import re
-import logging
 from typing import Optional, Union
 from collections import OrderedDict
 

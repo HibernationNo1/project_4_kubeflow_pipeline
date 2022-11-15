@@ -369,14 +369,7 @@ class BitmapMasks:
             ])
         height, width = rescaled_masks.shape[1:]
         return BitmapMasks(rescaled_masks, height, width)
-    
-
-    
-    
-    
-    
         
-    
 
     def resize(self, out_shape, interpolation='nearest'):
         """See :func:`BaseInstanceMasks.resize`."""

@@ -7,17 +7,17 @@ import subprocess
 import cv2
 import os.path as osp
 import torch
-import time
+import numpy as np
 import os
 from utils.utils import get_time_str
 
-logger_initialized: dict = {}       # 어디서든 호출할 수 있도록 global선언
+logger_initialized: dict = {}       # dynamic programming
 log_recorder: dict = {}         
 log_info: dict = {}
 # Example
 # >>> from log import log_recorder
 # >>>    logger = log_recorder[f'{log_name}']
-# >>>    logger.info(f'key: \n{value}')     # log에 저장
+# >>>    logger.info(f'key: \n{value}')     
 
 TORCH_VERSION = torch.__version__
 
@@ -259,7 +259,7 @@ def print_log(msg, logger=None, level=logging.INFO):
 
 
 
-import numpy as np
+
 
 
 class LogBuffer:

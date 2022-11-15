@@ -15,8 +15,8 @@ class NMSop(torch.autograd.Function):
     @staticmethod
     def forward(ctx: Any, bboxes: Tensor, scores: Tensor, iou_threshold: float,
                 offset: int, score_threshold: float, max_num: int):
-        is_filtering_by_score = score_threshold > 0     # TODO : score_threshold을 0보다 높게 설정해보자
-                                                        # train_cfg.rpn_proposal.nms에서 score_threshold= 0.n 을 설정하면 된다
+        is_filtering_by_score = score_threshold > 0     # TODO_katib : set `core_threshold`` higher than 0 
+                                                        #   set `score_threshold= 0.n` at `train_cfg.rpn_proposal.nms`
 
         if is_filtering_by_score:
             valid_mask = scores > score_threshold
@@ -24,8 +24,8 @@ class NMSop(torch.autograd.Function):
             valid_inds = torch.nonzero(
                 valid_mask, as_tuple=False).squeeze(dim=1)
         
-        # non maximum suppression은 C로 작성된 모듈에서 진행한다.
-        # inds.shape = [n], n:추려진 anchors, value: anchor의 index
+        # `non maximum suppression` is runned in module written as C
+        # inds.shape = [n], n:seleted anchors, `value: index of anchor
         inds = ext_module.nms(bboxes, scores, iou_threshold=float(iou_threshold), offset=offset)
      
         if max_num > 0:
@@ -83,9 +83,9 @@ def nms(boxes, scores,
     assert boxes.size(0) == scores.size(0)
     assert offset in (0, 1)
 
-    # non maximum suppression 실행
+    # run `non maximum suppression`
     # inds.shape = [n], n:num_nchors after nms, value: index of anchors
-    inds = NMSop.apply(boxes, scores, iou_threshold, offset, score_threshold, max_num)     # NMSop의 forward
+    inds = NMSop.apply(boxes, scores, iou_threshold, offset, score_threshold, max_num)     # forward of NMSop
     
     # [num_nchors, 5],      5: [x_min, y_min, x_max, y_max, score]
     dets = torch.cat((boxes[inds], scores[inds].reshape(-1, 1)), dim=1)
@@ -156,7 +156,7 @@ def batched_nms(boxes: Tensor,
         boxes_for_nms = boxes
     else:
         # When using rotated boxes, only apply offsets on center.
-        if boxes.size(-1) == 5:     # 3D가 아니라 해당 없음
+        if boxes.size(-1) == 5:     # our dataset is not 3D. not applicable
             # Strictly, the maximum coordinates of the rotating box
             # (x,y,w,h,a) should be calculated by polygon coordinates.
             # But the conversion from rotated box to polygon will

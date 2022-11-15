@@ -19,7 +19,7 @@ from utils.log import create_logger, get_logger,LogBuffer
 
 class BaseModule(nn.Module, metaclass=ABCMeta):
     """Base module for all modules in openmmlab.
-        각 layer에 대해 parameter initialization를 수행
+        execute parameter initialization for each layer
         
     ``BaseModule`` is a wrapper of ``torch.nn.Module`` with additional
     functionality of parameter initialization. 
@@ -52,10 +52,9 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
         is_top_level_module = False
         # check if it is top-level module
         if not hasattr(self, '_params_init_info'):
-            # initialization information을 기록할 dict선언
+            # dict to recored initialization information
             self._params_init_info = defaultdict(dict)
             is_top_level_module = True
-            
             
             for name, param in self.named_parameters():
                 # init_info : describes the initialization.
@@ -63,8 +62,8 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
                                    f'The value is the same before and ' \
                                    f'after calling `init_weights` ' \
                                    f'of {self.__class__.__name__} '
-                # tmp_mean_value : parameter가 수정되었는지 여부를 나타내는 값의 평균
-                # 해당 값이 변경되었을 시 관련 initialization information를 update한다.
+                # tmp_mean_value : average of value indicating whethere parameter has been modified
+                #   if `tmp_mean_value` has been modified, updata initialization information
                 self._params_init_info[param]['tmp_mean_value'] = param.data.mean()
           
             # pass `params_init_info` to all submodules
@@ -77,10 +76,10 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
 
         module_name = self.__class__.__name__
         if not self._is_init:
-            if self.init_cfg:   # initializatiom대상 layer들만 init   
+            if self.init_cfg:   # initialize for initialization target layer 
                 logger.info(f'initialize {module_name} with init_cfg {self.init_cfg}')
                 
-                # 실질적으로 initialization을 수행하는 function
+                # actually run initizalize
                 initialize(self, self.init_cfg)
 
                 if isinstance(self.init_cfg, dict):
@@ -91,7 +90,7 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
             for module in self.children():
                 # update init infomation
                 if hasattr(module, 'init_weights'):
-                    module.init_weights()       # module별로 init_weights 수행 
+                    module.init_weights()       # run init_weights for each module 
                     # users may overload the `init_weights`
                     assert hasattr(module,'_params_init_info'), f'Can not find `_params_init_info` in {module}'
                     
@@ -126,7 +125,7 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
             for sub_module in self.modules():
                 del sub_module._params_init_info
 
-    # _dump_init_info는 single gpu인 경우에만 수행되어야 한다.
+    # only run in single gpu
     def _dump_init_info(self):
         """Dump the initialization information to a file named
         `initialization.log.json` in workdir.
@@ -149,16 +148,7 @@ class BaseModule(nn.Module, metaclass=ABCMeta):
         if not with_file_handler:
             for name, param in self.named_parameters():
                 logger.info(f'\n{name} - {param.shape}: '
-                            f"\n{self._params_init_info[param]['init_info']} \n ")
-                
-    
-        
-        
-     
-        
-    
-
-        
+                            f"\n{self._params_init_info[param]['init_info']} \n ")        
 
     def __repr__(self):
         s = super().__repr__()
@@ -204,9 +194,9 @@ class BaseInit:
     
     
 def _initialize(module: nn.Module, cfg: Dict, wholemodule: bool = False):
-    # 특정 type의 initialization을 실행 
-    # TODO : initialization algorithm을 추가해서 type의 개수가 늘어나면 registry로 관리
-    # TODO : cfg.type == Pretrained  도 추가하기
+    # execute initialization with specific type of initialization 
+    # TODO : add initialization algorithm and manege with registry
+    # TODO : add `cfg.type == Pretrained`
     from initialization import NormalInit, XavierInit
     
     cp_cfg = copy.deepcopy(cfg)
@@ -217,7 +207,7 @@ def _initialize(module: nn.Module, cfg: Dict, wholemodule: bool = False):
         func = XavierInit(**cp_cfg)
     
     
-    # wholemodule : override(재정의) 할 때 사용
+    # wholemodule : using for override
     func.wholemodule = wholemodule
     func(module)
 
@@ -266,12 +256,12 @@ def initialize(module: nn.Module, init_cfg: Union[Dict, List[dict]]):
             ``Kaiming``, and ``Pretrained``.
 
     Example:
-            # 1개의 layer에 대한 initialization
+            # initialization for only 1 layer
         >>> module = nn.Linear(2, 3, bias=True)
         >>> init_cfg = dict(type='Constant', layer='Linear', val =1 , bias =2)
         >>> initialize(module, init_cfg)
         
-            # n개의 layer에 대한 initialization
+            # initialization for n(>1) layers
         >>> module = nn.Sequential(nn.Conv1d(3, 1, 3), nn.Linear(1,2))
         >>> # define key ``'layer'`` for initializing layer with different
         >>> # configuration
@@ -331,7 +321,7 @@ def initialize(module: nn.Module, init_cfg: Union[Dict, List[dict]]):
         
 
 class ModuleList(BaseModule, nn.ModuleList):
-    """ ModuleList in openmmlab.
+    """ ModuleList in openmmlab.    ###
         layer를 class내에서 정의 후 list()로 감싸면 해당 class의 instance는 layer를 반환하지 않는다.
         하지만 ModuleList를 통해 layer를 감싸면 해당 class의 instance는 layer를 반환하게 되며 
         instance별로 layer list를 관리할 수 있다.
@@ -432,7 +422,7 @@ class BaseRunner(metaclass=ABCMeta):
         self._rank, self._world_size = 0, 1
         self.timestamp = get_time_str()
         self.mode = None
-        self._hooks = []    # hooks을 저장할 list
+        self._hooks = []    
         self._epoch = 0
         self._iter = 0
         self._inner_iter = 0
@@ -492,7 +482,7 @@ class BaseRunner(metaclass=ABCMeta):
         """int: Maximum training iterations."""
         return self._max_iters
 
-    @abstractmethod # 상속받을 class에서 사용 
+    @abstractmethod 
     def train(self):
         pass
     
@@ -504,7 +494,6 @@ class BaseRunner(metaclass=ABCMeta):
                         meta=None,
                         create_symlink=True):
         pass
-    # TODO
     
     def current_lr(self):
         """Get current learning rates.

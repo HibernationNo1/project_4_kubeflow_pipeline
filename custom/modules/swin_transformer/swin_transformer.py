@@ -125,7 +125,7 @@ class SwinTransformer(BaseModule):
         init_cfg (dict, optional): The Config for initialization.
             Defaults to None.
     """
-    # absolute position embedding 사용 안함(delete)
+    # delete `absolute position embedding``
     def __init__(self,
                  pretrain_img_size=224,
                  in_channels=3,
@@ -193,7 +193,7 @@ class SwinTransformer(BaseModule):
                     stride=strides[i + 1],
                     init_cfg=None)
             else:
-                downsample = None  # 마지막 layer은 downsample 없이
+                downsample = None  # don't apply `downsample` at last layer
             
             
             stage = SwinBlockSequence(
@@ -260,23 +260,23 @@ class SwinTransformer(BaseModule):
                                                   f'specify `Pretrained` in ' \
                                                   f'`init_cfg` in ' \
                                                   f'{self.__class__.__name__} '
-            # ckpt(dict): pre trained model의 각 layer에 대한 weight and bias 
+            # ckpt(dict): weight and bias about each layer of pre-trained model 
             ckpt = load_checkpoint(path = self.init_cfg.checkpoint, map_location='cpu', logger=logger)                                                  
             _state_dict = ckpt['model'] 
-            if self.convert_weights:        # _state_dict는 각 layer에 backbone이 명시됨
+            if self.convert_weights:        # write backbone name front of all layer name in _state_dict
                 # supported loading weight from original repo,
                 _state_dict = swin_converter(_state_dict) 
             
             state_dict = dict()
             for k, v in _state_dict.items():
                 if k.startswith('backbone.'):
-                    # layer에 backbone이 명시된 경우 'backborn'단어만 이름에서 delete
-                    state_dict[k[9:]] = v
+                    # if backbone name is written in front of layer name, delete backbone name 
+                    state_dict[k[9:]] = v   # len('backbone.') : 9
             
             # strip prefix of state_dict
             if list(state_dict.keys())[0].startswith('module.'):
-                # layer에 'module'이 명시된 경우 'module'단어만 이름에서 delete
-                state_dict = {k[7:]: v for k, v in state_dict.items()}
+                # delete `module` if `module` is written in front of layer name 
+                state_dict = {k[7:]: v for k, v in state_dict.items()}   # len('module.') : 7
 
             # interpolate position bias table if needed
             relative_position_bias_table_keys = [
@@ -354,8 +354,9 @@ class SwinBlockSequence(BaseModule):
         else:
             drop_path_rates = [deepcopy(drop_path_rate) for _ in range(depth)]
         
-        self.blocks = ModuleList()  # 그냥 list()를 사용하면 SwinBlockSequence의 instance변수는 self.blocks를 반환하지 않는다.
-        
+        # the variable `instance` of `SwinBlockSequence` is not return `self.blocks` 
+        # if you using list() rather than ModuleList()
+        self.blocks = ModuleList()  
         
         for i in range(depth):
             block = SwinBlock(
@@ -380,8 +381,8 @@ class SwinBlockSequence(BaseModule):
         for block in self.blocks:
             x = block(x, hw_shape)      # shape is same: [B, H*W, C]
         
-        if self.downsample:     # TODO: downsample의 output인 x_down, down_hw_shape를 사용 안함. 왜? 사용해보자.
-            # x_down: [B, H/2*W/2, 2*C]     stride, kernel size에 따라 상이함
+        if self.downsample:     # TODO_katib: not apply `self.downsample` way? od using this
+            # x_down: [B, H/2*W/2, 2*C]     -> depends on stride, kernel size
             x_down, down_hw_shape = self.downsample(x, hw_shape)        
 
             return x_down, down_hw_shape, x, hw_shape

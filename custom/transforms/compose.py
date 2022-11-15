@@ -17,7 +17,6 @@ PIPELINES = Registry('pipeline')
 
 class Compose:
     def __init__(self, transforms):
-        # pre-processing을 pipleline으로 엮은것을 한 번에 build하여 list에 저장, 반환
         # processing pipeline
         self.transforms = []
         for transform in transforms:
@@ -393,7 +392,7 @@ class Pad:
         self.pad_val = pad_val
         self.pad_to_square = pad_to_square
 
-        if pad_to_square:       # 정사각형으로 padding
+        if pad_to_square:       # padding by square shape
             assert size is None and size_divisor is None, \
                 'The size and size_divisor must be None ' \
                 'when pad2square is True'
@@ -462,7 +461,7 @@ class Pad:
 
 
 @PIPELINES.register_module()
-class RandomFlip:       # TODO: flip말고도 pre processing 더 넣는것을 구현. (name변경)
+class RandomFlip:       # TODO: add pre processing func 
     """Flip the image & bbox & mask.
 
     If the input dict contains the key "flip", then the flag will be used,
@@ -594,9 +593,8 @@ class RandomFlip:       # TODO: flip말고도 pre processing 더 넣는것을 �
 
             cur_dir = np.random.choice(direction_list, p=flip_ratio_list)
            
-            # TODO : flip_ratio = [0.3, 0.5, 0.2] 이면 전체 중 0.9%가 특정 flip이 적용된다.
-            # 전체 이미지해 대하여 flip(또는 이외의 pre-processing)을 적용한 후 
-            # 새로운 results return하여 image의 양을 불리는 argumentation연구해보자
+            # if flip_ratio = [0.3, 0.5, 0.2], 0.9% of the total is apllied flip 
+            # TODO : copy dataset and apply filp to all image(argumentation) 
             results['flip'] = cur_dir is not None
         
         if 'flip_direction' not in results:
@@ -696,7 +694,7 @@ class Resize:
         self.override = override
         self.bbox_clip_border = bbox_clip_border
 
-    # TODO 아래것들 사용하는지 확인
+    # TODO: using this
     # def random_select(img_scales):
     #     """Randomly select an img_scale from given candidates.
 
@@ -883,7 +881,6 @@ class Resize:
                 results['scale'] = tuple(
                     [int(x * scale_factor) for x in img_shape][::-1])
             else:
-                # 해당 code의 기대값 : _random_scale
                 self._random_scale(results)
         else:
             if not self.override:
@@ -895,7 +892,7 @@ class Resize:
                     results.pop('scale_factor')
                 self._random_scale(results)
 
-        # resizing image, 그리고 그에 맞춰 bbox, mask, segmentation도 resizing 
+        # resizing image, bbox, mask, polygons 
         self._resize_img(results)
         self._resize_bboxes(results)
         self._resize_masks(results)
@@ -1037,8 +1034,8 @@ class LoadAnnotations:
         """
         h, w = results['img_info']['height'], results['img_info']['width']
         gt_masks = results['ann_info']['masks']
-        # BitmapMasks만 취급한다
         
+        # we only use BitmapMasks
         gt_masks = BitmapMasks(
             [self._poly2mask(mask, h, w) for mask in gt_masks], h, w)
     

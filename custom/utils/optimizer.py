@@ -116,8 +116,7 @@ class DefaultOptimizerConstructor:
         # set param-wise lr and weight decay recursively
         params: List[Dict] = []
         
-        # 각 nn.module중 optimizer를 적용할 수 있는 parameter(weight, bias)에 대해
-        # lr, weight_decay등의 값을 적용하기 위한 list(dict) : params
+        # append parameters(weight, bias) to which opimizer can be applied among nn.models
         self.add_params(params, model)
         optimizer_cfg['params'] = params
   

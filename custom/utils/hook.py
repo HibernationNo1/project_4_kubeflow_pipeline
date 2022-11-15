@@ -99,7 +99,7 @@ class Hook:
 
     def get_triggered_stages(self):
         """
-            각각의 stage에 대해 활성화 할 hook을 select한다. 
+            choosing hook to activate at a specific stage 
             stage : before_run              
                     before_train_epoch      
                     before_train_iter       
@@ -583,7 +583,7 @@ class LoggerHook(Hook):
             epoch=runner.epoch + 1,  # self.get_epoch(runner),
             iter=cur_iter)
         
-        # learning rate 할당
+        # assign learning rate
         cur_lr = runner.current_lr()
         if isinstance(cur_lr, list):
             log_dict['lr'] = cur_lr[0]
@@ -676,7 +676,7 @@ class CheckpointHook(Hook):
         self.interval = interval
         self.by_epoch = by_epoch    
         self.save_optimizer = save_optimizer
-        self.out_dir = out_dir      # runner의 work_dir로 대체하기 위해 선언 필요
+        self.out_dir = out_dir      # declaration required to replace `runner.work_dir`
         self.max_keep_ckpts = max_keep_ckpts
         self.save_last = save_last
         self.args = kwargs
@@ -789,7 +789,7 @@ class OptimizerHook(Hook):
         
     def after_train_iter(self, runner):
         """
-            최적화 수행
+            execute optimizer
         """
         # initialize gradient
         runner.optimizer.zero_grad()
@@ -815,7 +815,7 @@ class OptimizerHook(Hook):
         
     def detect_anomalous_parameters(self, loss, runner):
         """
-            학습에 사용되지 않는 model의 parameter를 찾을 수 있다.
+            find parameter of model which not using training
         """
         logger = runner.logger
         parameters_in_graph = set()
@@ -846,12 +846,12 @@ class StepLrUpdaterHook(Hook):
     
     def __init__(self,
                  step: Union[int, List[int]],
-                 gamma: float = 0.1,            # learning rate에 변화를 줄 때 사용되는 상수
+                 gamma: float = 0.1,            # constance used to decay learning rate
                  min_lr: Optional[float] = None,
                  warmup: Optional[str] = None,
                  warmup_iters: int = 0,
                  warmup_ratio: float = 0.1,
-                 warmup_by_epoch: bool = False  # TODO : warmup의 개념 사용해보기
+                 warmup_by_epoch: bool = False  # TODO : apply warmup
                  ) -> None:
         if isinstance(step, list):
             for s in step:
@@ -881,8 +881,7 @@ class StepLrUpdaterHook(Hook):
         self.warmup_iters: Optional[int] = warmup_iters
         self.warmup_ratio = warmup_ratio
         self.warmup_by_epoch = warmup_by_epoch
-        
-        # TODO : warmup의 개념 사용해보기
+   
         if self.warmup_by_epoch:
             self.warmup_epochs: Optional[int] = self.warmup_iters
             self.warmup_iters = None
@@ -894,7 +893,6 @@ class StepLrUpdaterHook(Hook):
         
 
     def get_lr(self, runner: 'BaseRunner', base_lr: float):
-        # learning rate에 특정 값을 곱하여 변화를 준다
         progress = runner.epoch
         
         # calculate exponential term
@@ -934,7 +932,7 @@ class StepLrUpdaterHook(Hook):
         # NOTE: when resuming from a checkpoint, if 'initial_lr' is not saved,
         # it will be set according to the optimizer params
 
-        # 각 group에 적용할 learning rate
+        # learning rate to apply to each group
         for group in runner.optimizer.param_groups:
             group.setdefault('initial_lr', group['lr'])
         self.base_lr = [group['initial_lr'] for group in runner.optimizer.param_groups]
@@ -945,8 +943,8 @@ class StepLrUpdaterHook(Hook):
             epoch_len = len(runner.train_dataloader)  # type: ignore
             self.warmup_iters = self.warmup_epochs * epoch_len  # type: ignore
 
-        self.regular_lr = self.get_regular_lr(runner)   # 변동된(또는 되지 않은) learning rate
-        self._set_lr(runner, self.regular_lr)           # 각 parameter group에 대해 learning rete적용
+        self.regular_lr = self.get_regular_lr(runner)   # fixed(or not) learning rate
+        self._set_lr(runner, self.regular_lr)           # apply learning rete to each parameter group
     
     
     def before_train_iter(self, runner: 'BaseRunner'):
@@ -962,7 +960,7 @@ class StepLrUpdaterHook(Hook):
     
     
     def get_warmup_lr(self, cur_iters: int):
-        # learning rate에 warmup type에 따른 계산식을 통해 특정 값을 적용
+        # apply specific value computed by warmup type to learning rate
         def _get_warmup_lr(cur_iters, regular_lr):
             if self.warmup == 'constant':
                 warmup_lr = [_lr * self.warmup_ratio for _lr in regular_lr]

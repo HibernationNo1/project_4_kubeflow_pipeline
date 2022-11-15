@@ -2,7 +2,7 @@ import torch
 import time
 import os.path as osp
 from modules.base_module import BaseRunner
-from utils.utils import get_host_info
+from utils.utils import get_host_info, compute_sec_to_h_d
 
 from utils.hook import (Hook,
                         StepLrUpdaterHook, 
@@ -65,6 +65,7 @@ class EpochBasedRunner(BaseRunner):
             raise ValueError(f'runner has no method named "{mode}" to run an epoch')
         
         self.call_hook('before_run')
+        self.start_time = time.time()
         if self._max_epochs is not None:        
             while self.epoch < self._max_epochs:        # Training in epochs unit
                 epoch_runner = getattr(self, mode)      # call method (train, val, eval)
@@ -106,7 +107,7 @@ class EpochBasedRunner(BaseRunner):
         self.call_hook('before_train_epoch')
         time.sleep(2)  # Prevent possible deadlock during epoch transition
         for i, data_batch in enumerate(self.train_dataloader):
-            # data_batch: dataset의 pipelines > train_dataloader의 collate를 거친 data
+            # data_batch: data of passed by pipelines in dataset and collate train_dataloader
             # data_batch.keys() = ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks']
             self.data_batch = data_batch        
             self._inner_iter = i
@@ -124,6 +125,8 @@ class EpochBasedRunner(BaseRunner):
                                 mask_to_polygon= self.mask_to_polygon)    
                 eval = Evaluate(**eval_cfg)
                 mAP = eval.compute_mAP()
+                datatime = compute_sec_to_h_d(time.time() - self.start_time)
+                print(f"datatime ; {datatime}")
                 print(f"mAP ; {mAP}")
                 
                 self.mode = "train"

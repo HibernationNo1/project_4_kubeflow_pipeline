@@ -78,7 +78,7 @@ class CustomDataset(Dataset):
             self.pipeline = Compose(pipeline)
         
             
-            valid_inds = self._filter_imgs()    # isntance가 0개인 image는 버린다.
+            valid_inds = self._filter_imgs()    # discard image without instances
             self.data_infos = [self.data_infos[i] for i in valid_inds]
             
             # set group flag for the sampler
@@ -411,7 +411,7 @@ class CustomDataset(Dataset):
         
     def pre_pipeline(self, results):
         """Prepare results dict for pipeline."""
-        results['img_prefix'] = self.img_prefix     # image가 있는 dir path
+        results['img_prefix'] = self.img_prefix     # directory path where images are located
         results['bbox_fields'] = []
         results['mask_fields'] = []
         results['seg_fields'] = []

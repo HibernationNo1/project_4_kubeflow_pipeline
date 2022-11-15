@@ -39,7 +39,7 @@ class PatchMerging(BaseModule):
         init_cfg (dict, optional): The extra config for initialization.
             Default: None.
     """
-    # TODO: katib  kernel_size를 따로 설정해서 학습
+    # TODO_katib: check training performance after set `kernel_size`, `stride` and `dilation` 
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -266,7 +266,7 @@ class AdaptivePadding(nn.Module):
         self.stride = stride
         self.dilation = dilation
 
-    def get_pad_shape(self, input_shape):   # TODO: 현제 return = 0, 0임.  self.kernel_size,  self.stride,  self.dilation 세개 수정해서 값 변경 후 학습해보기
+    def get_pad_shape(self, input_shape):  
         input_h, input_w = input_shape
         kernel_h, kernel_w = self.kernel_size
         stride_h, stride_w = self.stride
