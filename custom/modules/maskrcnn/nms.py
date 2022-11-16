@@ -15,8 +15,7 @@ class NMSop(torch.autograd.Function):
     @staticmethod
     def forward(ctx: Any, bboxes: Tensor, scores: Tensor, iou_threshold: float,
                 offset: int, score_threshold: float, max_num: int):
-        is_filtering_by_score = score_threshold > 0     # TODO_katib : set `core_threshold`` higher than 0 
-                                                        #   set `score_threshold= 0.n` at `train_cfg.rpn_proposal.nms`
+        is_filtering_by_score = score_threshold > 0     
 
         if is_filtering_by_score:
             valid_mask = scores > score_threshold

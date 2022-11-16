@@ -176,10 +176,7 @@ class Hook:
         
         day = hour//24
         return f"{day}day {f'{int(hour%24)}'.zfill(2)}:{f'{int(minute%(60))}'.zfill(2)}:{f'{int(sec%(60))}'.zfill(2)}"
-         
-         
-    
-    
+             
 
 class Custom_Hook(Hook):
     def __init__(self, 

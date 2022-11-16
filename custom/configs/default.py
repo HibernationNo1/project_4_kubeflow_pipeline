@@ -17,7 +17,7 @@ log_config = dict(
 custom_hook_config = [dict(
     type='Custom_Hook',
     priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-    val_iter = 200,
+    val_iter = 50,
     show_eta_iter = 10
     )]
 

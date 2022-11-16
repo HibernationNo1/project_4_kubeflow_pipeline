@@ -29,7 +29,7 @@ def build_from_cfg(cfg, registry: 'Registry') :
             f'type must be a str type, but got {type(obj_type)}')
         
     obj_cls = registry.get(obj_type)
-    print(f"obj_cls : {obj_cls}")
+    # print(f"obj_cls : {obj_cls}")
     if obj_cls is None:
         raise KeyError(
             f'{obj_type} is not in the {registry.name} registry')
