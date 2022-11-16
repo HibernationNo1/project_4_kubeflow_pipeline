@@ -68,8 +68,8 @@ class EpochBasedRunner(BaseRunner):
         self.start_time = time.time()
         if self._max_epochs is not None:        
             while self.epoch < self._max_epochs:        # Training in epochs unit
-                epoch_runner = getattr(self, mode)      # call method (train, val, eval)
-                
+                # epoch_runner = getattr(self, mode)      # call method (train, val, eval)
+                epoch_runner = self.train
                 for _ in range(self._max_epochs):
                     epoch_runner(train_dataloader, val_dataloader, **kwargs)
         else:   # TODO: Training in epochs unit
@@ -118,20 +118,7 @@ class EpochBasedRunner(BaseRunner):
             self.call_hook('after_train_iter')
             
             if self.mode=="val" and self.val_cfg is not None:
-                self.model.eval()
-                eval_cfg = dict(model= self.model.eval(), 
-                                cfg= self.val_cfg,
-                                dataloader= val_dataloader,
-                                mask_to_polygon= self.mask_to_polygon)    
-                eval = Evaluate(**eval_cfg)
-                mAP = eval.compute_mAP()
-                datatime = compute_sec_to_h_d(time.time() - self.start_time)
-                print(f"datatime ; {datatime}")
-                print(f"mAP ; {mAP}")
-                
-                self.mode = "train"
-                self.model.train()
-                    
+                self.val(val_dataloader)
                 
             del self.data_batch
             self._iter += 1
@@ -139,6 +126,24 @@ class EpochBasedRunner(BaseRunner):
         self._epoch += 1
  
             
+            
+    def val(self, val_dataloader):
+        self.model.eval()
+        eval_cfg = dict(model= self.model.eval(), 
+                        cfg= self.val_cfg,
+                        dataloader= val_dataloader,
+                        mask_to_polygon= self.mask_to_polygon)
+        eval = Evaluate(**eval_cfg)   
+        mAP = eval.compute_mAP()
+        datatime = compute_sec_to_h_d(time.time() - self.start_time)
+        print(f"epoch: [{self.epoch}|{self.max_epochs}],    iter: [{self._inner_iter+1}|{self.iterd_per_epochs}]", end="")
+        print(f"mAP ; {mAP}     datatime ; {datatime}")
+        
+        self.mode = "train"
+        self.model.train()
+                
+         
+        
         
     
     def call_hook(self, fn_name):
