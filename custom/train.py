@@ -37,6 +37,16 @@ def parse_args():
     parser.add_argument('--test', action='store_true', default=False, help= "if True: run only test mode") 
     parser.add_argument('--val', action='store_true', default=False, help= "if True: run only val mode") 
     
+    swin_parser = parser.add_argument_group('SwinTransformer')
+    swin_parser.add_argument('--pm_kernel_size', type = int, help= "kernel_size of SwinTransformer.PatchMerging") 
+    swin_parser.add_argument('--pm_dilation', type = int, help= "dilation of SwinTransformer.PatchMerging") 
+    swin_parser.add_argument('--drop_rate', type = float, help= "drop_rate of SwinTransformer") 
+    swin_parser.add_argument('--drop_path_rate', type = float, help= "drop_path_rate of SwinTransformer") 
+    swin_parser.add_argument('--window_size', type = int, 
+                                         help= "window_size of SwinTransformer.SwinBlockSequence.SwinBlock.ShiftWindowMSA") 
+    swin_parser.add_argument('--attn_drop_rate', type = float, help= "attn_drop_rate of SwinTransformer.SwinBlockSequence.ShiftWindowMSA.WindowMSA") 
+     
+  
     args = parser.parse_args()
     
     return args
@@ -63,9 +73,7 @@ def set_config(args):
             cfg.workflow = [("val", None)]
             confirm_model_path(cfg, args)
             assert isinstance(cfg.data.val.batch_size, int)
-            assert osp.isdir(cfg.data.val.data_root)
-        
-                
+            assert osp.isdir(cfg.data.val.data_root)           
     
     if args.epo is not None:
         new_flow = []
@@ -81,7 +89,21 @@ def set_config(args):
             if custom_hook_config.get("type", None) == "Custom_Hook":
                 cfg.custom_hook_config[i].val_iter = args.val_iter
     
- 
+    
+    if args.pm_kernel_size is not None:
+        cfg.model.backbone.pm_kernel_size = args.pm_kernel_size
+    if args.pm_dilation is not None:
+        cfg.model.backbone.pm_dilation = args.pm_dilation
+    if args.window_size is not None:
+        cfg.model.backbone.window_size = args.window_size
+    if args.drop_rate is not None:
+        cfg.model.backbone.drop_rate = args.drop_rate
+    if args.attn_drop_rate is not None:
+        cfg.model.backbone.attn_drop_rate = args.attn_drop_rate
+    if args.drop_path_rate is not None:
+        cfg.model.backbone.drop_path_rate = args.drop_path_rate
+    
+      
     return cfg
 
 

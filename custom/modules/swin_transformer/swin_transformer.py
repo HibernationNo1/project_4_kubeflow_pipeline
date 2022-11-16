@@ -139,6 +139,8 @@ class SwinTransformer(BaseModule):
                  out_indices=(0, 1, 2, 3),
                  qkv_bias=True,
                  qk_scale=None,
+                 pm_kernel_size = 2,
+                 pm_dilation = 1,
                  drop_rate=0.,
                  attn_drop_rate=0.,
                  drop_path_rate=0.1,
@@ -190,6 +192,8 @@ class SwinTransformer(BaseModule):
                 downsample = PatchMerging(
                     in_channels=in_channels,
                     out_channels=2 * in_channels,
+                    kernel_size = pm_kernel_size,
+                    dilation = pm_dilation,
                     stride=strides[i + 1],
                     init_cfg=None)
             else:
@@ -381,7 +385,7 @@ class SwinBlockSequence(BaseModule):
         for block in self.blocks:
             x = block(x, hw_shape)      # shape is same: [B, H*W, C]
         
-        if self.downsample:     # TODO_katib: not apply `self.downsample` way? od using this
+        if self.downsample:   
             # x_down: [B, H/2*W/2, 2*C]     -> depends on stride, kernel size
             x_down, down_hw_shape = self.downsample(x, hw_shape)        
 
