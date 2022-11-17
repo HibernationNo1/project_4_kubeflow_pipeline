@@ -9,6 +9,7 @@ from tqdm import tqdm
 from utils.utils import get_device, set_meta, confirm_model_path
 from utils.config import Config
 from utils.log import set_logger_info, create_logger, collect_env, log_info
+from utils.visualization import show_result, mask_to_polygon
 from builder import (build_model, 
                      build_dataset, 
                      build_dataloader, 
@@ -16,9 +17,9 @@ from builder import (build_model,
                      build_optimizer, 
                      build_runner,
                      build_detector)
-from eval import Evaluate
-from inference import inference_detector
-from visualization import show_result, mask_to_polygon
+from eval.eval import Evaluate
+from eval.inference import inference_detector
+
 
 import __init__ # to import all module and function 
 
@@ -112,7 +113,8 @@ def set_config(args):
 if __name__ == "__main__":
     print(f'pytorch version: {torch.__version__}')
     assert torch.cuda.is_available(), f'torch.cuda.is_available() is {torch.cuda.is_available()}!'
- 
+    print(f"torch.version.cuda: {torch.version.cuda}")
+    
     args = parse_args()
     cfg = set_config(args)
     

@@ -9,7 +9,7 @@ from torch.nn.modules.utils import _pair
 
 from modules.base_module import BaseModule
 from loss import CrossEntropyLoss, L1Loss
-from assigner import MaxIoUAssigner
+from modules.maskrcnn.assigner import MaxIoUAssigner
 from initialization import constant_init
 
 from datasets.sampler import RandomSampler

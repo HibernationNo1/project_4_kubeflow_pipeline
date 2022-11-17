@@ -1,7 +1,7 @@
 from distutils.command.config import config
 import torch
-from assigner import MaxIoUAssigner
 
+from modules.maskrcnn.assigner import MaxIoUAssigner
 from modules.maskrcnn.bbox_head import SingleRoIExtractor, Shared2FCBBoxHead
 from modules.maskrcnn.mask_head import FCNMaskHead
 from datasets.sampler import RandomSampler

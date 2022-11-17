@@ -11,7 +11,7 @@ from utils.hook import (Hook,
                         IterTimerHook, 
                         LoggerHook, 
                         Custom_Hook)
-from eval import Evaluate
+from eval.eval import Evaluate
 from utils.checkpoint import save_checkpoint as sc_save_checkpoint 
 priority_dict = {'HIGHEST' : 0,
                  'VERY_HIGH' : 10,
@@ -136,8 +136,8 @@ class EpochBasedRunner(BaseRunner):
         eval = Evaluate(**eval_cfg)   
         mAP = eval.compute_mAP()
         datatime = compute_sec_to_h_d(time.time() - self.start_time)
-        print(f"epoch: [{self.epoch}|{self.max_epochs}],    iter: [{self._inner_iter+1}|{self.iterd_per_epochs}]", end="")
-        print(f"mAP ; {mAP}     datatime ; {datatime}")
+        print(f"epoch: [{self.epoch}|{self.max_epochs}],    iter: [{self._inner_iter+1}|{self.iterd_per_epochs}]", end="    ")
+        print(f"mAP {mAP}     datatime : {datatime}")
         
         self.mode = "train"
         self.model.train()
