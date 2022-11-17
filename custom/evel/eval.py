@@ -1,5 +1,5 @@
 import numpy as np
-from inference import inference_detector, parse_inferece_result
+from eval.inference import inference_detector, parse_inferece_result
 
 def compute_iou(infer_box, gt_box):
     """

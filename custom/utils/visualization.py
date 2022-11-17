@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import random
 
-from eval import parse_inferece_result 
+from eval.eval import parse_inferece_result 
 
 def show_result(img,
                 result,
