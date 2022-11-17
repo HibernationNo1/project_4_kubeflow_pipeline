@@ -56,7 +56,7 @@ test_result = "result/test"
 eval_result = 'eval'
 
 data = dict(
-    samples_per_gpu=2,  # batch_size
+    samples_per_gpu=1,  # batch_size
     workers_per_gpu=1, 
     train=dict(
         data_root = data_root + "/" + train_data,
