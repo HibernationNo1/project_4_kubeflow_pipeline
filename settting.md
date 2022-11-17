@@ -849,17 +849,32 @@ Version: {KustomizeVersion:3.2.0 GitCommit:a3103f1e62ddb5b696daa3fd359bb6f2e8333
           $kustomize build common/user-namespace/base | kubectl apply -f -
           ```
 
+   3. confirm kubeflow install
+
+      ```
+      $ kubectl get namespace
+      ```
+
+      ```
+      NAME                        STATUS   AGE
+      auth                        Active   101s
+      cert-manager                Active   101s
+      istio-system                Active   101s
+      knative-eventing            Active   101s
+      knative-serving             Active   101s
+      kubeflow                    Active   101s
+      kubeflow-user-example-com   Active   66s
+      ```
+
+      > 위 namespace가 생성되었는지 확인
+
       
 
-2. 모든 pod 구동
+      모든 pod의 status확인
 
-   ```
-   $ kubectl get po -A -w
-   ```
-
-   > 길게는 몇십분까지 걸림
-
-
+      ```
+      $ kubectl get po -A
+      ```
 
 
 
@@ -915,7 +930,7 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
 
    ```
    - email: winter4958@gmail.com
-     hash: $2a$12$lRDeywzDl4ds0oRR.erqt.b5fmNpvJb0jdZXE0rMNYdmbfseTzxNW
+     hash: $2a$12$s21uO0l2X8Faib/pwkq.J.Tx1x4cKGFn5IwT/tri26W6c7c4Fafha
      userID: "taeuk"
      username: taeuk
    ```
