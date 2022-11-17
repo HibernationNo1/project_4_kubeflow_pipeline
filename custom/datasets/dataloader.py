@@ -22,7 +22,6 @@ def _build_dataloader(dataset,
     batch_sampler = None
     
     init_fn = partial(worker_init_fn, num_workers=num_workers,seed=seed) if seed is not None else None
-    
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
