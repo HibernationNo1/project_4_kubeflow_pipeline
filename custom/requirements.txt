@@ -1,0 +1,10 @@
+
+opencv-python
+tqdm
+terminaltables
+pycocotools
+mmdet_taeuk4958
+
+
+# conda create -n mask python=3.8 pytorch==1.11.0 torchvision cudatoolkit=11.3 -c conda-forge -y 
+# pip install mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
