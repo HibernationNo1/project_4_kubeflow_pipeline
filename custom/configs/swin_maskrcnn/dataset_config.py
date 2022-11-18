@@ -57,7 +57,7 @@ eval_result = 'eval'
 
 data = dict(
     samples_per_gpu=1,  # batch_size
-    workers_per_gpu=1, 
+    workers_per_gpu=1,  # set 0 when running by katib (not have enough shared memory)
     train=dict(
         data_root = data_root + "/" + train_data,
         ann_file= 'train_dataset.json',
