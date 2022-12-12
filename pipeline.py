@@ -1,21 +1,20 @@
-from xmlrpc.client import boolean
+
 import kfp
 import kfp.dsl as dsl
  
 import argparse
 import time
 
-from utils.check_op import check_status_op
-from record.record_dataset_op import record_op
-from record.save_GS_op import save_dataset_op
+# from utils.check_op import check_status_op
+# from record.record_dataset_op import record_op
+# from record.save_GS_op import save_dataset_op
 
-from train.train_op import train_op
+# from train.train_op import train_op
 
-from pipeline_config import Pipeline_Config
-from pipeline_utils import (connet_client,get_experiment, get_params, run_pipeline, get_pipeline_id, set_config)
+from pipeline_utils import (connet_client,get_experiment, get_params, run_pipeline, get_pipeline_id)
 
 from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
-
+from hibernation_no1.configs.config import Config
 
 @dsl.pipeline(name="hibernation_project")
 def project_pipeline(input_mode : str, cfg: dict):    
@@ -77,77 +76,93 @@ def project_pipeline(input_mode : str, cfg: dict):
         
         
         pass
-         
-         
-def parse_args(pl_cfg):
-    parser = argparse.ArgumentParser(description="Change structure from comments to custom dataset in json file format.")    
-    
-    parser.add_argument("--pipeline_v", type = str, required = True, help="version of pipeline")    
-    parser.add_argument("--pipeline_n", type = str, default= pl_cfg.PIPELINE_NAME, help="name of pipeline")    
-    
-    
-    parser.add_argument('--mode', required = True, choices=['record', 'train', 'test'])
-    parser.add_argument("--cfg", required = True, help="name of config file")
-    
 
-    parser.add_argument("--proportion-val", type=float, default = 0.0, 
-                        help = "split proportion from train_dataset to val_dataset for valditate during training.       support mode: record") 
-    parser.add_argument('--dataset', 
-                        help = 'annotations dir path    support mode: record, train')
-    parser.add_argument('--client_secrets', default= 'client_secrets.json',
-                        help = 'client_secrets file path (json format).     support mode: record, train')
-    parser.add_argument('--ann_bk_name', 
-                        help = 'bucket_name of annotation dataset stored in google cloud storage.       support mode: record, train')
-    parser.add_argument('--dataset_bk_name', 
-                        help = 'bucket_name of annotation dataset stored in google cloud storage.       support mode: record, train')
-    parser.add_argument('--dataset_v', type = str, 
-                        help = 'version of recorded dataset to be store in google cloud storage.        support mode: record, train')
+
+def get_config(args):
+    return Config.fromfile(args.cfg_pipeline), Config.fromfile(args.cfg_ai)
+        
+def set_pipeline_cfg(args, cfg):
+    if args.pipeline_n is not None: cfg.kbf.pipeline.name = args.pipeline_n
+    if args.experiment_n is not None: cfg.kbf.experiment.name = args.experiment_n
+    if args.run_n is not None: cfg.kbf.run.name = args.run_n    
+    cfg.kbf.dashboard.pw =  args.pipeline_pw 
+
+    if args.client_secrets is not None: cfg.gs.client_secrets = args.client_secrets   
     
-    parser.add_argument('--epo', type= int, help= "mode-train: max epoch, \n mode-test : model name in .pth format,  usually epoch number")
-    parser.add_argument( '--validate', default=False, action="store_true",
-                        help= 'whether do evaluate the checkpoint during training.      support mode: train')
-    parser.add_argument( '--finetun', default=False, action="store_true",
-                        help= 'whether do fine tuning.      support mode: train')
-    parser.add_argument('--model_v', type = str, default= str(time.strftime('%Y%m%d_%H%M%S', time.localtime())),
-                        help= "directory name. version of model to be store in google cloud storage.        support mode: train")
-    parser.add_argument('--seed', type=int, default=None, 
-                        help='random seed.      support mode: train')
-    parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument('--deterministic', action='store_true',
-                        help='whether to set deterministic options for CUDNN backend.       support mode: train')
+         
+
+
+def set_config(args):
+    cfg_pipeline, cfg_ai = get_config(args)
+      
+    set_pipeline_cfg(args, cfg_pipeline)
+
+    # set_ai_cfg()
+    
+    if args.model_name is not None: cfg_ai.filename_tmpl = f"{args.model_name}"+"_{}.path"
+
+    if args.pm_dilation is not None: cfg_ai.model.backbone.pm_dilation = args.pm_dilation
+    if args.drop_rate is not None: cfg_ai.model.backbone.drop_rate = args.drop_rate
+    if args.drop_path_rate is not None: cfg_ai.model.backbone.drop_path_rate = args.drop_path_rate
+    if args.attn_drop_rate is not None: cfg_ai.model.backbone.attn_drop_rate = args.attn_drop_rate
+    
+    return cfg_pipeline, cfg_ai
+         
+def parse_args():
+    parser = argparse.ArgumentParser()    
+    parser.add_argument("--cfg_pipeline", required = True, help="name of config file which for pipeline")       
+    parser.add_argument("--cfg_ai", required = True, help="name of config file which for ai")                           # TODO: 이름 바꾸기
+    
+    kbf_parser = parser.add_argument_group('kubeflow')
+    kbf_parser.add_argument("--pipeline_pw", type = str, required = True, help="password of kubeflow dashboard")        # required
+    kbf_parser.add_argument("--pipeline_v", type = str, required = True, help="version of pipeline")                    # required
+    kbf_parser.add_argument("--pipeline_n", type = str, help="name of pipeline")    
+    kbf_parser.add_argument("--experiment_n", type = str, help="name of experiment") 
+    kbf_parser.add_argument("--run_n", type = str, help="name of run") 
+    
+    gs_parser = parser.add_argument_group('google_strage')
+    gs_parser.add_argument('--client_secrets', help = 'client_secrets file path (json format).')
+    
+    
+    parser.add_argument('--model_name', type = str, help= "name of model(.pth format)") 
+
+    
+    swin_parser = parser.add_argument_group('SwinTransformer')
+    swin_parser.add_argument('--pm_dilation', type = int, help= "dilation of SwinTransformer.PatchMerging") 
+    swin_parser.add_argument('--drop_rate', type = float, help= "drop_rate of SwinTransformer") 
+    swin_parser.add_argument('--drop_path_rate', type = float, help= "drop_path_rate of SwinTransformer") 
+    swin_parser.add_argument('--attn_drop_rate', type = float, help= "attn_drop_rate of SwinTransformer.SwinBlockSequence.ShiftWindowMSA.WindowMSA") 
     
     
     args = parser.parse_args()
+    cfg_pipeline, cfg_ai = set_config(args)
+ 
     input_args = vars(args)
     
-    return args, input_args
+    return args, input_args, cfg_pipeline, cfg_ai
        
-# python pipeline.py --mode record --cfg record_config.py --dataset_v 0.1 --pipeline_n recode_1 --pipeline_v 0.1
-# python pipeline.py --mode train --cfg swin_maskrcnn.py --pipeline_n train --pipeline_v 0.1
+# python pipeline.py --cfg_pipeline pipeline_config.py --cfg_ai config/swin_maskrcnn.py  --pipeline_v 0.1  --pipeline_pw 4958
 if __name__=="__main__":      
-
-    pl_cfg = Pipeline_Config()              # get config
-    args, input_args = parse_args(pl_cfg)   # get args, input_args    
-
-    cfg_dict, tuple_flag = set_config(args, pl_cfg)
-    
-    
+    args, input_args, cfg_pipeline, cfg_ai = parse_args()  
+             
+    # print("\n connet_client")
+    # client = connet_client(cfg_pipeline.kbf.dashboard)  
+          
     print("\n compile pipeline")             
     kfp.compiler.Compiler().compile(
         project_pipeline,
         f"./{pl_cfg.PIPELINE_PAC}"
         )
 
-    print("\n connet_client")
-    client = connet_client(pl_cfg)  
     
-    print("\n get experiment")
-    experiment_id = get_experiment(client, pl_cfg)          # get experiment id by create experiment or load experiment info
     
-    pipeline_id = get_pipeline_id(pl_cfg, args, client)     # get experiment id by create pipeline or updata pipeline version
+    # print("\n get experiment")
+    # experiment_id = get_experiment(client, pl_cfg)          # get experiment id by create experiment or load experiment info
     
-    params_dict = get_params(args, args.cfg, cfg_dict, tuple_flag)              # parameters for pipeline run
-    run_pipeline(client, experiment_id, pipeline_id, params_dict, pl_cfg.RUN_NAME)
+    # pipeline_id = get_pipeline_id(pl_cfg, args, client)     # get experiment id by create pipeline or updata pipeline version
+    
+    # params_dict = get_params(args, args.cfg, cfg_dict, tuple_flag)              # parameters for pipeline run
+    # run_pipeline(client, experiment_id, pipeline_id, params_dict, pl_cfg.RUN_NAME)
     
     
     

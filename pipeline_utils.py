@@ -148,24 +148,23 @@ def get_experiment(client, pl_cfg) :
     return experiment_id
 
 
-def connet_client(pl_cfg):   
+def connet_client(cfg):   
     session = requests.Session()
-    response = session.get(pl_cfg.HOST)
+    response = session.get(cfg.host)
 
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    data = {"login": pl_cfg.USERNAME, "password": pl_cfg.PASSWORD}
+    data = {"login": cfg.user_n, "password": cfg.pw}
     session.post(response.url, headers=headers, data=data)                              
     session_cookie = session.cookies.get_dict()["authservice_session"]  
     
-    print(f"session_cookie : {session_cookie}")
-    exit()
+   
     # access kubeflow dashboard
     client = kfp.Client(
-        host=f"{pl_cfg.HOST}/pipeline",
-        namespace=f"{pl_cfg.NAMESPACE}",
+        host=f"{cfg.host}/pipeline",
+        namespace=f"{cfg.name_space}",
         cookies=f"authservice_session={session_cookie}",
     )
     return client
