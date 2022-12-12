@@ -39,12 +39,9 @@ def parse_args():
     parser.add_argument('--val', action='store_true', default=False, help= "if True: run only val mode") 
     
     swin_parser = parser.add_argument_group('SwinTransformer')
-    swin_parser.add_argument('--pm_kernel_size', type = int, help= "kernel_size of SwinTransformer.PatchMerging") 
     swin_parser.add_argument('--pm_dilation', type = int, help= "dilation of SwinTransformer.PatchMerging") 
     swin_parser.add_argument('--drop_rate', type = float, help= "drop_rate of SwinTransformer") 
     swin_parser.add_argument('--drop_path_rate', type = float, help= "drop_path_rate of SwinTransformer") 
-    swin_parser.add_argument('--window_size', type = int, 
-                                         help= "window_size of SwinTransformer.SwinBlockSequence.SwinBlock.ShiftWindowMSA") 
     swin_parser.add_argument('--attn_drop_rate', type = float, help= "attn_drop_rate of SwinTransformer.SwinBlockSequence.ShiftWindowMSA.WindowMSA") 
      
   
@@ -52,11 +49,14 @@ def parse_args():
     
     return args
 
+
+
 def set_config(args):
     cfg_path = args.cfg
     config_file_path = osp.join(os.getcwd(), cfg_path)
     cfg = Config.fromfile(config_file_path)
-    
+    print(cfg)
+    exit()
     cfg.seed = np.random.randint(2**31)
     cfg.device = get_device()    
     
