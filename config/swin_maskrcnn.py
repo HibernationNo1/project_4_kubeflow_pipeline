@@ -1,21 +1,11 @@
-base_list = [
-    'swin_maskrcnn/mask_rcnn_r50_fpn.py',     # 'swin_maskrcnn/mask_rcnn_r50_fpn.py"
-    'swin_maskrcnn/dataset_config.py',     # 'swin_maskrcnn/dataset_config.py'
-    'swin_maskrcnn/schedule_1x.py',       # 'swin_maskrcnn/schedule_1x.py'
-    './default_runtime.py'        # './default_runtime.py'  
+_base_ = [
+    'swin_maskrcnn/mask_rcnn.py',
+    'swin_maskrcnn/dataset_config.py',
+    'swin_maskrcnn/schedule_1x.py',
+    './default.py'
 ]
 
-
-_base_ = base_list
-
-
-
-validate = False
-finetun = True
-model_version = 'time'
-seed = None
-deterministic = True
-device = 'cuda:0'
+train_result = "result/train"
 
 pretrained ='https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_tiny_patch4_window7_224.pth'
 model = dict(
@@ -30,13 +20,15 @@ model = dict(
         mlp_ratio=4,
         qkv_bias=True,
         qk_scale=None,
+        pm_kernel_size = 2,
+        pm_dilation = 1,
         drop_rate=0.,
         attn_drop_rate=0.,
         drop_path_rate=0.2,
-        patch_norm=True,
         out_indices=(0, 1, 2, 3),
         with_cp=False,
-        convert_weights=True,
+        convert_weights=True,       # add backbone name before layer name when run weight initalization
+                                    # if True : patch_embed.projection.weight >> backbone.patch_embed.projection.weight
         init_cfg=dict(type='Pretrained', checkpoint=pretrained)),       # fine tuning
     neck=dict(in_channels=[96, 192, 384, 768]))
 
@@ -53,4 +45,3 @@ optimizer = dict(
             'norm': dict(decay_mult=0.)
         }))
 lr_config = dict(warmup_iters=1000, step=[8, 11])
-runner = dict(max_epochs=3)
