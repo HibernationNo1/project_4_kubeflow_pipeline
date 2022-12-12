@@ -26,4 +26,4 @@ RUN pip install -r requirements.txt
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools
 RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
 
-# ENTRYPOINT python train.py --cfg configs/swin_maskrcnn.py --epo 50 --val_iter 50
+# ENTRYPOINT python train.py --cfg configs/swin_maskrcnn.py --epo 50

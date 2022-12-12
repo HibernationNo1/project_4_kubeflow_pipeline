@@ -38,6 +38,9 @@ def parse_args():
     parser.add_argument('--test', action='store_true', default=False, help= "if True: run only test mode") 
     parser.add_argument('--val', action='store_true', default=False, help= "if True: run only val mode") 
     
+    parser.add_argument('--katib', action='store_flase', help= "for test katib") 
+    
+    
     swin_parser = parser.add_argument_group('SwinTransformer')
     swin_parser.add_argument('--pm_dilation', type = int, help= "dilation of SwinTransformer.PatchMerging") 
     swin_parser.add_argument('--drop_rate', type = float, help= "drop_rate of SwinTransformer") 
@@ -91,12 +94,8 @@ def set_config(args):
                 cfg.custom_hook_config[i].val_iter = args.val_iter
     
     
-    if args.pm_kernel_size is not None:
-        cfg.model.backbone.pm_kernel_size = args.pm_kernel_size
     if args.pm_dilation is not None:
         cfg.model.backbone.pm_dilation = args.pm_dilation
-    if args.window_size is not None:
-        cfg.model.backbone.window_size = args.window_size
     if args.drop_rate is not None:
         cfg.model.backbone.drop_rate = args.drop_rate
     if args.attn_drop_rate is not None:
@@ -104,7 +103,10 @@ def set_config(args):
     if args.drop_path_rate is not None:
         cfg.model.backbone.drop_path_rate = args.drop_path_rate
     
-      
+    if args.katib:
+        cfg.data.workers_per_gpu = 0
+        
+    
     return cfg
 
 
@@ -229,11 +231,14 @@ if __name__ == "__main__":
             elif cfg.load_from:
                 train_runner.load_checkpoint(cfg.load_from)
             
+            if args.kaitb:
+                katib_logger = create_logger("katib")
             run_cfg = dict(train_dataloader = train_dataloader,
                            val_dataloader = val_dataloader,
                            flow = flow,
                            val_cfg = cfg,
-                           mask_to_polygon = mask_to_polygon)
+                           mask_to_polygon = mask_to_polygon,
+                           katib_logger=katib_logger)
             train_runner.run(**run_cfg)
             
         

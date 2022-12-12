@@ -106,6 +106,8 @@ class EpochBasedRunner(BaseRunner):
         self.train_dataloader = train_dataloader
         self.call_hook('before_train_epoch')
         time.sleep(2)  # Prevent possible deadlock during epoch transition
+        
+        
         for i, data_batch in enumerate(self.train_dataloader):
             # data_batch: data of passed by pipelines in dataset and collate train_dataloader
             # data_batch.keys() = ['img_metas', 'img', 'gt_bboxes', 'gt_labels', 'gt_masks']
@@ -118,7 +120,7 @@ class EpochBasedRunner(BaseRunner):
             self.call_hook('after_train_iter')
             
             if self.mode=="val" and self.val_cfg is not None:
-                self.val(val_dataloader)
+                self.val(val_dataloader, **kwargs)
                 
             del self.data_batch
             self._iter += 1
@@ -127,7 +129,11 @@ class EpochBasedRunner(BaseRunner):
  
             
             
-    def val(self, val_dataloader):
+    def val(self, val_dataloader, **kwargs):
+        
+            
+        
+        
         self.model.eval()
         eval_cfg = dict(model= self.model.eval(), 
                         cfg= self.val_cfg,
@@ -136,8 +142,14 @@ class EpochBasedRunner(BaseRunner):
         eval = Evaluate(**eval_cfg)   
         mAP = eval.compute_mAP()
         datatime = compute_sec_to_h_d(time.time() - self.start_time)
-        print(f"epoch: [{self.epoch}|{self.max_epochs}],    iter: [{self._inner_iter+1}|{self.iterd_per_epochs}]", end="    ")
-        print(f"mAP {mAP}     datatime : {datatime}")
+        log_str = f"epoch: [{self.epoch}|{self.max_epochs}],    iter: [{self._inner_iter+1}|{self.iterd_per_epochs}]    "
+        log_str +=f"mAP={mAP}       datatime={datatime}\n"
+        
+        katib_logger = kwargs.get("katib_logger", None)
+        if katib_logger is not None:
+            katib_logger.logger.info(log_str)
+        else:
+            print(log_str)
         
         self.mode = "train"
         self.model.train()
