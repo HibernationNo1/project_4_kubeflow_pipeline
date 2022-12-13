@@ -1,0 +1,28 @@
+name: Check status
+inputs:
+- {name: cfg_dict, type: JsonObject}
+- {name: boolean_flag_dict, type: JsonObject}
+implementation:
+  container:
+    image: hibernation4958/check:0.1
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def check_status(cfg_dict, boolean_flag_dict) :\n\n    import os    \n    from\
+      \ hibernation_no1.configs.utils import change_to_tuple\n    from hibernation_no1.configs.config\
+      \ import Config\n\n    cfg = change_to_tuple(cfg_dict, boolean_flag_dict)\n\
+      \    cfg = Config(cfg)\n    print(cfg)\n\nimport json\nimport argparse\n_parser\
+      \ = argparse.ArgumentParser(prog='Check status', description='')\n_parser.add_argument(\"\
+      --cfg-dict\", dest=\"cfg_dict\", type=json.loads, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--boolean-flag-dict\", dest=\"boolean_flag_dict\", type=json.loads,\
+      \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+      \n_outputs = check_status(**_parsed_args)\n"
+    args:
+    - --cfg-dict
+    - {inputValue: cfg_dict}
+    - --boolean-flag-dict
+    - {inputValue: boolean_flag_dict}
