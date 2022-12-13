@@ -1,16 +1,31 @@
+
+
+
+pretrained ='https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_tiny_patch4_window7_224.pth'
+
 # model settings
 model = dict(
     type='MaskRCNN',
     backbone=dict(
-        type='ResNet',
-        depth=50,
-        num_stages=4,
+        _delete_=True,
+        type='SwinTransformer',
+        embed_dims=96,
+        depths=[2, 2, 6, 2],
+        num_heads=[3, 6, 12, 24],
+        window_size=7,
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        pm_kernel_size = 2,
+        pm_dilation = 1,
+        drop_rate=0.,
+        attn_drop_rate=0.,
+        drop_path_rate=0.2,
         out_indices=(0, 1, 2, 3),
-        frozen_stages=1,
-        norm_cfg=dict(type='BN', requires_grad=True),
-        norm_eval=True,
-        style='pytorch',
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
+        with_cp=False,
+        convert_weights=True,       # add backbone name before layer name when run weight initalization
+                                    # if True : patch_embed.projection.weight >> backbone.patch_embed.projection.weight
+        init_cfg=dict(type='Pretrained', checkpoint=pretrained)),       # fine tuning
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
@@ -127,3 +142,4 @@ model = dict(
             nms=dict(type='nms', iou_threshold=0.5),
             max_per_img=100,
             mask_thr_binary=0.5)))
+

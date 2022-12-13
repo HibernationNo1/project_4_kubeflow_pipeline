@@ -1,5 +1,5 @@
 
-
+train_result = "result/train"
 
 checkpoint_config = dict(
     interval=1,         # epoch(or iter) unit to save model
