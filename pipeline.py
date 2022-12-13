@@ -5,19 +5,20 @@ import kfp.dsl as dsl
 import argparse
 import time
 
-# from utils.check_op import check_status_op
+from utils.check_op import check_status_op
 # from record.record_dataset_op import record_op
 # from record.save_GS_op import save_dataset_op
 
 # from train.train_op import train_op
 
-from pipeline_utils import (connet_client,get_experiment, get_params, run_pipeline, get_pipeline_id)
+from pipeline_utils import (connet_client,get_experiment, get_params, run_pipeline, upload_pipeline, 
+                            kfb_print)
 
 from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
 from hibernation_no1.configs.config import Config
 
 @dsl.pipeline(name="hibernation_project")
-def project_pipeline(input_mode : str, cfg: dict):    
+def project_pipeline(cfg_dict : dict, boolean_flag_dict : dict):    
     
     client_sc_name = "client-secrets"
     ev_gs_type = V1EnvVar(name ='type', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'type')))
@@ -32,79 +33,82 @@ def project_pipeline(input_mode : str, cfg: dict):
     ev_gs_client_x509_cert_url = V1EnvVar(name ='client_x509_cert_url', value_from= V1EnvVarSource( secret_key_ref=V1SecretKeySelector( name=client_sc_name, key = 'client_x509_cert_url')))
     
         
-    _status_check_op = check_status_op(input_mode, cfg)        
+    _status_check_op = check_status_op(cfg_dict, boolean_flag_dict)        
                       
-    with dsl.Condition(input_mode == "record") : 	    
-        _record_op = record_op(cfg).after(_status_check_op) \
-            .add_env_variable(ev_gs_type) \
-            .add_env_variable(ev_gs_project_id) \
-            .add_env_variable(ev_gs_private_key_id) \
-            .add_env_variable(ev_gs_private_key) \
-            .add_env_variable(ev_gs_client_email) \
-            .add_env_variable(ev_gs_client_id) \
-            .add_env_variable(ev_gs_auth_uri) \
-            .add_env_variable(ev_gs_token_uri) \
-            .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
-            .add_env_variable(ev_gs_client_x509_cert_url) 
+    # with dsl.Condition(input_mode == "record") : 	    
+    #     _record_op = record_op(cfg).after(_status_check_op) \
+    #         .add_env_variable(ev_gs_type) \
+    #         .add_env_variable(ev_gs_project_id) \
+    #         .add_env_variable(ev_gs_private_key_id) \
+    #         .add_env_variable(ev_gs_private_key) \
+    #         .add_env_variable(ev_gs_client_email) \
+    #         .add_env_variable(ev_gs_client_id) \
+    #         .add_env_variable(ev_gs_auth_uri) \
+    #         .add_env_variable(ev_gs_token_uri) \
+    #         .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
+    #         .add_env_variable(ev_gs_client_x509_cert_url) 
  
             
-        _save_dataset_op = save_dataset_op(cfg, _record_op.outputs['train_dataset'], _record_op.outputs['val_dataset']) \
-            .add_env_variable(ev_gs_type) \
-            .add_env_variable(ev_gs_project_id) \
-            .add_env_variable(ev_gs_private_key_id) \
-            .add_env_variable(ev_gs_private_key) \
-            .add_env_variable(ev_gs_client_email) \
-            .add_env_variable(ev_gs_client_id) \
-            .add_env_variable(ev_gs_auth_uri) \
-            .add_env_variable(ev_gs_token_uri) \
-            .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
-            .add_env_variable(ev_gs_client_x509_cert_url) 
+    #     _save_dataset_op = save_dataset_op(cfg, _record_op.outputs['train_dataset'], _record_op.outputs['val_dataset']) \
+    #         .add_env_variable(ev_gs_type) \
+    #         .add_env_variable(ev_gs_project_id) \
+    #         .add_env_variable(ev_gs_private_key_id) \
+    #         .add_env_variable(ev_gs_private_key) \
+    #         .add_env_variable(ev_gs_client_email) \
+    #         .add_env_variable(ev_gs_client_id) \
+    #         .add_env_variable(ev_gs_auth_uri) \
+    #         .add_env_variable(ev_gs_token_uri) \
+    #         .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
+    #         .add_env_variable(ev_gs_client_x509_cert_url) 
 
         
-    with dsl.Condition(input_mode == "train") :
-        _train_op = train_op(cfg).after(_status_check_op) \
-            .add_env_variable(ev_gs_type) \
-            .add_env_variable(ev_gs_project_id) \
-            .add_env_variable(ev_gs_private_key_id) \
-            .add_env_variable(ev_gs_private_key) \
-            .add_env_variable(ev_gs_client_email) \
-            .add_env_variable(ev_gs_client_id) \
-            .add_env_variable(ev_gs_auth_uri) \
-            .add_env_variable(ev_gs_token_uri) \
-            .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
-            .add_env_variable(ev_gs_client_x509_cert_url) 
+    # with dsl.Condition(input_mode == "train") :
+    #     _train_op = train_op(cfg).after(_status_check_op) \
+    #         .add_env_variable(ev_gs_type) \
+    #         .add_env_variable(ev_gs_project_id) \
+    #         .add_env_variable(ev_gs_private_key_id) \
+    #         .add_env_variable(ev_gs_private_key) \
+    #         .add_env_variable(ev_gs_client_email) \
+    #         .add_env_variable(ev_gs_client_id) \
+    #         .add_env_variable(ev_gs_auth_uri) \
+    #         .add_env_variable(ev_gs_token_uri) \
+    #         .add_env_variable(ev_gs_auth_provider_x509_cert_url) \
+    #         .add_env_variable(ev_gs_client_x509_cert_url) 
         
         
-        pass
+    #     pass
 
 
-def get_config(args):
-    return Config.fromfile(args.cfg_pipeline), Config.fromfile(args.cfg_ai)
+
         
 def set_pipeline_cfg(args, cfg):
     if args.pipeline_n is not None: cfg.kbf.pipeline.name = args.pipeline_n
+    cfg.kbf.pipeline.version =  args.pipeline_v
     if args.experiment_n is not None: cfg.kbf.experiment.name = args.experiment_n
     if args.run_n is not None: cfg.kbf.run.name = args.run_n    
     cfg.kbf.dashboard.pw =  args.pipeline_pw 
-
-    if args.client_secrets is not None: cfg.gs.client_secrets = args.client_secrets   
     
-         
+    
+def set_ai_cfg(args, cfg):
+    if args.host_db is not None: cfg.db.host = args.host_db 
+    if args.port_db is not None: cfg.db.port = args.port_db 
+    if args.name_db is not None: cfg.db.db = args.name_db 
+    if args.user_db is not None: cfg.db.user = args.user_db 
+    
+    if args.model_name is not None: cfg.filename_tmpl = f"{args.model_name}"+"_{}.path"
+
+    if args.pm_dilation is not None: cfg.model.backbone.pm_dilation = args.pm_dilation
+    if args.drop_rate is not None: cfg.model.backbone.drop_rate = args.drop_rate
+    if args.drop_path_rate is not None: cfg.model.backbone.drop_path_rate = args.drop_path_rate
+    if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
+
 
 
 def set_config(args):
-    cfg_pipeline, cfg_ai = get_config(args)
-      
+    cfg_pipeline, cfg_ai = Config.fromfile(args.cfg_pipeline), Config.fromfile(args.cfg_ai)
+
     set_pipeline_cfg(args, cfg_pipeline)
-
-    # set_ai_cfg()
-    
-    if args.model_name is not None: cfg_ai.filename_tmpl = f"{args.model_name}"+"_{}.path"
-
-    if args.pm_dilation is not None: cfg_ai.model.backbone.pm_dilation = args.pm_dilation
-    if args.drop_rate is not None: cfg_ai.model.backbone.drop_rate = args.drop_rate
-    if args.drop_path_rate is not None: cfg_ai.model.backbone.drop_path_rate = args.drop_path_rate
-    if args.attn_drop_rate is not None: cfg_ai.model.backbone.attn_drop_rate = args.attn_drop_rate
+    set_ai_cfg(args, cfg_ai)
     
     return cfg_pipeline, cfg_ai
          
@@ -120,8 +124,15 @@ def parse_args():
     kbf_parser.add_argument("--experiment_n", type = str, help="name of experiment") 
     kbf_parser.add_argument("--run_n", type = str, help="name of run") 
     
-    gs_parser = parser.add_argument_group('google_strage')
-    gs_parser.add_argument('--client_secrets', help = 'client_secrets file path (json format).')
+    gs_parser = parser.add_argument_group('google_storage')
+
+    
+    db_parser = parser.add_argument_group('database')
+    db_parser.add_argument('--host_db', type = str, help = 'host name or IP for to connect to device where database is located')
+    db_parser.add_argument('--port_db', type = int, help = 'port number to connect to database')
+    db_parser.add_argument('--name_db', type = str, help = 'database name to connect to database')
+    db_parser.add_argument('--user_db', type = str, help = 'user name to connect to database')
+    
     
     
     parser.add_argument('--model_name', type = str, help= "name of model(.pth format)") 
@@ -140,26 +151,29 @@ def parse_args():
     input_args = vars(args)
     
     return args, input_args, cfg_pipeline, cfg_ai
-       
-# python pipeline.py --cfg_pipeline pipeline_config.py --cfg_ai config/swin_maskrcnn.py  --pipeline_v 0.1  --pipeline_pw 4958
+
+
+
+
 if __name__=="__main__":      
     args, input_args, cfg_pipeline, cfg_ai = parse_args()  
              
-    # print("\n connet_client")
-    # client = connet_client(cfg_pipeline.kbf.dashboard)  
+    kfb_print("connet to kubeflow client")
+    client = connet_client(cfg_pipeline.kbf.dashboard)  
           
-    print("\n compile pipeline")             
+    kfb_print("kubeflow>> compile pipeline")             
     kfp.compiler.Compiler().compile(
         project_pipeline,
-        f"./{pl_cfg.PIPELINE_PAC}"
+        f"./{cfg_pipeline.kbf.pipeline.pac}"
         )
 
     
-    
-    # print("\n get experiment")
-    # experiment_id = get_experiment(client, pl_cfg)          # get experiment id by create experiment or load experiment info
-    
-    # pipeline_id = get_pipeline_id(pl_cfg, args, client)     # get experiment id by create pipeline or updata pipeline version
+    # get experiment id by create experiment or load experiment info
+    kfb_print("get experiment")
+    experiment_id = get_experiment(client, cfg_pipeline)          
+
+    # get experiment id by create pipeline or updata pipeline version
+    pipeline_id = upload_pipeline(client, cfg_pipeline.kbf.pipeline, )     
     
     # params_dict = get_params(args, args.cfg, cfg_dict, tuple_flag)              # parameters for pipeline run
     # run_pipeline(client, experiment_id, pipeline_id, params_dict, pl_cfg.RUN_NAME)
