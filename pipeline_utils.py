@@ -1,9 +1,16 @@
 import kfp
-import os
+import os, os.path as osp
 import requests
 import warnings
 
 from pipeline_taeuk4958.configs.config import Config
+
+def kfb_print(string, nn = True): 
+    if nn:  
+        print(f"\nkubeflow>> {string}")
+    else:
+        print(f"kubeflow>> {string}")
+    
 
 def get_params(args, cfg_name, cfg_dict, tuple_flag):
     
@@ -51,39 +58,35 @@ def set_config(args, pl_cfg):
     
     return cfg_dict, tuple_flag
 
-def get_pipeline_id(pl_cfg, args, client):
-    if pl_cfg.RUN_EXIST_PIPELINE:                                       # if you want version updata of pipeline (modified pipeline)
-        print(f" \n get pipeline: {pl_cfg.PIPELINE_NAME}.{args.pipeline_v} id ")
-        pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
-        
-        list_pipeline_name = []
-        list_pipelines = client.list_pipelines(page_size = 50)  	
-        
-        for pipeline_index in range(list_pipelines.total_size):
-            list_pipeline_name.append(list_pipelines.pipelines[pipeline_index].name) 
-        
-
-        if pl_cfg.PIPELINE_NAME not in list_pipeline_name:
-            pipeline_id = upload_pipeline(client, args, pl_cfg)
-            return pipeline_id
-        
-        pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id, page_size = 50)
-        
-        versions = []  
-        for pipeline_index in range(pipelince_versions.total_size):
-            versions.append(pipelince_versions.versions[pipeline_index].name) 
-            
-        
-        
-        if args.pipeline_v not in versions:                              
-            print(f" RUN_EXIST_PIPELINE is True, but [version:{args.pipeline_v}] is not exist.")
-            print(f" upload {pl_cfg.PIPELINE_NAME} new version : {args.pipeline_v}")
-            pipeline_id = upload_pipeline(client, args, pl_cfg)
-            return pipeline_id
-            
-    else: 
-        pipeline_id = upload_pipeline(client, args, pl_cfg) 
+def upload_pipeline(client, cfg):
+    pipeline_path = os.path.join(os.getcwd(), cfg.pac)
+    if not osp.isfile(pipeline_path) : raise OSError(f"upload file : `{pipeline_path}` is not exist! ")
     
+    pipeline_id = client.get_pipeline_id(cfg.name)
+    if pipeline_id is None:
+        kfb_print(f"Upload initial version pipeline | pipeline name: `{cfg.name}` ")
+        cfg.version = "0.0"
+        client.upload_pipeline(pipeline_package_path= pipeline_path,            
+                               pipeline_name= cfg.name,
+                               description= cfg.discription)
+        pipeline_id = client.get_pipeline_id(cfg.name)
+        return pipeline_id        
+   
+
+    pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id, page_size = 50)
+    versions = []  
+    for pipeline_index in range(pipelince_versions.total_size):
+        versions.append(pipelince_versions.versions[pipeline_index].name) 
+    
+    if cfg.version in versions:
+        raise ValueError(f" `{cfg.version}` version of pipeline(name:`{cfg.name}`) is exist! ")
+    else:
+        kfb_print(f"Upload pipeline; version update | pipeline name: `{cfg.name}`, version: `{cfg.version}`")
+        client.upload_pipeline_version(pipeline_package_path= pipeline_path,            # pipeline version updata
+                                    pipeline_version_name = cfg.version,
+                                    pipeline_id = pipeline_id,
+                                    description = cfg.discription)  
+        
     return pipeline_id          
 
     
@@ -105,44 +108,44 @@ def run_pipeline(client, experiment_id, pipeline_id, params_dict, run_name):
     print(f"status of {run_name} : {completed_run.run.status}")
         
         
-def upload_pipeline(client, args, pl_cfg):
-    pipeline_path = os.path.join(os.getcwd(), pl_cfg.PIPELINE_PAC)
-    if not os.path.isfile(pipeline_path) : raise OSError(f" {pipeline_path} is not exist! ")
+def upload_pipeline_(client, cfg):
+    pipeline_path = os.path.join(os.getcwd(), cfg.pac)
+    if not os.path.isfile(pipeline_path) : raise OSError(f"upload file : `{pipeline_path}` is not exist! ")
     
-    if client.get_pipeline_id(pl_cfg.PIPELINE_NAME) == None:                
-        print(f"\n Upload initial version pipeline named [{pl_cfg.PIPELINE_NAME}]!",end = " " )           
+    if client.get_pipeline_id(cfg.name) == None:                
+        print(f"\n Upload initial version pipeline named [{cfg.PIPELINE_NAME}]!",end = " " )           
         client.upload_pipeline(pipeline_package_path= pipeline_path,            # upload new pipeline
-                            pipeline_name= pl_cfg.PIPELINE_NAME,
-                            description= pl_cfg.PIPELINE_DISCRIPTION)
+                            pipeline_name= cfg.PIPELINE_NAME,
+                            description= cfg.PIPELINE_DISCRIPTION)
         print("success!")
-        pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
+        pipeline_id = client.get_pipeline_id(cfg.PIPELINE_NAME)
     else:                                                                         
-        pipeline_id = client.get_pipeline_id(pl_cfg.PIPELINE_NAME)
+        pipeline_id = client.get_pipeline_id(cfg.PIPELINE_NAME)
         pipelince_versions = client.list_pipeline_versions(pipeline_id = pipeline_id, page_size = 50)
         
         versions = []  
         for pipeline_index in range(pipelince_versions.total_size):
             versions.append(pipelince_versions.versions[pipeline_index].name) 
         
-        if args.pipeline_v in versions: raise TypeError(f" {args.pipeline_v} version of {pl_cfg.PIPELINE_NAME} is exist! ")
+        if cfg.version in versions: raise TypeError(f" {cfg.version} version of {cfg.PIPELINE_NAME} is exist! ")
                 
-        print(f"\n Upload pipeline | version: {args.pipeline_v}, name: {pl_cfg.PIPELINE_NAME} : ", end = " ")
+        print(f"\n Upload pipeline | version: {cfg.version}, name: {cfg.PIPELINE_NAME} : ", end = " ")
         client.upload_pipeline_version(pipeline_package_path= pipeline_path,            # pipeline version updata
-                                    pipeline_version_name = args.pipeline_v,
+                                    pipeline_version_name = cfg.version,
                                     pipeline_id = pipeline_id,
-                                    description = pl_cfg.PIPELINE_DISCRIPTION)    
+                                    description = cfg.PIPELINE_DISCRIPTION)    
         print("seccess!")  
         
         
     return pipeline_id  
 
-def get_experiment(client, pl_cfg) : 
+def get_experiment(client, cfg) : 
     list_experiments = client.list_experiments(page_size = 50)
     if list_experiments.total_size == None:
-        print(f"There no experiment. create experiment | name: {pl_cfg.EXPERIMENT_NAME}")
-        experiment = client.create_experiment(name = pl_cfg.EXPERIMENT_NAME)
+        print(f"There no experiment. create experiment | name: `{cfg.kbf.experiment.name}`")
+        experiment = client.create_experiment(name = cfg.kbf.experiment.name)
     else:
-        experiment = client.get_experiment(experiment_name= pl_cfg.EXPERIMENT_NAME, namespace= pl_cfg.NAMESPACE)
+        experiment = client.get_experiment(experiment_name= cfg.kbf.experiment.name, namespace= cfg.kbf.dashboard.name_space)
     
     experiment_id = experiment.id
     return experiment_id
