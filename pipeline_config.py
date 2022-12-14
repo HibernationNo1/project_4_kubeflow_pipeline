@@ -3,13 +3,15 @@ kbf = dict(
     dashboard = dict(
         user_n = "winter4958@gmail.com",
         name_space = "project-pipeline",
-        host = "http://122.44.146.126:4958"
+        host = "http://localhost:8080",
+        pw = None
         ),
     pipeline = dict(
         name = "train",
         pac = "project.yaml",
         discription = "project",
-        run_exist_pipeline = True
+        run_uploaded_pipeline = True,      
+        version = None
         ),
     experiment = dict(
         name = "test01"
@@ -17,14 +19,38 @@ kbf = dict(
     run = dict(
         name = "project"
         )
+    
     )
 
-gs = dict(
-    client_secrets = "client_secrets.json"
+secrets = dict(
+    gs = dict(
+        type = None, 
+        project_id = None,
+        private_key_id = None,
+        private_key = None,
+        client_email = None,
+        client_id = None,
+        auth_uri = None,
+        token_uri = None,
+        auth_provider_x509_cert_url = None,
+        client_x509_cert_url = None   
+        ),
+    db = dict(
+        host = None,
+        password = None,
+        port = None
+        )
+    )
+
+
+pipeline = dict(
+    
 )
-
-
+        
 """
+docker build utils -t hibernation4958/check:0.6
+docker push hibernation4958/check:0.6
+
 docker build record -t hibernation4958/record:0.1
 docker push hibernation4958/record_dataset_1:0.1
 
