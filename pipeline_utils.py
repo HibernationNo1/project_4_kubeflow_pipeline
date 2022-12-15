@@ -4,6 +4,49 @@ import requests
 import warnings
 
 from hibernation_no1.configs.config import Config
+CONFIGS = dict()     # parameters for pipeline run  
+
+def set_cfg_recode(args, cfg):
+    pass
+   
+def set_cfg_pipeline(args, cfg):
+    if args.pipeline_n is not None: cfg.kbf.pipeline.name = args.pipeline_n
+    cfg.kbf.pipeline.version =  args.pipeline_v
+    if args.experiment_n is not None: cfg.kbf.experiment.name = args.experiment_n
+    if args.run_n is not None: cfg.kbf.run.name = args.run_n    
+    cfg.kbf.dashboard.pw =  args.pipeline_pw 
+     
+def set_cfg_ai(args, cfg):
+    if args.name_db is not None: cfg.db.db = args.name_db 
+    if args.user_db is not None: cfg.db.user = args.user_db 
+    
+    if args.model_name is not None: cfg.filename_tmpl = f"{args.model_name}"+"_{}.path"
+
+    if args.pm_dilation is not None: cfg.model.backbone.pm_dilation = args.pm_dilation
+    if args.drop_rate is not None: cfg.model.backbone.drop_rate = args.drop_rate
+    if args.drop_path_rate is not None: cfg.model.backbone.drop_path_rate = args.drop_path_rate
+    if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
+
+CONFIG_SET_FUNCTION = dict(
+    cfg_pipeline = set_cfg_pipeline,
+    cfg_recode = set_cfg_recode,
+    cfg_ai = set_cfg_ai
+)
+
+
+def set_config(args):
+    CONFIGS['cfg_pipeline'] = args.cfg_pipeline
+    CONFIGS['cfg_ai'] = args.cfg_ai
+    CONFIGS['cfg_recode'] = args.cfg_recode
+    
+    for key, func in CONFIG_SET_FUNCTION.items():
+        if CONFIGS[key] is not None:
+            config =  Config.fromfile(CONFIGS[key])
+            func(args, config)
+        else: config = None
+        CONFIGS[key] = config
+
+
 
 def kfb_print(string, nn = True): 
     if nn:  
@@ -61,7 +104,7 @@ def upload_pipeline(client, cfg):
 def run_pipeline(client, cfg, experiment_id, pipeline_id, params):
     
     
-    if isinstance(pipeline_id, dict):
+    if isinstance(pipeline_id, dict):       # TODO: Unrecognized input parameter: 뜬다.
         kfb_print(f"Run pipeline:: this version uploaded before | name: {cfg.pipeline.name}, version: {cfg.pipeline.version}")
         exec_run = client.run_pipeline(
             experiment_id = experiment_id,
@@ -120,32 +163,4 @@ def connet_client(cfg):
 
 
 
-   
-def set_pipeline_cfg(args, cfg):
-    if args.pipeline_n is not None: cfg.kbf.pipeline.name = args.pipeline_n
-    cfg.kbf.pipeline.version =  args.pipeline_v
-    if args.experiment_n is not None: cfg.kbf.experiment.name = args.experiment_n
-    if args.run_n is not None: cfg.kbf.run.name = args.run_n    
-    cfg.kbf.dashboard.pw =  args.pipeline_pw 
     
-    
-def set_ai_cfg(args, cfg):
-    if args.name_db is not None: cfg.db.db = args.name_db 
-    if args.user_db is not None: cfg.db.user = args.user_db 
-    
-    if args.model_name is not None: cfg.filename_tmpl = f"{args.model_name}"+"_{}.path"
-
-    if args.pm_dilation is not None: cfg.model.backbone.pm_dilation = args.pm_dilation
-    if args.drop_rate is not None: cfg.model.backbone.drop_rate = args.drop_rate
-    if args.drop_path_rate is not None: cfg.model.backbone.drop_path_rate = args.drop_path_rate
-    if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
-
-
-
-def set_config(args):
-    cfg_pipeline, cfg_ai = Config.fromfile(args.cfg_pipeline), Config.fromfile(args.cfg_ai)
-
-    set_pipeline_cfg(args, cfg_pipeline)
-    set_ai_cfg(args, cfg_ai)
-    
-    return cfg_pipeline, cfg_ai
