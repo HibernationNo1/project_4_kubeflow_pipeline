@@ -1,3 +1,4 @@
-hibernation_no1 == 0.0.4
+hibernation_no1 == 0.0.8
 dvc[gs]
 pymysql
+pandas

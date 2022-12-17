@@ -18,9 +18,9 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machi
 
 RUN apt-get update && apt-get install -y git
 
-RUN git clone https://github.com/HibernationNo1/pipeline_ann_dataset.git
-WORKDIR pipeline_ann_dataset/
-
+# git repo version fixed in the docker image even the docker image tag version is a different.
+# run this command in python code
+# RUN git clone https://github.com/HibernationNo1/pipeline_ann_dataset.git
 
 
 
