@@ -1,5 +1,6 @@
-from genericpath import exists
 from kfp.components import OutputPath, create_component_from_func
+from pipeline_base_image_cfg import Base_Image_Cfg
+base_image = Base_Image_Cfg()
 
 def check_status(cfg : dict, cfg_flag:dict) :
     
@@ -12,13 +13,14 @@ def check_status(cfg : dict, cfg_flag:dict) :
     from PIL.ImageDraw import Draw as Draw    
     import datetime
     import time    
-    import glob
-    import warnings
+    import pandas as pd
+    import shutil
     
-    from hibernation_no1.configs.utils import change_to_tuple
+    from hibernation_no1.configs.utils import change_to_tuple, NpEncoder
     from hibernation_no1.configs.config import Config
     from hibernation_no1.utils.utils import get_environ
     from hibernation_no1.cloud.gs import get_client_secrets
+    from hibernation_no1.database.mysql import check_table_exist
     
     
     TODAY = str(datetime.date.today())
@@ -27,9 +29,25 @@ def check_status(cfg : dict, cfg_flag:dict) :
         """
 
         """
-        def __init__(self, cfg, dataset):
+        def __init__(self, cfg, image_list, json_list, dataset_dir_path, pre_processing = False):
+            """ Parsing the json list and recode the train dataset and validation dataset
+                to one file json format each.
+
+            Args:
+                cfg (Config): config 
+                image_list (list): List of file jpg format.
+                json_list (list): List of file json format.
+                                Contains annotations information of label.
+                dataset_dir_path: path of dataset.     `category/ann/version`
+                pre_processing (optional): whether apply pre-processing to dataset.
+                                           It can be data augmentation.
+                                             
+            """
             self.cfg = cfg
-            self.dataset = dataset     # list of json
+            self.image_list = image_list   
+            self.json_list = json_list   
+            self.dataset_dir_path = dataset_dir_path
+            self.pre_processing = pre_processing
             
             self.train_dataset = dict(info = {}, 
                                 licenses = [],
@@ -42,40 +60,56 @@ def check_status(cfg : dict, cfg_flag:dict) :
             
             self.object_names = []
             
-            self.dataset_dir_path = None
-            self.annnotation_dir_path = None
+            self.recode_dataset_path = osp.join(os.getcwd(), 
+                                          cfg.dvc.dataset_cate,
+                                          cfg.dvc.recode.name,
+                                          cfg.dvc.recode.version)
+            os.makedirs(self.recode_dataset_path, exist_ok=True)
             
             self.data_transfer()
             
+            
         def data_transfer(self):            
             if self.cfg.recode.options.proportion_val == 0:        # TODO cfg.recode.options
-                val_split_num = len(self.dataset) + 100000
+                val_split_num = len(self.json_list) + 100000
             else:
-                val_image_num = len(self.dataset) * self.cfg.recode.options.proportion_val     
+                val_image_num = len(self.json_list) * self.cfg.recode.options.proportion_val     
                 if val_image_num == 0 :
                     val_split_num = 1
-                else : val_split_num = int(len(self.dataset)/val_image_num)
+                else : val_split_num = int(len(self.json_list)/val_image_num)
         
             
-            print(f" part_1 : info")
+            print(f" Part_1: info")
             self.get_info("train")
             self.get_info("val")
             
-            print(f"\n part_2 : licenses")
+            print(f"\n Part_2: licenses")
             self.get_licenses("train")
             self.get_licenses('val')
             
-            print(f"\n part_3 : images")
+            print(f"\n Part_3: images")
             self.get_images(val_split_num)
             
-            print(f"\n part_4 : annotations")
+            print(f"\n Part_4: annotations")
             self.get_annotations(val_split_num)
             
-            print(f"\n part_5 : categories")
+            print(f"\n Part_5: categories")
             self.get_categories("train")   
             self.get_categories("val") 
             
+            if self.pre_processing:
+                print(f"\n Part_optional: apply pre-processing to dataset.")
+                self.run_pre_processing()
             
+            print(f"\n Part_6: save recoded dataset.")
+            self.save_json()
+            
+            # if self.pre_processing, save pre-processed image in run_pre_processing()
+            if not self.pre_processing:     
+                print(f"\n Part_7: save images for taining")
+                self.save_image()
+
+
             
         def get_info(self, mode) : 
             if mode == "train":
@@ -117,7 +151,7 @@ def check_status(cfg : dict, cfg_flag:dict) :
                         + " "+ str(time.localtime(time.time()).tm_hour) \
                         + ":" + str(time.localtime(time.time()).tm_min)
             
-            for i, json_file in enumerate(self.dataset):                
+            for i, json_file in enumerate(self.json_list):                
                 tmp_images_dict = {}
                 with open(json_file, "r") as fp:
                     data = json.load(fp) 
@@ -134,13 +168,12 @@ def check_status(cfg : dict, cfg_flag:dict) :
                 if i % val_split_num == 0:
                     self.val_dataset["images"].append(tmp_images_dict)
                 else:
-                    self.train_dataset["images"].append(tmp_images_dict)
-                    
+                    self.train_dataset["images"].append(tmp_images_dict)                
         
         
         def get_annotations(self, val_split_num):
             id_count = 1
-            for i, json_file in enumerate(self.dataset):
+            for i, json_file in enumerate(self.json_list):
                 with open(json_file, "r") as fp:
                     data = json.load(fp) 
 
@@ -235,8 +268,58 @@ def check_status(cfg : dict, cfg_flag:dict) :
             
         def get_dataset(self):
             return self.train_dataset, self.val_dataset
+        
+        # TODO
+        def run_pre_processing(self):       
+            """
+                apply pre-processing to images and save to self.recode_dataset_path
+            """
+            
+            print(f"\n Part_optional: save pre-processed images for taining")
 
+            # save the image with a modified name to distinguish if the image has been preprocessed.
+            # self.saved_image_list = []
+            pass
+                
+        
+        def save_json(self):             
+            train_dataset_path = osp.join(self.recode_dataset_path, cfg.recode.train_dataset)
+            val_dataset_path = osp.join(self.recode_dataset_path, cfg.recode.val_dataset)
+            json.dump(self.train_dataset, open(train_dataset_path, "w"), indent=4, cls = NpEncoder)
+            json.dump(self.val_dataset, open(val_dataset_path, "w"), indent=4, cls = NpEncoder)
+
+
+        def save_image(self):
+            # save image with original name
+            # no need to distinguish if the image preprocessed.
+            self.saved_image_list_train = []
+            self.saved_image_list_val = []
+            
+            after_image_list = []
+            before_image_list = []
+                 
+            def _save_image(image_info_list, purpose):
+                for file_info in image_info_list:
+                    image_name = file_info["file_name"]
+                    
+                    after_image_list.append(osp.join(self.recode_dataset_path, image_name))
+                    before_image_list.append(osp.join(self.dataset_dir_path, image_name))
+                    
+                    if purpose == "train":
+                        self.saved_image_list_train.append(image_name)
+                    elif purpose == "val":
+                        self.saved_image_list_val.append(image_name)
+            
+                for befor_image_path, after_image_path in zip(before_image_list, after_image_list):
+                    shutil.copyfile(befor_image_path, after_image_path)
+            
+            _save_image(self.train_dataset['images'], "train")
+            _save_image(self.val_dataset['images'], "val")
+            
+            
+            
     
+    # to hibernation
     def dvc_gs_credentials(remote: str, bucket_name: str, client_secrets: dict):
         """ access google cloud with credentials
 
@@ -255,7 +338,10 @@ def check_status(cfg : dict, cfg_flag:dict) :
         subprocess.call([remote_bucket_command], shell=True)
         subprocess.call([credentials_command], shell=True)
         
-
+        return client_secrets_path
+        
+        
+    # to hibernation
     def dvg_pull(remote: str, bucket_name: str, client_secrets: dict, dataset_name: str):
         """ run dvc pull from google cloud storage
 
@@ -272,59 +358,91 @@ def check_status(cfg : dict, cfg_flag:dict) :
         dvc_path = osp.join(os.getcwd(), f'{dataset_name}.dvc')          # check file exist (downloaded from git repo by git clone)
         assert os.path.isfile(dvc_path), f"Path: {dvc_path} is not exist!" 
 
-        dvc_gs_credentials(remote, bucket_name, client_secrets)
+        client_secrets_path = dvc_gs_credentials(remote, bucket_name, client_secrets)
         
         subprocess.call(["dvc pull"], shell=True)           # download dataset from GS by dvc 
+        os.remove(client_secrets_path)
         
         dataset_dir_path = osp.join(os.getcwd(), dataset_name)
-        assert osp.isdir(dataset_dir_path), f"Directory: {dataset_dir_path} is not exist!"
+        assert osp.isdir(dataset_dir_path), f"Directory: {dataset_dir_path} is not exist!"\
+            f"list fo dir : {os.listdir(osp.split(dataset_dir_path)[0])}"
         
         return dataset_dir_path
+               
+    
+    def select_ann_data(cursor, cfg):
+        # select ann data
+        select_sql = f"SELECT * FROM {cfg.db.table.ann_dataset} WHERE ann_version = '{cfg.dvc.ann.version}';"
+        num_results = cursor.execute(select_sql)
+        assert num_results != 0, f" `{cfg.dvc.ann.version}` version of annotations dataset is not being inserted into database"\
+           f"\n     DB: {cfg.db.name},      table: {cfg.db.table.ann_dataset}"
+    
+        ann_version_df = pd.read_sql(select_sql, database)
+
+        json_list = []
+        image_list = []
+        for category, ann_version, json_name, image_name in zip(ann_version_df.category,
+                                                                ann_version_df.ann_version,
+                                                                ann_version_df.json_name,
+                                                                ann_version_df.image_name):
+            json_list.append(osp.join(os.getcwd(), 
+                                      category, 
+                                      cfg.dvc.ann.name, 
+                                      ann_version,
+                                      json_name))
+            image_list.append(osp.join(os.getcwd(), 
+                                      category, 
+                                      cfg.dvc.ann.name, 
+                                      ann_version,
+                                      image_name))
+        
+        return image_list, json_list
     
     
-    
-    def create_table(cursor, table_name, schema):
-        cursor.execute(f"SHOW TABLES")
-        fetchs = cursor.fetchall()
-        if len(fetchs) !=0:
-            tables = fetchs[0]
-            if table_name not in tables:
-                print(f"create table: {table_name}")
-                cursor.execute(schema)
-            else:
-                print(f"table: {table_name} is already exist!")
-        else:
-            print(f"create table: {table_name}")
-            cursor.execute(schema)
-                
-                
+    # insert dataset to database
+    def insert_recode_data(cfg, cursor, saved_image_list, purpose):
+        if purpose == "train":
+            recode_file = cfg.recode.train_dataset
+        elif purpose == "val":
+            recode_file = cfg.recode.val_dataset
             
+            
+        for image_name in saved_image_list:
+            insert_sql = f"INSERT INTO {cfg.db.table.image_dataset}"\
+                        f"(dataset_purpose, image_name, recode_file, category, recode_version)"\
+                        f"VALUES('{purpose}', '{image_name}', '{recode_file}',"\
+                        f"'{cfg.dvc.dataset_cate}', '{cfg.dvc.recode.version}');" 
+            
+            cursor.execute(insert_sql)
+            
+        
+        select_sql = f"SELECT * FROM {cfg.db.table.image_dataset} "\
+                     f"WHERE recode_version = '{cfg.dvc.recode.version}' AND dataset_purpose = '{purpose}';"
+        num_results = cursor.execute(select_sql)
+        assert num_results == len(saved_image_list),\
+            f" `{cfg.dvc.recode.version}` version of recode dataset is not being inserted into database"\
+            f"\n     DB: {cfg.db.name},      table: {cfg.db.table.image_dataset},    purpose: {purpose}"\
+            f"      num_results: {num_results}      len(saved_image_list): {len(saved_image_list)}"
+    
+    
+     
     if __name__=="__main__":  
+        repo = "pipeline_ann_dataset"
+        subprocess.call([f"git clone https://github.com/HibernationNo1/{repo}.git"], shell=True)
+        os.chdir(osp.join(os.getcwd(), repo))
+        
         cfg = change_to_tuple(cfg, cfg_flag)
         cfg = Config(cfg)
+
+        target_dataset = osp.join(os.getcwd(), cfg.dvc.dataset_cate,
+                                               cfg.dvc.ann.name,
+                                               cfg.dvc.ann.version)
         
         dvc_cfg = dict(remote = cfg.dvc.remote,
                        bucket_name = cfg.gs.ann_bucket_name,
                        client_secrets = get_client_secrets(),
-                       dataset_name = cfg.dvc.dataset_cate)
+                       dataset_name = target_dataset)
         dataset_dir_path = dvg_pull(**dvc_cfg)
-            
-        json_list = glob.glob(f"{dataset_dir_path}/*.json")
-        image_list = glob.glob(f"{dataset_dir_path}/*.jpg")
-        if len(json_list) != len(image_list): 
-            warnings.warn(f"number of images and json files are not same!!  \n"\
-                          f"number of images {len(image_list)},  "\
-                          f"number of json files : {len(json_list)}")
-        
-        
-        
-        
-        
-        
-        labelme_instance = Record_Dataset(cfg, json_list)
-        train_dataset, val_dataset = labelme_instance.get_dataset()
-        
-  
         
         database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
                         port=int(get_environ(cfg.db, 'port')), 
@@ -335,34 +453,22 @@ def check_status(cfg : dict, cfg_flag:dict) :
     
         cursor = database.cursor() 
 
-        create_table(cursor, cfg.db.table.ann_dataset_name, cfg.db.table.ann_dataset_schema)
+        check_table_exist(cursor, cfg.db.table)
         
-        num_results = cursor.execute(f"SELECT * FROM {cfg.db.table.ann_dataset_name} WHERE ann_version = '{cfg.dvc.version}'")
-        assert num_results == 0, f"ann version: {cfg.dvc.version} has been stored in DB!!  "\
-           f"DB: [{cfg.db.name}],         table: [{cfg.db.table.ann_dataset_name}]"
-    
+        image_list, json_list = select_ann_data(cursor, cfg)
         
-        image_list = []
-        for json_path in json_list:
-            image_path = osp.basename(json_path).split(".")[0] + ".jpg"
-            image_list.append(image_path)
-            
-            
-        # insert annn dataset to database
-        for img_json_path in zip(image_list, json_list):
-            image_path, json_path = img_json_path
-            image_name, json_name = os.path.basename(image_path), os.path.basename(json_path)
-            insert_sql = f"INSERT INTO {cfg.db.table.ann_dataset_name} "\
-                         f"(json_name, image_name, catecory, ann_version) "\
-                         f"VALUES('{json_name}', '{image_name}', '{cfg.db.table.ann_dataset_name}', '{cfg.dvc.version}');"
-            cursor.execute(insert_sql)     
-    
-   
-    
+        recode_dataset = Record_Dataset(cfg, image_list, json_list, dataset_dir_path)
+       
+        
+        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_train, "train")
+        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_val, "val")
+        
+        database.commit()
+        database.close()
     
     
 # print("set_config base_image : hibernation4958/check:0.2")
 check_status_op = create_component_from_func(func = check_status,
-                                        base_image = "hibernation4958/check_re:0.2",
-                                        output_component_file= "check")
+                                        base_image = base_image.recode,
+                                        output_component_file= base_image.recode_cp)
 
