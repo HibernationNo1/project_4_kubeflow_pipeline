@@ -1,8 +1,6 @@
 
 
-`Ubuntu 18.04`
-
-
+# init set
 
 ## install
 
@@ -1365,4 +1363,166 @@ $ kubectl edit service -n istio-system istio-ingressgateway
    ```
 
    
+
+
+
+# katib
+
+detail: [here](https://github.com/HibernationNo1/TIL/blob/master/study_Machine_learning/MLOps/Kubeflow/katib/katib_example.md)
+
+### docker
+
+```
+ARG PYTORCH="1.11.0"
+ARG CUDA="11.3"
+ARG CUDNN="8"  
+
+FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel	
+
+
+ENV TORCH_CUDA_ARCH_LIST="7.5"
+ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
+ENV CMAKE_PREFIX_PATH="$(dirname $(which conda))/../"	
+
+
+# To fix GPG key error when running apt-get update
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu2004/x86_64/7fa2af80.pub
+
+# for install opencv
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y  
+
+
+# COPY ./requirements.txt ./requirements.txt
+COPY ./ ./
+RUN pip install -r requirements.txt
+
+# Install MMCV
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools
+RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
+
+# ENTRYPOINT python train.py --cfg configs/swin_maskrcnn.py --epo 50 --val_iter 50
+```
+
+
+
+```
+$ docker build . -t hibernation4958/katib:0.1
+```
+
+
+
+> **test**
+>
+> ```
+> $ docker run --shm-size 8G -v $(pwd):/test-vol -it hibernation4958/katib:0.1
+> ```
+
+
+
+### resource 
+
+```
+$ vi katib.yaml
+```
+
+```
+apiVersion: kubeflow.org/v1beta1
+kind: Experiment
+metadata:
+  namespace: project-pipeline
+  name: katib
+spec:
+  objective:
+    type: maximize
+    goal: 0.85
+    objectiveMetricName: mAP
+    metricStrategies:
+    - name: mAP
+      value: latest
+  algorithm:
+    algorithmName: random				
+  parallelTrialCount: 2
+  maxTrialCount: 12
+  maxFailedTrialCount: 5
+  parameters:
+    - name: drop_rate
+      parameterType: double
+      feasibleSpace:
+        min: "0.0"
+        max: "0.3"
+    - name: attn_drop_rate
+      parameterType: double
+      feasibleSpace:
+        min: "0.0"
+        max: "0.3"
+    - name: drop_path_rate
+      parameterType: double
+      feasibleSpace:
+        min: "0.1"
+        max: "0.3"
+  metricsCollectorSpec:
+    collector:
+      kind: StdOut
+    source:
+      filter:
+        metricsFormat:
+        - "([\\w|-]+)\\s*=\\s*((-?\\d+)(\\.\\d+)?)"  
+  trialTemplate:
+    primaryContainerName: training-container
+    trialParameters:
+      - name: drop_rate
+        description: drop_rate of SwinTransformer
+        reference: drop_rate
+      - name: drop_path_rate
+        description: drop_path_rate of SwinTransformer
+        reference: drop_path_rate
+      - name: attn_drop_rate
+        description: attn_drop_rate of SwinTransformer.SwinBlockSequence.ShiftWindowMSA.WindowMSA
+        reference: attn_drop_rate 
+    trialSpec:
+      apiVersion: batch/v1
+      kind: Job
+      spec:
+        template:
+          metadata:
+            annotations:
+              sidecar.istio.io/inject: "false"
+          spec:
+            containers:
+              - name: training-container
+                image: hibernation4958/katib_it:0.1
+                command:
+                  - "python3"
+                  - "/workspace/train.py"
+                  - "--cfg=configs/swin_maskrcnn.py"
+                  - "--epo=50"
+                  - "--katib"
+                  - "--drop_rate=${trialParameters.drop_rate}"
+                  - "--drop_path_rate=${trialParameters.drop_path_rate}"
+                  - "--attn_drop_rate=${trialParameters.attn_drop_rate}"                  
+            restartPolicy: Never
+```
+
+```
+$ kubectl apply -f katib.yaml
+```
+
+
+
+```
+$ kubectl -n project-pipeline get experiment katib -o yaml
+```
+
+
+
+> delete
+>
+> ```
+> $ kubectl -n project-pipeline delete experiment katib
+> ```
+
+
+
+
 

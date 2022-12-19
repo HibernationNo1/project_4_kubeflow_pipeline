@@ -2,7 +2,7 @@
 
 class Base_Image_Cfg():
     recode = "hibernation4958/check:0.5"
-    recode_cp = "recode"
+    recode_cp = "recode/recode"
     
         
 """

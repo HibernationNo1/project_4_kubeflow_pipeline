@@ -11,8 +11,8 @@ _base_ = [
 
 recode = dict(
     options = dict(
-    proportion_val = 0.01,      
-    save_gt_image = False
+    proportion_val = 0.01
+    # save_gt_image = False
     ),
     
     info = dict(description = 'Hibernation Custom Dataset',
@@ -24,7 +24,7 @@ recode = dict(
     category = None,
     valid_object = ["leaf", 'midrid', 'stem', 'petiole', 'flower', 'fruit', 'y_fruit', 'cap', 
                     'first_midrid', 'last_midrid', 'mid_midrid', 'side_midrid'],
-    train_file_name = 'train_dataset.json',
-    val_file_name = 'val_dataset.json'
+    train_dataset = 'train_dataset.json',
+    val_dataset = 'val_dataset.json'
                 )
 
