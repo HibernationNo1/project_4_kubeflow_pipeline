@@ -2,7 +2,7 @@ dvc = dict(
     remote = "ann_dataset",
     
     
-    dataset_cate = "test_dataset",
+    category = "test_dataset",
     ann = dict(
         name = "ann",
         version = "0.0.1",
@@ -13,3 +13,8 @@ dvc = dict(
         version = "0.0.1",
     ),
     )
+
+git = dict(
+    remote = "origin",
+    branch = "master"
+)

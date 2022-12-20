@@ -1,20 +1,19 @@
 
 
 class Base_Image_Cfg():
-    recode = "hibernation4958/check:0.5"
-    recode_cp = "recode/recode"
+    recode = "hibernation4958/recode:0.2"
+    recode_cp = "recode/recode.log"     
+    
+    train = "hibernation4958/train:0.2"
+    train_cp = "train/train"
     
         
 """
-docker build utils -t hibernation4958/check:0.5
-docker push hibernation4958/check:0.5
+docker build recode --no-cache -t hibernation4958/recode:0.2
+docker push hibernation4958/recode:0.3
 
-docker build record -t hibernation4958/record:0.1
-docker push hibernation4958/record_dataset_1:0.1
-
-docker build train -t hibernation4958/train_0906:0.7
-docker push hibernation4958/train_0906:0.7
-
+docker build train --no-cache -t hibernation4958/train:0.1
+docker push hibernation4958/train:0.1
 
 
 docker pull registry:latest
