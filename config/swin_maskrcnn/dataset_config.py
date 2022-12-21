@@ -56,6 +56,7 @@ test_result = "result/test"
 eval_result = 'eval'
 
 data = dict(
+    api = "COCO",
     samples_per_gpu=1,  # batch_size
     workers_per_gpu=1, 
     train=dict(

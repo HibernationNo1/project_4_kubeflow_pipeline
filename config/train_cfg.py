@@ -1,3 +1,14 @@
+_base_ = [
+    'swin_maskrcnn/mask_rcnn.py',
+    'swin_maskrcnn/dataset_config.py',
+    'swin_maskrcnn/schedule_1x.py',
+    'swin_maskrcnn/validation.py',
+    "pipeline/dvc.py",
+    "pipeline/database.py",
+    "pipeline/gs.py"
+]
+
+
 
 train_result = "result/train"
 
@@ -13,26 +24,25 @@ log_config = dict(
         # dict(type='TensorboardLoggerHook')
     ])
 
-# yapf:enable
+
 custom_hook_config = [dict(
-    type='Custom_Hook',
+    type='Validation_Hook',         # type='Custom_Hook'
     priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-    val_iter = 50,
-    show_eta_iter = 10
+    val = ['iter', 50],         # val_iter = 50         ['epoch', 1]
+    show_eta_iter = 10          # Divisor number of iter printing the training state log.
     )]
 
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
 resume_from = None
-workflow = [('train', 5)]   # TODO : [('train', n_1), ('val', n_2)]     n_1: epoch
+# workflow = [('train', 5)]   # TODO : [('train', n_1), ('val', n_2)]     n_1: epoch
+
+epoch = 5
 
 device = 'cuda:0'
 
-# validation
-iou_threshold = [0.3, 0.9]      # range of iou threshold
-num_thrshd_divi = 10            # divide range of `iou_threshold` by number of `num_thrshd_divi`
-confidence_threshold = 0.6             
+       
 
 # disable opencv multithreading to avoid system being overloaded
 opencv_num_threads = 0
