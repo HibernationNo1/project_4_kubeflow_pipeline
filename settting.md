@@ -1,22 +1,130 @@
+# Install kubeflow at Kubernetes
 
+## Kubernetes
 
-# init set
+### check before installation
 
-## install
-
-### requirements
-
-1. **install NVIDIA driver**
-
-   ```
-   $ nvidia-smi
+1. ```
+   $ sudo apt update
    ```
 
-   
+2. ```
+   $ sudo apt -y full-upgrade
+   ```
+
+3. swap off
+
+   ```
+   $ sudo -i
+   # swapoff -a && sed -i '/swap/s/^/#/' /etc/fstab
+   ```
+
+   confirm
+
+   ```
+   $ sudo vi /etc/fstab
+   ```
+
+   ```
+   #/swapfile                                 none            swap    sw              0       0
+   ```
+
+4. Firewall off
+
+   ```
+   $ sudo ufw disable
+   ```
+
+   > 방화벽을 끄는것이 아닌, 특정 port만 허용하고 싶으면 아래 명령어
+   >
+   > ```
+   > # Master
+   > sudo ufw enable
+   > sudo ufw allow 6443/tcp
+   > sudo ufw allow 2379:2380/tcp
+   > sudo ufw allow 10250/tcp
+   > sudo ufw allow 10251/tcp
+   > sudo ufw allow 10252/tcp
+   > sudo ufw status
+   > 
+   > # Worker
+   > sudo ufw enable
+   > sudo ufw allow 10250/tcp
+   > sudo ufw allow 30000:32767/tcp
+   > sudo ufw status
+   > ```
+
+5. **open port 6443**
+
+   ```
+   $ echo > /dev/tcp/127.0.0.1/6443
+   또는
+   $ telnet 127.0.0.1 6443
+   ```
+
+   - port가 열려있는 경우 아무 메시지 안뜸
+
+   - port가 닫혀있는 경우 아래처럼 뜸
+
+     ```
+     bash: connect: Connection refused
+     또는 
+     telnet: Unable to connect to remote host: Connection refused
+     ```
+
+   6443은 `kubeadm init` 을 사용하여 클러스터를 초기화한 후 생성되는 "kube-apiserver"에서 수신하기 때문에, 클러스터를 아직 초기화하지 않았으므로 **6443 port 에서 수신 대기하는 프로세스가 없기 때문에** `connect: Connection refused` 가 뜨는 것이 당연하다.
+
+   때문에 kubernetes 클러스터를 설치하지 않고 포트 6443에서 트래픽을 허용하기 위해 방화벽/ufw 설정이 제대로 수행되었는지 확인하려는 경우 아래 명령어 실행
+
+   1. ```
+      $ ls | nc -l -p 6443
+      ```
+
+   2. 다른 terminal에서
+
+      ```
+      $ telnet localhost 6443
+      ```
+
+      출력
+
+      ```
+      Trying ::1...
+      Trying 127.0.0.1...
+      Connected to localhost.
+      Escape character is '^]'.
+      ```
+
+      
+
+      > 또는 다른 PC에서 
+      >
+      > ```
+      > $ telnet 192.168.0.107 6443   
+      > ```
+      >
+      > - `192.168.0.107` kubernetes를 설치하려는 PC의 IP
+      >
+      > 출력
+      >
+      > ```
+      > 아무것도 안뜸. Ctrl+] 을 눌러 Telnet terminal로 전환
+      > Microsoft Telnet>
+      > Microsoft Telnet> q		# exit 키
+      > ```
+
+   > port자체가 닫혀있는 경우 방화벽 `ufw`를 통해 open
+   >
+   > ```
+   > $ sudo ufw allow 6443
+   > $ sudo ufw disable 		# 혹시 모르니 방화벽도 끄기
+   > ```
 
 
 
-### docker
+
+
+### install docker
 
 [공식 문서](https://docs.docker.com/engine/install/ubuntu/)
 
@@ -148,7 +256,7 @@ Mirantis cri-dockerd CRI 소켓 파일 경로는 `/run/cri-dockerd.sock` (Kubern
 
    ```
    $ wget https://github.com/Mirantis/cri-dockerd/releases/download/v${VER}/cri-dockerd-${VER}.amd64.tgz
-   tar xvf cri-dockerd-${VER}.amd64.tgz
+   $ tar xvf cri-dockerd-${VER}.amd64.tgz
    ```
 
    Move `cri-dockerd` binary package to `/usr/local/bin` directory
@@ -250,6 +358,29 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    > cuda와 ubuntu version에 대한tag는 [docker hub-nvidia](https://hub.docker.com/r/nvidia/cuda/tags)에서 검색 후 결정
 
+   ```
+   +-----------------------------------------------------------------------------+
+   | NVIDIA-SMI 470.161.03   Driver Version: 470.161.03   CUDA Version: 11.4     |
+   |-------------------------------+----------------------+----------------------+
+   | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+   | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+   |                               |                      |               MIG M. |
+   |===============================+======================+======================|
+   |   0  NVIDIA GeForce ...  Off  | 00000000:07:00.0  On |                  N/A |
+   |  0%   27C    P8    15W / 180W |     45MiB / 12052MiB |      0%      Default |
+   |                               |                      |                  N/A |
+   +-------------------------------+----------------------+----------------------+
+                                                                                  
+   +-----------------------------------------------------------------------------+
+   | Processes:                                                                  |
+   |  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+   |        ID   ID                                                   Usage      |
+   |=============================================================================|
+   +-----------------------------------------------------------------------------+
+   ```
+
+   
+
 4. edit daemon
 
    ```
@@ -260,13 +391,13 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    ```
    {
-     "default-runtime": "nvidia",
-     "runtimes": {
-       "nvidia": {
-         "path": "nvidia-container-runtime",
-         "runtimeArgs": []
+       "default-runtime": "nvidia",
+       "runtimes": {
+           "nvidia": {
+               "path": "nvidia-container-runtime",
+               "runtimeArgs": []
+           }
        }
-     }
    }
    ```
 
@@ -274,217 +405,359 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    $ sudo systemctl daemon-reload 
    ```
 
-   
-
-   
 
 
+### install kubelet, kubeadm, kubectl
 
-### minikube
-
-[공식](https://minikube.sigs.k8s.io/docs/start/)
-
-CPU 2core 이상, Memory 2GB이상, Disk : 20GB이상
-
-```
-$ curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-$ sudo install minikube-linux-amd64 /usr/local/bin/minikube
-```
-
-check
-
-```
-$ minikube version
-```
-
-
-
-#### kubectl
-
-[공식](https://kubernetes.io/ko/docs/tasks/tools/install-kubectl-linux/)
-
-특정 release 다운로드(1.20.13) (release확인은 [여기](https://kubernetes.io/releases/) 에서)
-
-```
-$ sudo curl -LO https://dl.k8s.io/release/v1.22.13/bin/linux/amd64/kubectl
-```
-
-바이너리 검증
-
-```
-$ curl -LO "https://dl.k8s.io/v1.22.13/bin/linux/amd64/kubectl.sha256"
-$ echo "$(<kubectl.sha256)  kubectl" | sha256sum --check
-```
-
-> 검증 성공시 아래처럼 출력
->
-> ```
-> kubectl: OK
-> ```
-
-install kubectl
-
-```
-$ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-```
-
-check
-
-```
-$ kubectl version --client
-```
-
-> ```
-> Client Version: version.Info{Major:"1", Minor:"24", GitVersion:"v1.24.2", GitCommit:"f66044f4361b9f1f96f0053dd46cb7dce5e990a8", GitTreeState:"clean", BuildDate:"2022-06-15T14:22:29Z", GoVersion:"go1.18.3", Compiler:"gc", Platform:"linux/amd64"}
-> ```
->
-> 위 처럼 떠도 정상 (kubenetes server와 client의 version이 모두 출력하는 과정에서, host에서 kubenetes server를 생성하지 않았기 때문에 뜨는 문구)
->
-> - `bash: /usr/bin/kubectl: No such file or directory` 라는 문구가 뜨면
->
->   ```
->   $ bash
->   ```
->   
->   또는 새 터미널에서 실행
->
-
-
-
-
-
-#### start minikube
-
-confirm host
-
-```
-$ sudo vim /etc/hosts
-```
-
-아래 두 개가 제대로 존재하는지 확인
-
-```
-127.0.0.1       host.minikube.internal
-192.168.0.107   control-plane.minikube.internal
-```
-
-
-
-```
-$ minikube start --driver=none \
-  --kubernetes-version=v1.22.13 \
-  --extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key \
-  --extra-config=apiserver.service-account-issuer=kubernetes.default.svc
-```
-
-- `--kubernetes-version ` : kubectl 설치 시 특정한 version
-- `--extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key` : kubeflow를 사용하기 위한 flag
-- `--extra-config=apiserver.service-account-issuer=kubernetes.default.svc`  : kubeflow를 사용하기 위한 flag
-
-> error
->
-> - ```
->   Exiting due to PROVIDER_NONE_NOT_FOUND: The 'none' provider was not found: running the 'none' driver as a regular user requires sudo permissions
->   ```
->
->   sudo 붙여서 실행
->
-> - ```
->   Exiting due to HOST_JUJU_LOCK_PERMISSION: Failed to save config: failed to acquire lock for /home/ainsoft/.minikube/profiles/minikube/config.json: {Name:mk2998bbe62a1ef4b160001f97b8d3cac88d028d Clock:{} Delay:500ms Timeout:1m0s Cancel:<nil>}: unable to open /tmp/juju-mk2998bbe62a1ef4b160001f97b8d3cac88d028d: permission denied
->   ```
->
->   해결방법 
->
->   ```
->   $ sudo rm -rf /tmp/juju-mk*
->   $ sudo rm -rf /tmp/minikube.*
->   ```
->
->   
-
-
-
-check
-
-```
-$ minikube status
-```
-
-```
-minikube
-type: Control Plane
-host: Running
-kubelet: Running
-apiserver: Running
-kubeconfig: Configured
-```
-
-
-
-```
-$ kubectl get namespace
-```
-
-> error
->
-> ```
-> error: unable to read client-key /home/ainsoft/.minikube/profiles/minikube/client.key for minikube due to open /home/ainsoft/.minikube/profiles/minikube/client.key: permission denied
-> ```
->
-> 해결방법 : 권한 설정
->
-> ```
-> sudo chown -R $HOME/.minikube
-> ```
->
-> 이래도 안되면
->
-> ```
-> sudo chown -R $USER $HOME/.kube
-> ```
->
-> 도 추가
-
-```
-kubectl get pods -A
-```
-
-
-
-#### nvidia-device-plugin
-
-1. install
+1. Add required packages
 
    ```
-   $ kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/master/nvidia-device-plugin.yml
+   $ sudo apt-get install -y apt-transport-https ca-certificates curl
    ```
 
    
 
-   check
+2. download google cloud public key
 
    ```
-   $ kubectl get pod -A | grep nvidia
+   $ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
    ```
 
+   
+
+3. add Kubernetes repository for Ubuntu 20.04
+
+   ```
+   $ echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+   ```
+
+   
+
+4. install kubelet, kubeadm, kubectl
+
+   ```
+   $ sudo apt-get update
+   $ sudo apt-get install -y kubectl=1.22.13-00 kubelet=1.22.13-00 kubeadm=1.22.13-00
+   ```
+
+   > 차후 `kserve`를 위해  version을 1.22.13으로 결정 (`1.22.13-00`) 이라 명시해줘야 함
+
+   
+
+5. Confirm installation by checking the version of kubectl.
+
+   ```
+   $ kubectl version --client && kubeadm version
+   ```
+
+   ```
+   Client Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.13", GitCommit:"a43c0904d0de10f92aa3956c74489c45e6453d6e", GitTreeState:"clean", BuildDate:"2022-08-17T18:28:56Z", GoVersion:"go1.16.15", Compiler:"gc", Platform:"linux/amd64"}
+   kubeadm version: &version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.13", GitCommit:"a43c0904d0de10f92aa3956c74489c45e6453d6e", GitTreeState:"clean", BuildDate:"2022-08-17T18:27:51Z", GoVersion:"go1.16.15", Compiler:"gc", Platform:"linux/amd64"}
+   ```
+
+   hold version
+
+   ```
+   $ sudo apt-mark hold kubelet kubeadm kubectl
+   ```
+
+   
+
+6. reload, restart
+
+   ```
+   $ sudo systemctl daemon-reload
+   $ sudo systemctl restart kubelet
+   ```
+
+   
+
+   ```
+   $ systemctl status kubelet
+   ```
+
+   ```
+   ● kubelet.service - kubelet: The Kubernetes Node Agent
+        Loaded: loaded (/lib/systemd/system/kubelet.service; enabled; vendor preset: enabled)
+       Drop-In: /etc/systemd/system/kubelet.service.d
+                └─10-kubeadm.conf
+        Active: activating (auto-restart) (Result: exit-code) since Tue 2022-09-20 13:27:44 KST; 8s ago
+          Docs: https://kubernetes.io/docs/home/
+       Process: 2334601 ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS (code=exited, status=1/FAILURE)
+      Main PID: 2334601 (code=exited, status=1/FAILURE)
+   ```
+
+   - Active :`activating` 확인
+
+
+
+### Initialize master node
+
+1. confirm br_netfilter
+
+   ```
+   $ lsmod | grep br_netfilter
+   ```
+
+   ```
+   br_netfilter           28672  0
+   bridge                176128  1 br_netfilter
+   ```
+
+   - `br_netfilter` kernel module이 존재하고 있으나 아무도 사용을 하고 있지 않아서 `0`
+   - `br_netfilter`가 이 `bridge` module에 의존해서 동작함을 **확인**
+
+2. set host
+
+   ```
+   $ hostnamectl set-hostname master_node_name
+   ```
+
+   
+
+   - if you have plan to set up worker nodes
+
+     ```
+     $ sudo vi /etc/hosts
+     ```
+
+     ```
+     127.0.1.1 master.example.com master					# node(cluster)이름
+     
+     worker_node_내부IP_1	worker node 이름_1
+     worker_node_내부IP_1	worker node 이름_2
+     ```
+
+     
+
+   > minikube를 설치했다가 삭제한 경우로 인해 아래 문구가 존재하면 #으로 주석처리
+   >
+   > ````
+   > $ sudo vi /etc/hosts
+   > ````
+   >
    > ```
-   > kube-system   nvidia-device-plugin-daemonset-rs69d   1/1     Running   0          48s
+   > 127.0.0.1       host.minikube.internal
+   > 192.168.0.107   control-plane.minikube.internal
    > ```
 
    
+
+   확인
+
+   ```
+   $ hostnamectl
+   ```
+
+   ```
+      Static hostname: master.example.com
+            Icon name: computer-desktop
+              Chassis: desktop
+           Machine ID: be201804e0da4edf8f8a54cf782b41f3
+              Boot ID: 83ae19d476f04e4683a9f25fed50408a
+     Operating System: Ubuntu 20.04.5 LTS
+               Kernel: Linux 5.4.0-125-generic
+         Architecture: x86-64
+   ```
+
+   > 또는 hostname file을 직접 확인
+   >
+   > ```
+   > $ sudo vi /etc/hostname
+   > ```
+   >
+   > ```
+   > master.example.com
+   > ```
+
+   
+
+3. kubeadm init
+
+   ```
+   $ sudo kubeadm init \
+     --pod-network-cidr=10.244.0.0/16 \
+     --apiserver-advertise-address 192.168.219.100\
+     --cri-socket /run/cri-dockerd.sock
+   ```
+
+   - `--pod-network-cidr` : 포드 네트워크의 IP 주소 범위를 지정 설정
+
+     다양한 네트워크 플러그인 중 하나를 선택해야만 클러스터 네트워킹이 제대로 동작한다. 
+
+     - **Calico 기반 구축** : 192.168.0.0/16
+
+     - **Flannel 기반 구축** :  10.244.0.0/16
+
+       > kubeflow사용시 권장
+       >
+       > 해당 옵션 사용 시 init이후 flannel CNI를 설치해야 한다. 방법은 아래
+
+   - `--cri-socket` : runtime적용
+
+     ```
+     --cri-socket /run/cri-dockerd.sock
+     ```
+
+     **Mirantis cri-dockerd** 를 설치했다면 반드시 option에 추가
+
+     > installed `cri-dockerd`
+
+   - `--upload-certs` : control-plane 인증서를 kubeadm-certs Secret에 업로드한다.
+
+   - `--control-plane-endpoint` : control-plane의 IP 주소 또는 DNS 이름을 지정
+
+     ```
+     --control-plane-endpoint=k8s-cluster.computingforgeeks.com
+     ```
+
+     
+
+   
+
+   출력 확인
+
+   ```
+   Your Kubernetes control-plane has initialized successfully!
+   
+   To start using your cluster, you need to run the following as a regular user:
+   
+     mkdir -p $HOME/.kube
+     sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+     sudo chown $(id -u):$(id -g) $HOME/.kube/config
+   
+   Alternatively, if you are the root user, you can run:
+   
+     export KUBECONFIG=/etc/kubernetes/admin.conf
+   
+   You should now deploy a pod network to the cluster.
+   Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+     https://kubernetes.io/docs/concepts/cluster-administration/addons/
+   
+   You can now join any number of control-plane nodes by copying certificate authorities
+   and service account keys on each node and then running the following as root:
+   
+     kubeadm join k8s-cluster.computingforgeeks.com:6443 --token j4u32g.kbxv5bd799hh4a32 \
+           --discovery-token-ca-cert-hash sha256:d46b1bed31c13efd6d15ad94ae739a914e359ff8d3244a5da52bdc5e82a444c9 \
+           --control-plane 
+   
+   Then you can join any number of worker nodes by running the following on each as root:
+   
+   kubeadm join k8s-cluster.computingforgeeks.com:6443 --token j4u32g.kbxv5bd799hh4a32 \
+           --discovery-token-ca-cert-hash sha256:d46b1bed31c13efd6d15ad94ae739a914e359ff8d3244a5da52bdc5e82a444c9 
+   ```
+
+   위 출력 중 보이는 아래 세 줄을 실행해야됨
+
+   ```
+   $ mkdir -p $HOME/.kube
+   $ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+   $ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+   ```
+
+   
+
+4. node확인
+
+   ```
+   $ kubectl get nodes
+   ```
+
+   ```
+   NAME                 STATUS     ROLES                  AGE   VERSION
+   master.example.com   Ready   control-plane,master   30s   v1.22.13
+   ```
+
+   > kubeadm init을 안하면 아래 출력이 나옴
+   >
+   > ```
+   > The connection to the server 192.168.0.107:6443 was refused - did you specify the right host or port?
+   > ```
+
+   - STATUS: `NotReady` 인 경우
+
+     1. ```
+        $ kubectl get pod -n kube-system
+        ```
+
+        ```
+        NAME                                     READY   STATUS    RESTARTS   AGE
+        coredns-78fcd69978-cdf4d                 1/1     padding   0          49s
+        coredns-78fcd69978-snxdp                 1/1     padding   0          49s
+        ```
+
+        위 pods의 STATUS: `padding` 인 경우에는 **`install CNI(flannel)`**
+
+        해당 CNI를 설치하지 않으면 nodes의 STATUS가 계속해서 `NotReady`이다.
+
+        ```
+        $ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        ```
+
+        ```
+        $ kubectl get pod -n kube-system
+        ```
+
+        모든 STAUS가 `Running`임을 확인
+
+
+
+
+
+### nvidia-device-plugin
+
+[doc](https://github.com/NVIDIA/k8s-device-plugin)
+
+1. graphic driver 존재 확인
+
+   ```
+   $ nvidia-smi
+   ```
+
+2. create `nvidia-device-plugin` daemonset
+
+   ```
+   $ kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.13.0/nvidia-device-plugin.yml
+   ```
+
+   > version은 공식 doc에서 확인 후 결정
+
+   - kubernetes는 1.6부터 Daemonset이 기본적으로 master node에서 schedule되지 않는다.
+
+     > 정확히는, taint에 의해 master node에서 pod구동이 안되도록 되어 있다.
+
+     만일 master node에서 pod작업을 이어가고자 한다면 taint를 해제
+
+     ```
+     $ kubectl taint nodes hibernationno1 node-role.kubernetes.io/master-
+     ```
+
+3. confirm enabling GPU support in Kubernetes
 
    ```
    $ kubectl get nodes "-o=custom-columns=NAME:.metadata.name,GPU:.status.allocatable.nvidia\.com/gpu"
    ```
 
-   > ```
-   > NAME     GPU
-   > ubuntu   1
-   > ```
-   >
-   > 위 처럼 1이 보여야 한다. (몇 초 가량 지나야함)
+   ```
+   NAME             GPU
+   hibernationno1   1
+   ```
 
-2. check use GPU at pod
+   > 1 확인
+
+   
+
+   pod구동 확인
+
+   ```
+   $ kubectl get pod -A | grep nvidia
+   ```
+
+   ```
+   kube-system   nvidia-device-plugin-daemonset-k228k     1/1     Running   0              16m
+   ```
+
+4. check use GPU at pod
 
    create pod
 
@@ -520,44 +793,86 @@ kubectl get pods -A
    $ kubectl create -f gpu-container.yaml
    $ kubectl get pod gpu -n default
    ```
-   
+
    ```
    NAME   READY   STATUS              RESTARTS   AGE
    gpu    0/1     ContainerCreating   0          90s
    ```
-   
+
    > `STATUS : Runniing` 확인 후 아래 명령어 실행
-   
+
    ```
    $ kubectl logs gpu
    ```
-   
-   
-   
+
    ```
-   Thu Aug 25 00:45:45 2022       
    +-----------------------------------------------------------------------------+
-   | NVIDIA-SMI 440.33.01    Driver Version: 440.33.01    CUDA Version: 10.2     |
+   | NVIDIA-SMI 470.161.03   Driver Version: 470.161.03   CUDA Version: 11.4     |
    |-------------------------------+----------------------+----------------------+
    | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
    | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+   |                               |                      |               MIG M. |
    |===============================+======================+======================|
-   |   0  GeForce RTX 208...  On   | 00000000:01:00.0 Off |                  N/A |
-   |  0%   40C    P8    12W / 300W |   2672MiB / 11019MiB |      0%      Default |
+   |   0  NVIDIA GeForce ...  Off  | 00000000:07:00.0 Off |                  N/A |
+   |  0%   27C    P8    14W / 180W |     64MiB / 12052MiB |      0%      Default |
+   |                               |                      |                  N/A |
    +-------------------------------+----------------------+----------------------+
                                                                                   
    +-----------------------------------------------------------------------------+
-   | Processes:                                                       GPU Memory |
-   |  GPU       PID   Type   Process name                             Usage      |
+   | Processes:                                                                  |
+   |  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+   |        ID   ID                                                   Usage      |
    |=============================================================================|
    +-----------------------------------------------------------------------------+
    ```
 
 
 
-### kubeflow
 
-#### **kustomize** 
+
+### dynamic volume provisioner
+
+kubernetes에서 kubeflow를 사용하려면 [dynamic volume provisioner](https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/)가 필요
+
+-  [Local Path Provisioner](https://github.com/rancher/local-path-provisioner#deployment) 
+
+  로컬 디렉토리를 이용하는 dynamic volume provisioner
+
+  
+
+  install Local Path Provisioner
+
+  ````
+  $ kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+  ````
+
+  > 조회
+  >
+  > ```
+  > $ kubectl get storageclass
+  > ```
+
+
+
+kubeflow는 default storageclass를 사용하기 때문에, local-path storageclass를 default storageclass로 설정해야 한다.
+
+```
+$ kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+> 기본 클래스가 설정된 것을 확인
+>
+> ```
+> $ kubectl get storageclass
+> ```
+
+
+
+
+
+## kubeflow
+
+### **kustomize** 
 
 [여기](https://github.com/kubernetes-sigs/kustomize/) 에서 현재 k8s version에 맞는 kustomize version을 확인하고 download binary
 
@@ -583,13 +898,13 @@ $ sudo wget https://github.com/kubernetes-sigs/kustomize/releases/download/v3.2.
 >   sudo wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.2.0/kustomize_v4.2.0_linux_amd64.tar.gz
 >   ```
 >
->   
+> 
 >
 >   압축 풀고 진행
 >
 >   ```
->   $ gzip -d kustomize_v4.2.0_linux_amd64.tar.gz
->   $ tar -xvf kustomize_v4.2.0_linux_amd64.tar
+> $ gzip -d kustomize_v4.2.0_linux_amd64.tar.gz
+> $ tar -xvf kustomize_v4.2.0_linux_amd64.tar
 >   ```
 
 file의 mode 변경 (실행 가능하도록)
@@ -628,7 +943,9 @@ Version: {KustomizeVersion:3.2.0 GitCommit:a3103f1e62ddb5b696daa3fd359bb6f2e8333
 
 
 
-#### **kubeflow**
+### **kubeflow**
+
+#### install
 
 1. git clone [kubeflow/manifests](https://github.com/kubeflow/manifests)
 
@@ -644,241 +961,84 @@ Version: {KustomizeVersion:3.2.0 GitCommit:a3103f1e62ddb5b696daa3fd359bb6f2e8333
    >
    > 위 명령어를 통해 특정 version으로 checkout하면 `manifests/apps/pipeline/upstream/env/` 의 cert-manager dir이 사라지는  현상 발생 
 
-   1. automatically install
+   ```
+   $ while ! kustomize build example | kubectl apply -f -; do echo "Retrying to apply resources"; sleep 10; done
+   ```
+   
+   위 명령어로 자동 install을 하면 몇 가지 기능이 빠진 채 진행이 안될 수 있다.
+   
+   가능하면 [kubeflow/manifasts](https://github.com/kubeflow/manifests)에서 하나하나 복사해가며 진행하자.
 
-      ```
-      $ while ! kustomize build example | kubectl apply -f -; do echo "Retrying to apply resources"; sleep 10; done
-      ```
 
-   2. manually install
 
-      kubeflow의 individual components install ([github](https://github.com/kubeflow/manifests) 에 다 있음. 가능하면 해당 link에서 보고 install)
+#### connect from external
 
-      > 각각 yaml file을 build이후 kubectl apply -f를 진행하게 되는, 이는 모두 순서대로 해야한다. 특정 kubeflow version을 설치한다면, 대한 version에 대한 tag로 이동하여 해당 version에 맞는 명령어를 입력해야 한다.
+```
+$ kubectl get svc istio-ingressgateway -n istio-system
+```
 
-      1. cert-manager
+```
+NAME                   TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)                                                                      AGE
+istio-ingressgateway   NodePort   10.96.89.178   <none>        15021:32680/TCP,80:32075/TCP,443:32334/TCP,31400:30226/TCP,15443:30276/TCP   15m
+```
 
-         ```
-         $ kustomize build common/cert-manager/cert-manager/base | kubectl apply -f -
-         $ kustomize build common/cert-manager/kubeflow-issuer/base | kubectl apply -f -
-         ```
+- `NodePort` 인 경우 (EXTERNAL-IP없음)
 
-         check
+  1. port-forward
 
-         ```
-         $ kubectl get pod -n cert-manager
-         ```
+     ```
+     kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80
+     ```
 
-      2. istio
+  2. ssh
 
-         ```
-         $ kustomize build common/istio-1-14/istio-crds/base | kubectl apply -f -
-         $ kustomize build common/istio-1-14/istio-namespace/base | kubectl apply -f -
-         $ kustomize build common/istio-1-14/istio-install/base | kubectl apply -f -
-         ```
+     ```
+     ssh -L {외부Port}:{내부IP}:80 taeuk4958@{외부IP} -p {외부Port}
+     ```
 
-         > kubeflow version에 따라 istio의 version이 다를 수 있으니 확인할 것
+     
 
-         ```
-         $ kubectl get pod -n istio-system 
-         ```
+- `Connection refused` 가 뜰 때
 
-      3. Dex
+  port-forward을 한 상태에서 localhost:8080으로 접속이 거부당한 경우
 
-         ```
-         $ kustomize build common/dex/overlays/istio | kubectl apply -f -
-         ```
+  port-forward를 한 pc에서 새 terminal키고 아래 명령어로 문제가 있는지 확인
 
-      4. OIDC AuthService
+  ```
+  $ curl http://127.0.0.1:8080
+  ```
 
-         ```
-         $ kustomize build common/oidc-authservice/base | kubectl apply -f -
-         ```
+  ```
+  <a href="/dex/auth?client_id=kubeflow-oidc-authservice&amp;redirect_uri=%2Flogin%2Foidc&amp;response_type=code&amp;scope=profile+email+groups+openid&amp;state=MTY3MDg5Mzc4OHxFd3dBRUdNeVYwUTRSakp4VG1aSVN6VmhPRFE9fF3WLfxMIG835gne0SjDh4WzG1p56rNw64yirgAFPW92">Found</a>.
+  ```
 
-      5. Knative
+  이상 없을 경우 위 출력과 같이 보인다.
 
-         > 설치 안됨 
-         >
-         > ```
-         > unable to recognize "STDIN": no matches for kind "PodDisruptionBudget" in version "policy/v1"
-         > unable to recognize "STDIN": no matches for kind "PodDisruptionBudget" in version "policy/v1"
-         > ```
-         >
-         > 
+  이후 접속해보면 됨.
 
-         ```
-         $ kustomize build common/knative/knative-serving/overlays/gateways | kubectl apply -f -
-         $ kustomize build common/istio-1-14/cluster-local-gateway/base | kubectl apply -f -
-         ```
+  
+  
+  그래도 안될 경우
 
-      6. Kubeflow Namespace
+  1. 모든 bind의 주소를 열어주는 방향으로 port-forward
 
-         ```
-         $ kustomize build common/kubeflow-namespace/base | kubectl apply -f -
-         ```
+     ```
+     $ kubectl port-forward --address=0.0.0.0 svc/istio-ingressgateway -n istio-system 8080:80
+     ```
 
-         check
+  2. 공인 IP를 통해 접속 시도
+  
+     ```
+     http://<공인_IP>:8080
+     ```
+  
+     만약 여기서 성공한다면, 다시 `--address=0.0.0.0` option을 제거하고 port forward를 한 후  localhost8080에 접속해본다.
 
-         ```
-         $ kubectl get namespace   # Kubeflow라는 namespace생성되어야함
-         ```
 
-      7. Kubeflow Roles
 
-         ```
-         $ kustomize build common/kubeflow-roles/base | kubectl apply -f -
-         ```
 
-      8. Kubeflow Istio Resources
 
-         ```
-         $ kustomize build common/istio-1-14/kubeflow-istio-resources/base | kubectl apply -f -
-         ```
-
-         > kubeflow version에 따라 istio의 version이 다를 수 있으니 확인할 것
-
-      9. Kubeflow Pipelines
-
-         ```
-         $ kustomize build apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user | kubectl apply -f -
-         ```
-
-         > If your container runtime is not docker, use pns executor instead:
-         >
-         > ```
-         > $ kustomize build apps/pipeline/upstream/env/platform-agnostic-multi-user-pns | kubectl apply -f -
-         > ```
-
-         만약 아래와 같은 error가 떳다면
-
-         ```
-         unable to recognize "STDIN": no matches for kind "CompositeController" in version "metacontroller.k8s.io/v1alpha1"
-         ```
-
-         위 설치 명령어 다시 입력
-
-      10. KServe
-
-          Install the KServe component
-
-          ```
-          $ kustomize build contrib/kserve/kserve | kubectl apply -f -
-          ```
-
-          > ```
-          > anable to recognize "STDIN": no matches for kind "ClusterServingRuntime" in version "serving.kserve.io/v1alpha1"
-          > ```
-          >
-          > 가 뜬다면 위 명령어 한번 더 입력
-
-          Install the Models web app
-
-          ```
-          $ kustomize build contrib/kserve/models-web-app/overlays/kubeflow | kubectl apply -f -
-          ```
-
-      11. Katib
-
-          ```
-          $ kustomize build apps/katib/upstream/installs/katib-with-kubeflow | kubectl apply -f -
-          ```
-
-      12. Central Dashboard
-
-          ```
-          $ kustomize build apps/centraldashboard/upstream/overlays/kserve | kubectl apply -f -
-          ```
-
-      13. Admission Webhook
-
-          ```
-          $ kustomize build apps/admission-webhook/upstream/overlays/cert-manager | kubectl apply -f -
-          ```
-
-      14. Notebooks
-
-          Install the Notebook Controller official Kubeflow component
-
-          ```
-          $ kustomize build apps/jupyter/notebook-controller/upstream/overlays/kubeflow | kubectl apply -f -
-          ```
-
-          Install the Jupyter Web App official Kubeflow component
-
-          ```
-          # kustomize build apps/jupyter/jupyter-web-app/upstream/overlays/istio | kubectl apply -f -
-          ```
-
-      15. Profiles + KFAM
-
-          ```
-          $ kustomize build apps/profiles/upstream/overlays/kubeflow | kubectl apply -f -
-          ```
-
-      16. Volumes Web App
-
-          ```
-          $ kustomize build apps/volumes-web-app/upstream/overlays/istio | kubectl apply -f -
-          ```
-
-      17. Tensorboard
-
-          Install the Tensorboards Web App official Kubeflow component
-
-          ```
-          $ kustomize build apps/tensorboard/tensorboards-web-app/upstream/overlays/istio | kubectl apply -f -
-          ```
-
-          Install the Tensorboard Controller official Kubeflow component
-
-          ```
-          $ kustomize build apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow | kubectl apply -f -
-          ```
-
-      18. training operator
-
-          ```
-          $ kustomize build apps/training-operator/upstream/overlays/kubeflow | kubectl apply -f -
-          ```
-
-      19. User Namespace
-
-          ```
-          $kustomize build common/user-namespace/base | kubectl apply -f -
-          ```
-
-   3. confirm kubeflow install
-
-      ```
-      $ kubectl get namespace
-      ```
-
-      ```
-      NAME                        STATUS   AGE
-      auth                        Active   101s
-      cert-manager                Active   101s
-      istio-system                Active   101s
-      knative-eventing            Active   101s
-      knative-serving             Active   101s
-      kubeflow                    Active   101s
-      kubeflow-user-example-com   Active   66s
-      ```
-
-      > 위 namespace가 생성되었는지 확인
-
-      
-
-      모든 pod의 status확인
-
-      ```
-      $ kubectl get po -A
-      ```
-
-
-
-
-
-## add user
+### add user
 
 dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
 
@@ -927,10 +1087,10 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
    위의 `staticPasswords` 에 아래 4가지를 추가해야 한다.
 
    ```
-   - email: winter4958@gmail.com
-     hash: $2a$12$s21uO0l2X8Faib/pwkq.J.Tx1x4cKGFn5IwT/tri26W6c7c4Fafha
-     userID: "taeuk"
-     username: taeuk
+       - email: winter4958@gmail.com
+         hash: $2a$12$lRDeywzDl4ds0oRR.erqt.b5fmNpvJb0jdZXE0rMNYdmbfseTzxNW
+         userID: "84604958"
+         username: taeuk
    ```
 
    - `email` : dashdoard접속시 입력할 email
@@ -974,7 +1134,7 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
       apiVersion: kubeflow.org/v1beta1
       kind: Profile
       metadata:
-        name: testuser
+        name: namesapce
       spec:
         owner:
           kind: User
@@ -1023,506 +1183,517 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
       $ kubectl apply -f profile.yaml
       ```
 
+      > 만일 `no matches for kind "Profile" in version "kubeflow.org/v1beta1"` 라는 error message가 뜬다면  [kubeflow/manifasts](https://github.com/kubeflow/manifests)에서 `Profiles + KFAM`와 `User Namespace`를 install이 제대로 됐는지 확인하자.
+
    3. edit
 
       profile 변경이 필요할 시
-
+   
       ```
       $ kubectl edit profile <namespace_name>
       ```
-
-      
-
-
-
-## start
-
-```
-minikube start --driver=none \
-  --kubernetes-version=v1.23.10  \
-  --extra-config=apiserver.service-account-signing-key-file=/var/lib/minikube/certs/sa.key \
-  --extra-config=apiserver.service-account-issuer=kubernetes.default.svc
-```
-
-
-
-### access dashboard
-
-- port-forward 
-
-  ```
-  $ kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80
-  ```
-
-  > ```
-  > localhost:8080
-  > ```
-
-- port access
-
-  ```
-  $ minikube service list -n istio-system
-  ```
-
-  ```
-  |--------------|-----------------------|-------------------|----------------------------|
-  |  NAMESPACE   |         NAME          |    TARGET PORT    |            URL             |
-  |--------------|-----------------------|-------------------|----------------------------|
-  | istio-system | authservice           | No node port      |
-  | istio-system | cluster-local-gateway | No node port      |
-  | istio-system | istio-ingressgateway  | status-port/15021 | http://192.168.0.107:31478 |
-  |              |                       | http2/80          | http://192.168.0.107:31355 |
-  |              |                       | https/443         | http://192.168.0.107:30779 |
-  |              |                       | tcp/31400         | http://192.168.0.107:31354 |
-  |              |                       | tls/15443         | http://192.168.0.107:31375 |
-  | istio-system | istiod                | No node port      |
-  | istio-system | knative-local-gateway | No node port      |
-  |--------------|-----------------------|-------------------|----------------------------|
-  ```
-
-  위 중 `istio-ingressgateway ` -`http2/80` 의 URL
-
-  ```
-  http://192.168.0.107:31355
-  ```
-
-  
-
-
-
-### access from outside 
-
-#### ngrok
-
-**install** 
-
-```
-$ sudo snap install ngrok
-```
-
-
-
-**using**
-
-> ```
-> $  kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80
-> ```
->
-> 위 명령어가 활성화 된 terminal이 열려있어야 함 
-
-```
-$ ngrok http 8080
-```
-
-```
-ngrok by @inconshreveable                                                                                                                                           (Ctrl+C to quit)
-
-Session Status                online
-Session Expires               1 hour, 51 minutes
-Version                       2.3.40
-Region                        United States (us)
-Web Interface                 http://127.0.0.1:4040
-Forwarding                    https://eb45-1-214-32-67.ngrok.io -> http://localhost:8090
-
-Connections                   ttl     opn     rt1     rt5     p50     p90
-                              2       0       0.00    0.00    300.58  300.92
-
-HTTP Requests
--------------
-
-GET /favicon.ico               302 Found
-GET /                          302 Found
-GET /                          302 Found
-```
-
-- `Session Status` : session의 상태. online일 경우 정상
-
-- `Session Expires` : 남은 session의 만료 시간
-
-  > 만료 시간이 지나면 다시 `./ngrok http {port}`명령어 입력해야함
-  >
-  > 만료 시간 없이 사용하려면 계정 연동. 방법은 아래에
-
-- `Region` : ngrok agent가 ternal을 hoting하기 위한 region
-
-- `Web Interface` : ngrok dashboard를 제공하는 URL
-
-- `Forwarding` : ngrok에서 제공하는 ternal URL로, 이를 통해 외부에서도 local 한경에 접근할 수 있다. (http, https제공)
-
-
-
-
-
-**account linking**
-
-[공식 페이지](https://ngrok.com/) 에 로그인 후  `Your Authtoken`에서 token받고 아래 명령어
-
-```
-$ ngrok config add-authtoken {token값}
-```
-
-
-
-> remove
->
-> ```
-> $ sudo snap remove ngrok
-> ```
->
-
-
-
-#### External-IP
-
-**istio-ingressgateway 의 spec.type이 `LoadBalancer` 임을 확인**
-
-`nodeport`라 되어있으면 변경 필요
-
-```
-$ kubectl edit service -n istio-system istio-ingressgateway
-```
-
-
-
-1. **get `External-IP`** 
-
-   아직은 `External-IP`이 `<pending> `일 것임
-
-   ```
-   $ kubectl get service -n istio-system istio-ingressgateway
-   ```
-
-   ```
-   NAME                   TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                                                                      AGE
-   istio-ingressgateway   LoadBalancer   10.110.207.155   <pending>     15021:31478/TCP,80:31355/TCP,443:30779/TCP,31400:31354/TCP,15443:31375/TCP   48m
-   ```
-
-   1. enable **MetalLB**
-
-      minikube의 addons중 `metallb ` 확인
-
-      ```
-      $ minikube addons list
-      ```
-
-      ```
-      | metallb                     | minikube | disabled     | 3rd party (MetalLB)            |
-      ```
-
-      
-
-      enable `metallb`
-
-      ```
-      $ minikube addons enable metallb
-      ```
-
-      ```
-      ❗  metallb is a 3rd party addon and not maintained or verified by minikube maintainers, enable at your own risk.
-          ▪ Using image metallb/speaker:v0.9.6
-          ▪ Using image metallb/controller:v0.9.6
-      🌟  The 'metallb' addon is enabled
-      ```
-
-      
-
-   2. set IP range
-
-      ```
-      $ minikube addons configure metallb
-      ```
-
-      ```
-      -- Enter Load Balancer Start IP: 192.168.0.240
-      -- Enter Load Balancer End IP: 192.168.0.249
-          ▪ Using image metallb/speaker:v0.9.6
-          ▪ Using image metallb/controller:v0.9.6
-      ✅  metallb was successfully configured
-      ```
-
-      - `-- Enter Load Balancer Start IP` ,` -- Enter Load Balancer End IP` : **192.168.0.240** 부터 **192.168.0.249** 사이의 Host IP주소 할당
-
-        > 너무 많이 할당하면 기존에 회사에서 사설 IP를 받아 쓰던 내부망 client들과 충돌이 있을 우려가 생기므로 조심
-        
-        ```
-        -- Enter Load Balancer Start IP: 192.168.0.240
-        -- Enter Load Balancer End IP: 192.168.0.249
-        ```
-        
-        
-
-      
-
-   3. check `EXTERNAL-IP`
-
-      ```
-      $ kubectl get service -n istio-system istio-ingressgateway
-      ```
-
-      ```
-      NAME                   TYPE           CLUSTER-IP       EXTERNAL-IP     PORT(S)                                                                      AGE
-      istio-ingressgateway   LoadBalancer   10.110.207.155   192.168.0.240   15021:31478/TCP,80:31355/TCP,443:30779/TCP,31400:31354/TCP,15443:31375/TCP   54m
-      ```
-
-      `192.168.0.240` 의 외부 IP가 생겼음을 확인
-
    
-
-2. **access from client**
-
-   1. configure port poward
-
-      iptime 공유기 사용 중이면 `192.168.0.1` 접속 후
-
-      `관리도구 - 네이게이션의 고급 설정 - NAT/라우터 관리  - 포트포워드 설정`
-
-      **새 규칙 추가**
-
-      ```
-      내부 IP : 192.168.0.107
       
-      외부 포트 : 2222
-      
-      내부 포트 : 22
-      ```
-
-      > 외부 IP의 port 2222로 접속하면 내부 IP의 내부 port 22로 접속이 되게 설정
-
-   2. access from client
-
-      client terminal에서 
-
-      ```
-      ssh -L {외부 port}:{istio-ingressgatewa 의 EXTERNAL-IP}:80 {접속하고자 하는 서버의 ID}@{외부 IP} -p {외부 port}
-      ```
-
-      > 예시
-      >
-      > ```
-      > ssh -L 2222:192.168.0.240:80 ainsoft@x.xxx.xx.xx -p 2222
-      > ```
-
-      이제 해당 terminal이 열려있는 상태에서
-
-      browser에 `http://localhost:2222` 입력 시 kubeflow dashboard사용 사능
-
-   
 
 
 
+### add secret
 
+```
+$ vi client_secrets.txt
+```
 
-## uninstall
+```
+type=service_account
+project_id=adroit-xxxxx-xxxx
+private_key_id=0b55dxxxxxxx30211daf249b0xxxxxxxx
+private_key=
+client_email=xxxxxxx8@adroit-xxxxxxx-xxxxxx.iam.xxxxxxxx.com
+client_id=xxxxxxxxxxxxxxxxxxxx4
+auth_uri=https://accounts.google.com/o/xxxx/xxxx
+token_uri=https://xxxx.googleapis.com/xxxxx
+auth_provider_x509_cert_url=https://www.googleapis.com/xxxxx/v1/xxxxx
+client_x509_cert_url=https://www.googleapis.com/robot/v1/metadata/xxxx/xxxxxxxxx-xxxxxxxxxxr-xxxxx.iam.gserviceaccount.com
+```
 
-
-
-1. delete docker container
-
-   ```
-   $ docker rm -f $(docker ps -aq)
-   ```
-
-2. delete docker images
-
-   ```
-   $ docker rmi $(docker images -q)
-   ```
-
-3. delete minikube
-
-   ```
-   $ minikube stop
-   $ minikube delete
-   ```
-
-   > minikube를 통해 실행되던 cluster를 삭제. minikube자체를 삭제한것이 아님.
-   >
-   > error
-   >
-   > - `env: ‘kubeadm’: No such file or directory`
-   >
-   >   이런 경우 minikube의 prifiles를 전부 삭제
-   >
-   >   ```
-   >   $ sudo rm -rf ~/.kube ~/.minikube
-   >   ```
-
-4. delete kubectl 
-
-   `kubectl`, `kubectl.sha256` 가 있는 위치에서 아래 명령어
-
-   ```
-   $ rm -rf kubectl
-   $ rm -rf kubectl.sha256
-   ```
-
-   이후 아래 명령어
-
-   ```
-   $ sudo rm /usr/local/bin/kubectl
-   ```
-
-   
+위와 같은 형식으로 작성
 
 
 
-# katib
+create secret
 
-detail: [here](https://github.com/HibernationNo1/TIL/blob/master/study_Machine_learning/MLOps/Kubeflow/katib/katib_example.md)
+```
+$ kubectl -n project-pipeline create secret generic client-secrets --from-env-file client-secrets.txt
+```
+
+
 
 ### docker
+
+#### registry
+
+1. install
+
+   ```
+   $ docker pull registry:latest
+   ```
+
+2. run
+
+   ```
+   $ docker run --name private-docker -dit -t -p 5000:5000 registry
+   ```
+
+   - `--name private-docker` : container name 
+
+   - `-d` : background로 실행
+
+   - `-t`: TTY mode사용 (bash를 사용하려면 설정)
+
+   - `-i`: 표준 입력(STDIN)을 활성화하고, container와 연결되어 있지 않더라도 표준입력 유지
+
+     > `-d`, `-t`, `-i`를 함께 쓰려면 `-dit`라고 명시
+
+   - `-p 5000:5000` : 5000번 port로 사용
+
+     > 외부에서 접속 시 port-forward필요
+
+   - `registry` : run할 docker images이름
+
+
+
+#### git shh key
+
+- check if already exist before generate public key
+
+  ```
+  $ cd /home/username/.ssh
+  ```
+
+  - `username` 본인 계정
+
+  위 경로에 다른 key가 있는지 확인할 것.
+
+  이미 public key가 있는데, 또 만들면 덮어씌워짐
+
+
+
+1. generate ssh public key
+
+   ```
+   $ ssh-keygen -t rsa -C "github_email"
+   ```
+
+   > - `-t`: public key 지문 종류 중 하나 결정
+   >
+   >   > `rsa`, `Ed25519`, `ECDSA` 등이 있다.
+   >
+   > - `-C "github_email"` : public key를 적용할 github계정 이멜
+
+   ```
+   Generating public/private rsa key pair.
+   ```
+
+   
+
+   - 저장하고자 하는 위치 결정
+
+     ```
+     Enter file in which to save the key (/home/username/.ssh/id_rsa): 
+     ```
+
+     그냥 enter치면 명시된 path에 key가 생성된다.
+
+     ```
+     Your identification has been saved in /home/username/.ssh/id_rsa
+     Your public key has been saved in /home/username/.ssh/id_rsa.pub
+     The key fingerprint is:
+     SHA256:SCI00gpV8VA26kuCpB2j6UILPW/zMmgcchyM3/yNDRU username@gmail.com
+     The key's randomart image is:
+     +---[RSA 3072]----+
+     |.o+.+o+          |
+     |.o.. = .E        |
+     |.=+ o o  .       |
+     |=*o= o ..        |
+     |*+=+o ..S        |
+     |= *=o..          |
+     |.* o=. =         |
+     |. +.ooo o        |
+     | .   o.          |
+     +----[SHA256]-----+
+     ```
+
+   생성된 path에 가서 확인
+
+   ```
+   $ cd /home/username/.ssh
+   $ ls
+   ```
+
+   ```
+   id_rsa  id_rsa.pub  known_hosts
+   ```
+
+   - `id_rsa`: private key가 저장되어 있음
+
+     개인키는 절대 공개되어선 안된다.
+
+   - `id_rsa.pub`: pubilc key가 저장되어 있음
+
+     > rsa방식으로 key를 생성하는 경우 위와 같은 name으로 file이 생성된다.
+
+2. public key registration to github
+
+   1. confirm private key
+
+      ```
+      $ cat id_rsa.pub
+      ```
+
+      해당 key 복사
+
+   2. login github and go `setting` > `SSH and GPG keys` 
+
+      `New SSH key` 선택
+
+   3. add key
+
+      - `title`: 구분하기 편한 name
+      - key복붙
+
+
+
+#### dockerfile
 
 ```
 ARG PYTORCH="1.11.0"
 ARG CUDA="11.3"
-ARG CUDNN="8"  
+ARG CUDNN="8"   
 
 FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel	
-
 
 ENV TORCH_CUDA_ARCH_LIST="7.5"
 ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
 ENV CMAKE_PREFIX_PATH="$(dirname $(which conda))/../"	
 
-
-# To fix GPG key error when running apt-get update
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu2004/x86_64/7fa2af80.pub
-
-# for install opencv
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y  
-
-
-# COPY ./requirements.txt ./requirements.txt
-COPY ./ ./
+COPY ./requirements.txt ./requirements.txt
+# install custom package
 RUN pip install -r requirements.txt
 
-# Install MMCV
-RUN pip install --no-cache-dir --upgrade pip wheel setuptools
-RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
+# To fix GPG key error when running apt-get update
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/7fa2af80.pub
+RUN apt-get update 
 
-# ENTRYPOINT python train.py --cfg configs/swin_maskrcnn.py --epo 50 --val_iter 50
+RUN apt-get install -y git
+
+RUN mkdir /root/.ssh
+ADD id_rsa /root/.ssh/id_rsa
+RUN chmod 600 /root/.ssh/id_rsa
+RUN touch /root/.ssh/known_hosts
+RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
+
+WORKDIR pipeline_dataset
+RUN git init
+RUN git remote add origin git@github.com:HibernationNo1/pipeline_dataset.git
+RUN git pull git@github.com:HibernationNo1/pipeline_dataset.git
 ```
 
 
 
-```
-$ docker build . -t hibernation4958/katib:0.1
-```
-
-
-
-> **test**
->
-> ```
-> $ docker run --shm-size 8G -v $(pwd):/test-vol -it hibernation4958/katib:0.1
-> ```
-
-
-
-### resource 
+외부에서 server에 push
 
 ```
-$ vi katib.yaml
+$ docker build train --no-cache -t ***.**.146.126:49**/train:0.1
+$ docker push ***.**.146.126:49**/train:0.1
+```
+
+
+
+
+
+## KServe
+
+[doc_kserve0.9](https://kserve.github.io/website/0.9/admin/serverless/#5-install-kserve-built-in-clusterservingruntimes)
+
+`Istio`, `Knative Serving`, `Cert Manager` 는 전부 kubeflow에 설치한 resource그대로 사용
+
+
+
+kubeflow/manifast공시 gitgub에 있는 건 뭐냐?
+
+
+
+### KServe
+
+```
+$ kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.9.0/kserve.yaml
+```
+
+confirm 
+
+```
+$ kubectl get pod -n kserve
 ```
 
 ```
-apiVersion: kubeflow.org/v1beta1
-kind: Experiment
+NAME                                         READY   STATUS    RESTARTS   AGE
+kserve-controller-manager-5fc887875d-td89t   2/2     Running   0          3m58s
+```
+
+
+
+
+
+### Built-in ClusterServingRuntimes
+
+```
+$ kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.9.0/kserve-runtimes.yaml
+```
+
+> **ClusterServingRuntimes** are required to create InferenceService for built-in model serving runtimes with KServe v0.8.0 or higher.
+
+
+
+
+
+### exam
+
+**preparations**
+
+1. namespace생성
+
+   ```
+   $ kubectl create namespace kserve-test
+   ```
+
+2. 배포하고자 하는 model에 대한 InferenceService 작성 후 apply
+
+   ```
+   $ kubectl apply -n kserve-test -f - <<EOF
+   apiVersion: "serving.kserve.io/v1beta1"
+   kind: "InferenceService"
+   metadata:
+     name: "sklearn-iris"
+   spec:
+     predictor:
+       model:
+         modelFormat:
+           name: sklearn
+         storageUri: "gs://kfserving-examples/models/sklearn/1.0/model"
+   EOF
+   ```
+
+   > - `metadata.name` : Knative service name
+   >
+   > 
+   >
+   > ```
+   > $ kubectl get pods -n kserve-test -w
+   > ```
+   >
+   > `STATUS : Running` 확인 후 진행
+
+3. confirm domain
+
+   ```
+   $ kubectl get inferenceservices sklearn-iris -n kserve-test
+   ```
+
+   ```
+   NAME           URL                                           READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION                    AGE
+   sklearn-iris   http://sklearn-iris.kserve-test.example.com   True           100                              sklearn-iris-predictor-default-00001   5h11m
+   ```
+
+   `URL` : 기본 도메인 값은 `http://{Knative service name}.{namespace}.example.com` 이다.
+
+4. port forward
+
+   ```
+   kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80
+   ```
+
+   
+
+
+
+
+
+- SERVICE_HOSTNAME
+
+  ```
+  $ SERVICE_HOSTNAME=$(kubectl get inferenceservice sklearn-iris -n kserve-test -o jsonpath='{.status.url}' | cut -d "/" -f 3)
+  ```
+
+  ```
+  sklearn-iris.kserve-test.example.com
+  ```
+
+  
+
+  
+
+- INGRESS_HOST
+
+  ```
+  INGRESS_HOST=192.168.219.100
+  ```
+
+  내부 IP
+
+  
+
+- INGRESS_PORT
+
+  ```
+  $ INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+  ```
+
+  > ```
+  > $ echo $INGRESS_PORT
+  > ```
+  >
+  > install시 random으로 할당됨
+
+
+
+호출
+
+- internal
+
+  ```
+  $ curl -v -H "Host: ${SERVICE_HOSTNAME}" http://${INGRESS_HOST}:${INGRESS_PORT}/v1/models/sklearn-iris:predict -d @./iris-input.json
+  ```
+
+  > ```
+  > $ curl -v -H "Host: sklearn-iris.kserve-test.example.com" http://192.168.219.100:30551/v1/models/sklearn-iris:predict -d @./iris-input.json
+  > ```
+
+- external
+
+  ```
+  curl -v -H "Host: sklearn-iris.kserve-test.example.com" http://{외부IP}:${INGRESS_PORT}/v1/models/sklearn-iris:predict -d @./iris-intput.json
+  ```
+
+
+
+이대로 호출하면 302 가 뜬다(dex인증 필요)
+
+
+
+#### indirection
+
+[configmap](https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/#MeshConfig-ExtensionProvider-EnvoyExternalAuthorizationHttpProvider)
+
+```
+$ kubectl edit configmap istio -n istio-system
+```
+
+```
+data:
+  mesh: |-
+    extensionProviders:
+      - name: dex-auth-provider
+          envoyExtAuthzHttp:
+            service: "authservice.istio-system.svc.cluster.local"
+            port: "8080"
+            includeRequestHeadersInCheck: ["authorization", "cookie", "x-auth-token"]
+            headersToUpstreamOnAllow: ["kubeflow-userid"]
+```
+
+
+
+[AuthorizationPolicy](https://istio.io/latest/docs/reference/config/security/authorization-policy/)
+
+```
+$ vi authorizationpolicy.yaml
+```
+
+```
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
 metadata:
-  namespace: project-pipeline
-  name: katib
+  name: dex-auth
+  namespace: istio-system
 spec:
-  objective:
-    type: maximize
-    goal: 0.85
-    objectiveMetricName: mAP
-    metricStrategies:
-    - name: mAP
-      value: latest
-  algorithm:
-    algorithmName: random				
-  parallelTrialCount: 2
-  maxTrialCount: 12
-  maxFailedTrialCount: 5
-  parameters:
-    - name: drop_rate
-      parameterType: double
-      feasibleSpace:
-        min: "0.0"
-        max: "0.3"
-    - name: attn_drop_rate
-      parameterType: double
-      feasibleSpace:
-        min: "0.0"
-        max: "0.3"
-    - name: drop_path_rate
-      parameterType: double
-      feasibleSpace:
-        min: "0.1"
-        max: "0.3"
-  metricsCollectorSpec:
-    collector:
-      kind: StdOut
-    source:
-      filter:
-        metricsFormat:
-        - "([\\w|-]+)\\s*=\\s*((-?\\d+)(\\.\\d+)?)"  
-  trialTemplate:
-    primaryContainerName: training-container
-    trialParameters:
-      - name: drop_rate
-        description: drop_rate of SwinTransformer
-        reference: drop_rate
-      - name: drop_path_rate
-        description: drop_path_rate of SwinTransformer
-        reference: drop_path_rate
-      - name: attn_drop_rate
-        description: attn_drop_rate of SwinTransformer.SwinBlockSequence.ShiftWindowMSA.WindowMSA
-        reference: attn_drop_rate 
-    trialSpec:
-      apiVersion: batch/v1
-      kind: Job
-      spec:
-        template:
-          metadata:
-            annotations:
-              sidecar.istio.io/inject: "false"
-          spec:
-            containers:
-              - name: training-container
-                image: hibernation4958/katib_it:0.1
-                command:
-                  - "python3"
-                  - "/workspace/train.py"
-                  - "--cfg=configs/swin_maskrcnn.py"
-                  - "--epo=50"
-                  - "--katib"
-                  - "--drop_rate=${trialParameters.drop_rate}"
-                  - "--drop_path_rate=${trialParameters.drop_path_rate}"
-                  - "--attn_drop_rate=${trialParameters.attn_drop_rate}"                  
-            restartPolicy: Never
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  action: CUSTOM
+  provider:
+    # The provider name must match the extension provider defined in the mesh config.
+    name: dex-auth-provider
+  rules:
+  # The rules specify when to trigger the external authorizer.
+  - to:
+    - operation:
+        notPaths: ["/v1*"]
 ```
 
+> - `action: CUSTOM`:  `-n istio-system`의 `configmap` 에서 설정한  `dex-auth-provider`애 의해 차단 설정을 구축하기 위해선 `CUSTOM` 선택  
+> - `name: dex-auth-provider`:  `-n istio-system`의 `configmap` 에서 설정한  `extensionProviders`의 이름과 같아야 한다.
+> - `notPaths: ["/v1*"]`: `/v1` 로 시작하는 route제외 전부 차단
+
 ```
-$ kubectl apply -f katib.yaml
+$ kubectl apply -f authorizationpolicy.yaml 
 ```
 
 
 
+이후 `authn-filter` 삭제
+
 ```
-$ kubectl -n project-pipeline get experiment katib -o yaml
+$ kubectl delete -n istio-system envoyfilters.networking.istio.io authn-filter
+```
+
+```
+$ kubectl rollout restart deployment/istiod -n istio-system
 ```
 
 
 
-> delete
->
 > ```
-> $ kubectl -n project-pipeline delete experiment katib
+> $ kubectl delete -n istio-system AuthorizationPolicy dex-auth
 > ```
 
 
 
+TODO: 실패
 
+
+
+## uninstall
+
+#### kubeadm reset
+
+```
+sudo systemctl restart docker
+docker rm -f $(docker ps -aq)
+docker rmi $(docker images -q)
+```
+
+> 한 번에 입력
+
+```
+$ sudo kubeadm reset
+$ sudo rm -rf /home/ainsoft/.kube
+```
+
+
+
+#### uninstall kubeadm kubectl kubelet
+
+```
+$ sudo apt-get purge kubeadm kubectl kubelet
+```
+
+
+
+#### uninstall docker
+
+```
+$ docker rm -f $(docker ps -aq)
+$ docker rmi $(docker images -q)
+$ sudo apt-get remove docker-ce docker-ce-cli containerd.io 
+```
 
