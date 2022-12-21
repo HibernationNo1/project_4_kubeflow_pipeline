@@ -4,10 +4,12 @@ import requests
 import warnings
 
 from hibernation_no1.configs.config import Config
+
 CONFIGS = dict()     # parameters for pipeline run  
 
 def set_cfg_recode(args, cfg):
-    pass
+    assert cfg.dvc.recode.train == cfg.recode.train_dataset
+    assert cfg.dvc.recode.val == cfg.recode.val_dataset
    
 def set_cfg_pipeline(args, cfg):
     if args.pipeline_n is not None: cfg.kbf.pipeline.name = args.pipeline_n
@@ -15,12 +17,29 @@ def set_cfg_pipeline(args, cfg):
     if args.experiment_n is not None: cfg.kbf.experiment.name = args.experiment_n
     if args.run_n is not None: cfg.kbf.run.name = args.run_n    
     cfg.kbf.dashboard.pw =  args.pipeline_pw 
+    
+    
      
-def set_cfg_ai(args, cfg):
+def set_cfg_train(args, cfg):
     if args.name_db is not None: cfg.db.db = args.name_db 
     if args.user_db is not None: cfg.db.user = args.user_db 
     
     if args.model_name is not None: cfg.filename_tmpl = f"{args.model_name}"+"_{}.path"
+    if args.val_iter is not None: 
+        for i, custom_hook in enumerate(cfg.custom_hook_config):
+            if custom_hook.get('Validation_Hook', None) is not None:
+                 cfg.custom_hook_config[i].val = args.val_iter
+                 break
+    
+    # If get dataset with dvc, load the paths from the database.
+    # And all paths were set by dvc config
+    if cfg.get('dvc', None) is not None:
+        cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.dvc.category, 
+                                                                     cfg.dvc.recode.name, 
+                                                                     cfg.dvc.recode.version)
+        cfg.data.train.ann_file = cfg.dvc.recode.train
+        cfg.data.val.ann_file = cfg.dvc.recode.val
+    
 
     if args.pm_dilation is not None: cfg.model.backbone.pm_dilation = args.pm_dilation
     if args.drop_rate is not None: cfg.model.backbone.drop_rate = args.drop_rate
@@ -28,24 +47,39 @@ def set_cfg_ai(args, cfg):
     if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
 
 CONFIG_SET_FUNCTION = dict(
-    cfg_pipeline = set_cfg_pipeline,
-    cfg_recode = set_cfg_recode,
-    cfg_ai = set_cfg_ai
+    pipeline = set_cfg_pipeline,
+    recode = set_cfg_recode,
+    train = set_cfg_train
 )
 
 
 def set_config(args):
-    CONFIGS['cfg_pipeline'] = args.cfg_pipeline
-    CONFIGS['cfg_ai'] = args.cfg_ai
-    CONFIGS['cfg_recode'] = args.cfg_recode
+    """ 
+        cfg arguments determines which component be run.
+        Components that matching cfg arguments which got `None` are excluded from the pipeline.
+        cfg arguments: is chooses in [args.cfg_train, args.cfg_recode]
+    Args:
+        args : argparse
+    """
+
+    CONFIGS['pipeline'] = args.cfg_pipeline
+    CONFIGS['train'] = args.cfg_train
+    CONFIGS['recode'] = args.cfg_recode
     
     for key, func in CONFIG_SET_FUNCTION.items():
         if CONFIGS[key] is not None:
+            # Assign config only included in args 
             config =  Config.fromfile(CONFIGS[key])
             func(args, config)
         else: config = None
+        # CONFIGS[key] = False or Config
+        # if False, components matching the key will be excluded from the pipeline.
+        # >>    example
+        # >>    CONFIGS[recode] = False
+        # >>    `recode_op` component will be excluded from the pipeline.
         CONFIGS[key] = config
 
+    
 
 
 def kfb_print(string, nn = True): 
