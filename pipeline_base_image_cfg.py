@@ -1,16 +1,25 @@
 
+BASE_IMG = dict(
+    recode = "localhost:5000/recode:0.1",
+    train = "localhost:5000/train:0.1"
+    )
+
 
 class Base_Image_Cfg():
-    recode = "hibernation4958/recode:0.2"
-    recode_cp = "recode/recode.log"     
+    recode = BASE_IMG['recode']
+    recode_cp = "recode/recode.log"     # TODO: rename for format
     
-    train = "hibernation4958/train:0.2"
-    train_cp = "train/train"
+    train = BASE_IMG['train'] 
+    train_cp = "train/train.log"
     
         
 """
+docker build train --no-cache -t localhost:5000/train:0.1
+
+
+docker build recode --no-cache -t external_ip:port/recode:0.2
 docker build recode --no-cache -t hibernation4958/recode:0.2
-docker push hibernation4958/recode:0.3
+docker push hibernation4958/recode:0.2
 
 docker build train --no-cache -t hibernation4958/train:0.1
 docker push hibernation4958/train:0.1
