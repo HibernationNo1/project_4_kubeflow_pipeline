@@ -21,7 +21,7 @@ def train(cfg : dict):
     from hibernation_no1.utils.utils import get_environ
     
     
-    from hibernation_no1.utils.log import LOGGERS, get_logger
+    from hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
     from hibernation_no1.mmdet.data.dataset.dataset import build_dataset
     from hibernation_no1.mmdet.data.dataset.dataloader import build_dataloader
     
@@ -78,24 +78,18 @@ def train(cfg : dict):
                         val_cfg = val_data_cfg)
         return dataset_cfg
         
-        
     
-    if __name__=="__main__":
-        cfg_flag = cfg.pop('flag')
-        cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-        
+    def load_dataset_from_dvc_db(cfg):
         data_root = osp.join(os.getcwd(), cfg.dvc.category,
-                                               cfg.dvc.ann.name,
-                                               cfg.dvc.ann.version)
+                                            cfg.dvc.ann.name,
+                                            cfg.dvc.ann.version)
         
         dvc_cfg = dict(remote = cfg.dvc.remote,
-                       bucket_name = cfg.gs.bucket.recoded,
-                       client_secrets = get_client_secrets(),
-                       data_root = data_root)
+                    bucket_name = cfg.gs.bucket.recoded,
+                    client_secrets = get_client_secrets(),
+                    data_root = data_root)
         dvc_pull(**dvc_cfg)
 
-        
         database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
                         port=int(get_environ(cfg.db, 'port')), 
                         user=cfg.db.user, 
@@ -104,18 +98,48 @@ def train(cfg : dict):
                         charset=cfg.db.charset)
         
         cursor = database.cursor() 
-        check_table_exist(cursor, [cfg.db.table.image_data, cfg.db.table.dataset])
+        check_table_exist(cursor, [cfg.db.table.image_data, cfg.db.table.dataset])  
+        return database
+            
+            
+    def set_logs(cfg, train_result):
+        env_logger = get_logger(cfg.log.env, log_level = cfg.log_level,
+                                log_file = osp.join(train_result, "{cfg.log.env}.log"))       # TODO: save log file
+        env_info_dict = collect_env_cuda()
+        env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
+        dash_line = '-' * 60 + '\n'
+        env_logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
+        env_logger.info(f'Config:\n{cfg.pretty_text}')
         
- 
-        get_logger('enviroments', log_level = cfg.log_level)
-        get_logger(f'training', log_level = cfg.log_level)      # TODO: save log file
+        get_logger(cfg.log.train, log_level = cfg.log_level,
+                    log_file = osp.join(train_result, f"{cfg.log.train}.log"))      # TODO: save log file
+            
+    
+    def set_meta(cfg, args, env_info):
+        meta = dict()
+        meta['env_info'] = env_info
+        meta['config'] = cfg.pretty_text
+        meta['seed'] = cfg.seed
+        meta['exp_name'] = os.path.basename(args.cfg) 
+        return meta    
+
+    
+    if __name__=="__main__":
+        cfg_flag = cfg.pop('flag')
+        cfg = change_to_tuple(cfg, cfg_flag)
+        cfg = Config(cfg)
+        
+        train_result = osp.join(os.getcwd(), cfg.train_result)
+        
+        set_logs(cfg, train_result)
+        
 
 
         cfg.seed = np.random.randint(2**31)
         cfg.device = "cuda"            
         
-        train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, database))
-        
+        train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, load_dataset_from_dvc_db(cfg)))
+                
         if cfg.model.type == 'MaskRCNN':
             cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
             cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES) 
@@ -132,13 +156,34 @@ def train(cfg : dict):
         # build model
         assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
         
+        
         if cfg.model.type == 'MaskRCNN':
             cfg.model.pop("type")
             from hibernation_no1.mmdet.modules.maskrcnn.maskrcnn import MaskRCNN
             model = MaskRCNN(**cfg.model)
-            exit()
-            
-            
+        
+        
+        from hibernation_no1.mmdet.modules.dataparallel import build_dp
+        dp_cfg = dict(model = model, 
+                      device = cfg.device,
+                      cfg = cfg,
+                      classes = train_dataset.CLASSES)
+        model = build_dp(**dp_cfg)
+        
+        from hibernation_no1.mmdet.optimizer import build_optimizer
+        optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])  
+
+
+        
+        # build runner
+        runner_build_cfg = dict(model = model,
+                                optimizer = optimizer,
+                                work_dir = train_result,
+                                logger = LOGGERS[cfg.log.train]['logger'],
+                                meta = dict(config = cfg.pretty_text, seed = cfg.seed),
+                                batch_size = cfg.data.samples_per_gpu,
+                                max_epochs = cfg.epoch)
+        train_runner = build_runner(runner_build_cfg)
         
     
 train_op = create_component_from_func(func = train,
