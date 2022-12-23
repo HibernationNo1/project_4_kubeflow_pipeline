@@ -1,85 +1,10 @@
 import kfp
 import os, os.path as osp
 import requests
-import warnings
 
-from hibernation_no1.configs.config import Config
-
-CONFIGS = dict()     # parameters for pipeline run  
-
-def set_cfg_recode(args, cfg):
-    assert cfg.dvc.recode.train == cfg.recode.train_dataset
-    assert cfg.dvc.recode.val == cfg.recode.val_dataset
-   
-def set_cfg_pipeline(args, cfg):
-    if args.pipeline_n is not None: cfg.kbf.pipeline.name = args.pipeline_n
-    cfg.kbf.pipeline.version =  args.pipeline_v
-    if args.experiment_n is not None: cfg.kbf.experiment.name = args.experiment_n
-    if args.run_n is not None: cfg.kbf.run.name = args.run_n    
-    cfg.kbf.dashboard.pw =  args.pipeline_pw 
-    
-    
-     
-def set_cfg_train(args, cfg):
-    if args.name_db is not None: cfg.db.db = args.name_db 
-    if args.user_db is not None: cfg.db.user = args.user_db 
-    
-    if args.model_name is not None: cfg.filename_tmpl = f"{args.model_name}"+"_{}.path"
-    if args.val_iter is not None: 
-        for i, custom_hook in enumerate(cfg.custom_hook_config):
-            if custom_hook.get('Validation_Hook', None) is not None:
-                 cfg.custom_hook_config[i].val = args.val_iter
-                 break
-    
-    # If get dataset with dvc, load the paths from the database.
-    # And all paths were set by dvc config
-    if cfg.get('dvc', None) is not None:
-        cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.dvc.category, 
-                                                                     cfg.dvc.recode.name, 
-                                                                     cfg.dvc.recode.version)
-        cfg.data.train.ann_file = cfg.dvc.recode.train
-        cfg.data.val.ann_file = cfg.dvc.recode.val
-    
-
-    if args.pm_dilation is not None: cfg.model.backbone.pm_dilation = args.pm_dilation
-    if args.drop_rate is not None: cfg.model.backbone.drop_rate = args.drop_rate
-    if args.drop_path_rate is not None: cfg.model.backbone.drop_path_rate = args.drop_path_rate
-    if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
-
-CONFIG_SET_FUNCTION = dict(
-    pipeline = set_cfg_pipeline,
-    recode = set_cfg_recode,
-    train = set_cfg_train
-)
-
-
-def set_config(args):
-    """ 
-        cfg arguments determines which component be run.
-        Components that matching cfg arguments which got `None` are excluded from the pipeline.
-        cfg arguments: is chooses in [args.cfg_train, args.cfg_recode]
-    Args:
-        args : argparse
-    """
-
-    CONFIGS['pipeline'] = args.cfg_pipeline
-    CONFIGS['train'] = args.cfg_train
-    CONFIGS['recode'] = args.cfg_recode
-    
-    for key, func in CONFIG_SET_FUNCTION.items():
-        if CONFIGS[key] is not None:
-            # Assign config only included in args 
-            config =  Config.fromfile(CONFIGS[key])
-            func(args, config)
-        else: config = None
-        # CONFIGS[key] = False or Config
-        # if False, components matching the key will be excluded from the pipeline.
-        # >>    example
-        # >>    CONFIGS[recode] = False
-        # >>    `recode_op` component will be excluded from the pipeline.
-        CONFIGS[key] = config
-
-    
+from pipeline_base_image_cfg import BASE_IMG
+from pipeline_config import CONFIGS
+from hibernation_no1.configs.utils import get_tuple_key
 
 
 def kfb_print(string, nn = True): 
@@ -88,7 +13,6 @@ def kfb_print(string, nn = True):
     else:
         print(f"kubeflow>> {string}")
     
-
 
 
 def upload_pipeline(client, cfg):
@@ -133,7 +57,6 @@ def upload_pipeline(client, cfg):
     return pipeline_id          
 
     
-    
 
 def run_pipeline(client, cfg, experiment_id, pipeline_id, params):
     
@@ -162,6 +85,7 @@ def run_pipeline(client, cfg, experiment_id, pipeline_id, params):
     kfb_print(f"status of {cfg.run.name} : {completed_run.run.status}")
     
 
+
 def get_experiment(client, cfg) : 
     list_experiments = client.list_experiments(page_size = 50)
     if list_experiments.total_size == None:
@@ -172,6 +96,7 @@ def get_experiment(client, cfg) :
     
     experiment_id = experiment.id
     return experiment_id
+
 
 
 def connet_client(cfg):   
@@ -197,4 +122,34 @@ def connet_client(cfg):
 
 
 
+
+def set_intput_papams():
+    """ Convert type from ConfigDict to Dict for input to pipeline.
+        And sets flags That determine which components be include in pipeline  
+    """
+    params = dict()
     
+    def convert(flag):
+        for key, item in CONFIGS.items():
+            if key == "pipeline": continue
+            if item is None:                
+                if flag: params[f"{key}_using"] = False
+                else: params[f"cfg_{key}"] = False
+                continue
+            
+            
+            if flag: 
+                kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
+                params[f"{key}_using"] = True
+            else:                     
+                params[f"cfg_{key}"] = dict(item)
+                params[f"cfg_{key}"]['flag'] = get_tuple_key(item)
+    
+    convert(True)
+    convert(False)
+    
+    # params.keys(): 
+    # ['train_using', 'recode_using', 'cfg_train', 'cfg_recode']
+    # If 'recode' is not selected as a pipeline component, it has a value of `False`.
+    
+    return params
