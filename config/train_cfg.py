@@ -1,36 +1,65 @@
 _base_ = [
-    'swin_maskrcnn/mask_rcnn.py',
-    'swin_maskrcnn/dataset_config.py',
-    'swin_maskrcnn/schedule_1x.py',
-    'swin_maskrcnn/validation.py',
-    "pipeline/dvc.py",
-    "pipeline/database.py",
-    "pipeline/gs.py"
+    'base/model.py',
+    'base/dataset_config.py',
+    'base/schedule_1x.py',
+    'base/validation.py',
+    "utils/dvc.py",
+    "utils/database.py",
+    "utils/gs.py"
 ]
 
-
+log = dict(
+    env = "enviroments",
+    train = "train"
+)
 
 train_result = "result/train"
-
-checkpoint_config = dict(
-    interval=1,         # epoch(or iter) unit to save model
-    filename_tmpl = 'model_{}.pth'        # model name to be save :  {model_name}_{epoch}.pth
-    )
-# yapf:disable
-log_config = dict(
-    interval=50,        # iter unit to write log
-    hooks=[
-        dict(type='LoggerHook'),
-        # dict(type='TensorboardLoggerHook')
-    ])
+max_epochs = 5
 
 
-custom_hook_config = [dict(
-    type='Validation_Hook',         # type='Custom_Hook'
-    priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-    val = ['iter', 50],         # val_iter = 50         ['epoch', 1]
-    show_eta_iter = 10          # Divisor number of iter printing the training state log.
-    )]
+
+
+hook_config = [
+    dict(
+        type='Validation_Hook',        
+        priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
+        val = ['iter', 50],         # val_iter = 50         ['epoch', 1]
+        show_eta_iter = 10),          # Divisor number of iter printing the training state log.
+    dict(
+        type='Check_Hook',
+        priority = 'VERY_HIGH',    
+        val_iter = 50,
+        show_eta_iter = 10),
+    dict(   
+        type = "StepLrUpdaterHook",
+        priority = 'HIGH',
+        warmup='linear',
+        warmup_iters=1000,
+        warmup_ratio=0.001,
+        step=[8, 11]),
+    dict(
+        type = "OptimizerHook",
+        priority='ABOVE_NORMAL',
+        grad_clip=None),
+    dict(
+        type = "CheckpointHook",
+        priority='NORMAL',
+        interval=1,         # epoch(or iter) unit to save model
+        filename_tmpl = 'model_{}.pth'),        # model name to be save :  {model_name}_{epoch}.pth
+    dict(
+        type = "LoggerHook",
+        # priority='VERY_LOW',      # default priority: 'VERY_LOW'
+        interval=50,
+        out_dir = train_result,
+        max_epochs = max_epochs,
+        ev_iter = None,             # set in register_training_hooks
+        out_suffix = '.log'
+        ),         
+    dict(
+        type = "IterTimerHook"  
+        # priority='VERY_LOW',
+    )   
+]
 
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
@@ -38,7 +67,7 @@ load_from = None
 resume_from = None
 # workflow = [('train', 5)]   # TODO : [('train', n_1), ('val', n_2)]     n_1: epoch
 
-epoch = 5
+
 
 device = 'cuda:0'
 

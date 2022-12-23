@@ -1,56 +1,33 @@
 
 
 
-pretrained ='https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_tiny_patch4_window7_224.pth'
-
 # model settings
 model = dict(
     type='MaskRCNN',
-    backbone=dict(
-        _delete_=True,
-        type='SwinTransformer',
-        embed_dims=96,
-        depths=[2, 2, 6, 2],
-        num_heads=[3, 6, 12, 24],
-        window_size=7,
-        mlp_ratio=4,
-        qkv_bias=True,
-        qk_scale=None,
-        pm_kernel_size = 2,
-        pm_dilation = 1,
-        drop_rate=0.,
-        attn_drop_rate=0.,
-        drop_path_rate=0.2,
-        out_indices=(0, 1, 2, 3),
-        with_cp=False,
-        convert_weights=True,       # add backbone name before layer name when run weight initalization
-                                    # if True : patch_embed.projection.weight >> backbone.patch_embed.projection.weight
-        init_cfg=dict(type='Pretrained', checkpoint=pretrained)),       # fine tuning
-    neck=dict(
-        type='FPN',
-        in_channels=[256, 512, 1024, 2048],
-        out_channels=256,
-        num_outs=5),    
-    rpn_head=dict(              # RPNHead
+    backbone=None,   
+    neck=None,
+    rpn_head=dict(              
+        type = "RPNHead",          
         in_channels=256,
         feat_channels=256,
-        anchor_generator=dict(  # AnchorGenerator
+        anchor_generator=dict(  
             type = 'AnchorGenerator',
             scales=[8],
             ratios=[0.5, 1.0, 2.0],
             strides=[4, 8, 16, 32, 64]),
-        bbox_coder=dict(        # DeltaXYWHBBoxCoder
+        bbox_coder=dict(       
             type = 'DeltaXYWHBBoxCoder',
             target_means=[.0, .0, .0, .0],
             target_stds=[1.0, 1.0, 1.0, 1.0]),
-        loss_cls=dict(          # CrossEntropyLoss
+        loss_cls=dict(          
             type = 'CrossEntropyLoss',
             use_sigmoid=True, 
             loss_weight=1.0),   
-        loss_bbox=dict(         # L1Loss
+        loss_bbox=dict(        
             type = 'L1Loss',
             loss_weight=1.0)),      
-    roi_head=dict(      # StandardRoIHead
+    roi_head=dict(      
+        type = 'StandardRoIHead',
         bbox_roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign',
@@ -142,4 +119,3 @@ model = dict(
             nms=dict(type='nms', iou_threshold=0.5),
             max_per_img=100,
             mask_thr_binary=0.5)))
-
