@@ -1,0 +1,8 @@
+dvc[gs]
+pymysql
+pandas
+GitPython
+
+# for mmdet
+terminaltables
+pycocotools
