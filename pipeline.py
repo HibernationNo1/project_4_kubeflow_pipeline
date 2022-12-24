@@ -4,7 +4,6 @@ import kfp.dsl as dsl
  
 import argparse
 
-from pipeline_base_image_cfg import BASE_IMG
 from recode.recode_op import recode_op
 from train.train_op import train_op
 # from record.record_dataset_op import record_op
@@ -12,13 +11,11 @@ from train.train_op import train_op
 
 # from train.train_op import train_op
 
-from pipeline_utils import (set_config,
-                            connet_client, get_experiment, run_pipeline, upload_pipeline, 
-                            kfb_print,
-                            CONFIGS)
+from pipeline_config import set_config, CONFIGS
+from pipeline_utils import (connet_client, get_experiment, run_pipeline, upload_pipeline, set_intput_papams, 
+                            kfb_print)
 
 from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
-from hibernation_no1.configs.utils import get_tuple_key
 
 SECRETS = dict()
 
@@ -74,6 +71,8 @@ def _parse_args():
     parser.add_argument("--cfg_train", help="name of config file which for training")                           # TODO: rename
     parser.add_argument("--cfg_recode", help="name of config file which for recode") 
     
+    
+    
     kbf_parser = parser.add_argument_group('kubeflow')
     kbf_parser.add_argument("--pipeline_pw", type = str, required = True, help="password of kubeflow dashboard")        # required
     kbf_parser.add_argument("--pipeline_v", type = str, required = True, help="version of pipeline")                    # required
@@ -90,7 +89,8 @@ def _parse_args():
     
     
     train_parser = parser.add_argument_group('train')
-    train_parser.add_argument('--model_name', type = str, help= "Name of model(.pth format)") 
+    train_parser.add_argument("--model", type = str, help="name of the model to be trained") 
+    train_parser.add_argument('--save_model_name', type = str, help= "Name of model(.pth format)") 
     train_parser.add_argument('--val_iter', type = str, help= "Divisor number of iter printing the training state log.") 
     
     
@@ -106,36 +106,6 @@ def _parse_args():
     return args, input_args
 
 
-def set_intput_papams():
-    """ Convert type from ConfigDict to Dict for input to pipeline.
-        And sets flags That determine which components be include in pipeline  
-    """
-    params = dict()
-    
-    def convert(flag):
-        for key, item in CONFIGS.items():
-            if key == "pipeline": continue
-            if item is None:                
-                if flag: params[f"{key}_using"] = False
-                else: params[f"cfg_{key}"] = False
-                continue
-            
-            
-            if flag: 
-                kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
-                params[f"{key}_using"] = True
-            else: 
-                params[f"cfg_{key}"] = dict(item)
-                params[f"cfg_{key}"]['flag'] = get_tuple_key(item)
-        
-    convert(True)
-    convert(False)
-    
-    # params.keys(): 
-    # ['train_using', 'recode_using', 'cfg_train', 'cfg_recode']
-    # If 'recode' is not selected as a pipeline component, it has a value of `False`.
-    
-    return params
 
 
 if __name__=="__main__":      
@@ -164,10 +134,6 @@ if __name__=="__main__":
     pipeline_id = upload_pipeline(client, cfg_pipeline.kbf.pipeline)     
      
     params = set_intput_papams() 
-    
-  
-    # exit()
-    
     run_pipeline(client, cfg_pipeline.kbf, experiment_id, pipeline_id, params)
     
     
