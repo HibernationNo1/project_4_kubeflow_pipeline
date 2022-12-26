@@ -23,13 +23,11 @@ hook_config = [
     dict(
         type='Validation_Hook',        
         priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-        val = ['iter', 50],         # val_iter = 50         ['epoch', 1]
-        show_eta_iter = 10),          # Divisor number of iter printing the training state log.
+        interval = ['iter', 50]     # epoch(or iter) unit to run validation ['epoch', 1]
+        ),          
     dict(
         type='Check_Hook',
-        priority = 'VERY_HIGH',    
-        val_iter = 50,
-        show_eta_iter = 10),
+        priority = 'VERY_HIGH'),
     dict(   
         type = "StepLrUpdaterHook",
         priority = 'HIGH',
@@ -44,7 +42,7 @@ hook_config = [
     dict(
         type = "CheckpointHook",
         priority='NORMAL',
-        interval=1,         # epoch(or iter) unit to save model
+        interval=['epoch', 1],                  # epoch(or iter) unit to save model    ['iter', 2000]
         filename_tmpl = 'model_{}.pth'),        # model name to be save :  {model_name}_{epoch}.pth
     dict(
         type = "LoggerHook",
@@ -56,7 +54,8 @@ hook_config = [
         out_suffix = '.log'
         ),         
     dict(
-        type = "IterTimerHook"  
+        type = "IterTimerHook",  
+        show_eta_iter = 10         # Divisor number of iter printing the training state log.
         # priority='VERY_LOW',
     )   
 ]
