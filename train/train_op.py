@@ -24,6 +24,9 @@ def train(cfg : dict):
     from hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
     from hibernation_no1.mmdet.data.dataset.dataset import build_dataset
     from hibernation_no1.mmdet.data.dataset.dataloader import build_dataloader
+    from hibernation_no1.mmdet.modules.dataparallel import build_dp
+    from hibernation_no1.mmdet.optimizer import build_optimizer
+    from hibernation_no1.mmdet.runner import build_runner
     
     # def get_images(dataset_df):
     #     category = dataset_df.category[0]
@@ -108,21 +111,13 @@ def train(cfg : dict):
         env_info_dict = collect_env_cuda()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
-        env_logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
-        env_logger.info(f'Config:\n{cfg.pretty_text}')
+        # env_logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
+        # env_logger.info(f'Config:\n{cfg.pretty_text}')
         
         get_logger(cfg.log.train, log_level = cfg.log_level,
                     log_file = osp.join(train_result, f"{cfg.log.train}.log"))      # TODO: save log file
             
-    
-    def set_meta(cfg, args, env_info):
-        meta = dict()
-        meta['env_info'] = env_info
-        meta['config'] = cfg.pretty_text
-        meta['seed'] = cfg.seed
-        meta['exp_name'] = os.path.basename(args.cfg) 
-        return meta    
-
+        
     
     if __name__=="__main__":
         cfg_flag = cfg.pop('flag')
@@ -130,6 +125,7 @@ def train(cfg : dict):
         cfg = Config(cfg)
         
         train_result = osp.join(os.getcwd(), cfg.train_result)
+        os.makedirs(train_result, exist_ok=True)
         
         set_logs(cfg, train_result)
         
@@ -163,17 +159,15 @@ def train(cfg : dict):
             model = MaskRCNN(**cfg.model)
         
         
-        from hibernation_no1.mmdet.modules.dataparallel import build_dp
+        
         dp_cfg = dict(model = model, 
                       device = cfg.device,
                       cfg = cfg,
                       classes = train_dataset.CLASSES)
         model = build_dp(**dp_cfg)
         
-        from hibernation_no1.mmdet.optimizer import build_optimizer
-        optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])  
-
-
+        
+        optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])               
         
         # build runner
         runner_build_cfg = dict(model = model,
@@ -182,8 +176,34 @@ def train(cfg : dict):
                                 logger = LOGGERS[cfg.log.train]['logger'],
                                 meta = dict(config = cfg.pretty_text, seed = cfg.seed),
                                 batch_size = cfg.data.samples_per_gpu,
-                                max_epochs = cfg.epoch)
+                                max_epochs = cfg.max_epochs)
         train_runner = build_runner(runner_build_cfg)
+        
+        train_runner.register_training_hooks(hook_cfg_list = cfg.hook_config,
+                                             ev_iter = len(train_dataloader))       # iter per epoch
+        
+        
+        resume_from = cfg.get('resume_from', None)
+        load_from = cfg.get('load_from', None)
+        
+        # TODO
+        if resume_from is not None:
+            train_runner.resume(cfg.resume_from)
+        elif cfg.load_from:
+            train_runner.load_checkpoint(cfg.load_from)
+            
+        # TODO: katib
+        from hibernation_no1.mmdet.visualization import mask_to_polygon
+        cfg.val.mask2polygon = mask_to_polygon 
+        
+       
+        run_cfg = dict(train_dataloader = train_dataloader,
+                           val_dataloader = val_dataloader,
+                           val_cfg = cfg.val)
+                           # katib_logger=katib_logger
+        
+        train_runner.run(**run_cfg)
+        
         
     
 train_op = create_component_from_func(func = train,
