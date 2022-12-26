@@ -23,7 +23,7 @@ def build_backbone(cfg):
     return build_from_cfg(cfg, BACKBONES)
 
 def build_model(model_cfg):
-    
+
     
     if model_cfg._class_name != CONFIGDICT_NAME:
         raise TypeError(f"config must be class: ConfigDict, but got {type(model_cfg)}")

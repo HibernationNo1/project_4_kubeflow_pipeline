@@ -1,20 +1,20 @@
 
 BASE_IMG = dict(
     recode = "localhost:5000/recode:0.1",
-    train = "localhost:5000/train:0.1"
+    train = "localhost:5000/train:0.5"
     )
 
 
 class Base_Image_Cfg():
     recode = BASE_IMG['recode']
-    recode_cp = "recode/recode.log"     # TODO: rename for format
+    recode_cp = "recode/recode.component.yaml"     # TODO: rename for format
     
     train = BASE_IMG['train'] 
-    train_cp = "train/train.log"
+    train_cp = "train/train.component.yaml"
     
         
 """
-docker build train --no-cache -t localhost:5000/train:0.1
+docker build train --no-cache -t localhost:5000/train:0.4
 
 
 docker build recode --no-cache -t external_ip:port/recode:0.2

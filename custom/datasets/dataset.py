@@ -65,6 +65,7 @@ class CustomDataset(Dataset):
             assert osp.isfile(self.ann_file), f"The file: {self.ann_file} dose not exist."
             assert osp.isdir(self.data_root), f"The directory: {self.data_root} dose not exist."
             assert osp.isdir(self.img_prefix), f"The directory: {self.img_prefix} dose not exist."
+            
         
             with open(self.ann_file, "r") as file:
                 self.data_ann = json.load(file)

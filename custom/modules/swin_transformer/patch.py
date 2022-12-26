@@ -39,7 +39,7 @@ class PatchMerging(BaseModule):
         init_cfg (dict, optional): The extra config for initialization.
             Default: None.
     """
-    # TODO_katib: check training performance after set `kernel_size`, `stride` and `dilation` 
+    # katib: check training performance after set `kernel_size`, `stride` and `dilation` 
     def __init__(self,
                  in_channels,
                  out_channels,

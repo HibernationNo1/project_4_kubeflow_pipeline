@@ -114,7 +114,7 @@ def is_list_of(seq, expected_type):
     return True
 
 
-# From PyTorch internals
+# From PyTorch
 def _ntuple(n):
 
     def parse(x):

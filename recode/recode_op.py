@@ -2,7 +2,7 @@ from kfp.components import create_component_from_func
 from pipeline_base_image_cfg import Base_Image_Cfg
 base_image = Base_Image_Cfg()
 
-def check_status(cfg : dict, cfg_flag:dict) :
+def recode(cfg : dict) :
     
     import os, os.path as osp
     import numpy as np
@@ -340,12 +340,12 @@ def check_status(cfg : dict, cfg_flag:dict) :
                                                                 ann_version_df.image_name):
             json_list.append(osp.join(os.getcwd(), 
                                       category, 
-                                      cfg.dvc.ann.name, 
+                                      cfg.dvc.ann.name, # TODO : using from column 
                                       ann_version,
                                       json_name))
             image_list.append(osp.join(os.getcwd(), 
                                       category, 
-                                      cfg.dvc.ann.name, 
+                                      cfg.dvc.ann.name, # TODO : using from column 
                                       ann_version,
                                       image_name))
         
@@ -358,7 +358,8 @@ def check_status(cfg : dict, cfg_flag:dict) :
             recode_file = cfg.recode.train_dataset
         elif purpose == "val":
             recode_file = cfg.recode.val_dataset            
-            
+        
+        # TODO : add column named ann_name   
         for image_name in saved_image_list:
             insert_sql = f"INSERT INTO {cfg.db.table.image_data}"\
                         f"(dataset_purpose, image_name, recode_file, category, recode_version)"\
@@ -367,7 +368,7 @@ def check_status(cfg : dict, cfg_flag:dict) :
             
             cursor.execute(insert_sql)
             
-        
+        # TODO : add column named recode_name 
         select_sql = f"SELECT * FROM {cfg.db.table.image_data} "\
                      f"WHERE recode_version = '{cfg.dvc.recode.version}' AND dataset_purpose = '{purpose}';"
         num_results = cursor.execute(select_sql)
@@ -375,7 +376,8 @@ def check_status(cfg : dict, cfg_flag:dict) :
             f" `{cfg.dvc.recode.version}` version of recode dataset is not being inserted into database"\
             f"\n     DB: {cfg.db.name},      table: {cfg.db.table.image_data},    purpose: {purpose}"\
             f"      num_results: {num_results}      len(saved_image_list): {len(saved_image_list)}"
-            
+
+        # TODO : add column named recode_name 
         # insert dataset (.json fomat)
         insert_sql = f"INSERT INTO {cfg.db.table.dataset}"\
                          f"(dataset_purpose, category, recode_file, recode_version)"\
@@ -400,6 +402,7 @@ def check_status(cfg : dict, cfg_flag:dict) :
             
      
     if __name__=="__main__":  
+        cfg_flag = cfg.pop('flag')
         cfg = change_to_tuple(cfg, cfg_flag)
         cfg = Config(cfg)
 
@@ -410,7 +413,7 @@ def check_status(cfg : dict, cfg_flag:dict) :
         dvc_cfg = dict(remote = cfg.dvc.remote,
                        bucket_name = cfg.gs.bucket.ann,
                        client_secrets = get_client_secrets(),
-                       dataset_name = target_dataset)
+                       data_root = target_dataset)
         dataset_dir_path = dvc_pull(**dvc_cfg)
         
         database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
@@ -449,8 +452,7 @@ def check_status(cfg : dict, cfg_flag:dict) :
         print(f"completion")
     
 
-print(f"recode_op base_image : {base_image.recode}")
-check_status_op = create_component_from_func(func = check_status,
+recode_op = create_component_from_func(func = recode,
                                         base_image = base_image.recode,
                                         output_component_file= base_image.recode_cp)
 

@@ -44,6 +44,7 @@ def create_logger(log_name = None):
     elif log_name in list(logger_initialized.keys()):
         return get_logger(name=log_name)
     log_file = os.path.join(log_info['result_dir'], f'{log_name}.log')
+    
     get_logger(name=log_name, log_file=log_file, log_level=log_info['log_level'])        
     logger = log_recorder[log_name]
     return logger
@@ -196,6 +197,7 @@ def get_logger(name, log_file=None, log_level=logging.INFO, file_mode='w'):
         # Here, the default behaviour of the official logger is 'a'. Thus, we
         # provide an interface to change the file mode to the default
         # behaviour.
+        
         file_handler = logging.FileHandler(log_file, file_mode)
         handlers.append(file_handler)
 

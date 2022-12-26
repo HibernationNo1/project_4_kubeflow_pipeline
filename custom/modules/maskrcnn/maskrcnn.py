@@ -17,7 +17,7 @@ class MaskRCNN(BaseModule):
                  test_cfg=None,
                  init_cfg=None):
         super(MaskRCNN, self).__init__(init_cfg)
-        self.fp16_enabled = False       # TODO run train apply fp16
+        self.fp16_enabled = False       # TODO delete
         # mmcv > runner > ffp16_utils.py > def auto_fp16        
         
         self.backbone = build_backbone(backbone)
@@ -32,7 +32,6 @@ class MaskRCNN(BaseModule):
         # if neck.get("type", None) is not None:
         #     _ = neck.pop("type")
             
-        # self.neck = FPN_(**neck)
         
         # build_rpn_head : RPNHead
         # rpn_train_cfg = train_cfg.rpn if train_cfg is not None else None

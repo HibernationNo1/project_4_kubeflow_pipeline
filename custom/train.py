@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument('--test', action='store_true', default=False, help= "if True: run only test mode") 
     parser.add_argument('--val', action='store_true', default=False, help= "if True: run only val mode") 
     
-    parser.add_argument('--katib', action='store_flase', help= "for test katib") 
+    parser.add_argument('--katib', action='store_false', help= "for test katib") 
     
     
     swin_parser = parser.add_argument_group('SwinTransformer')
@@ -58,11 +58,11 @@ def set_config(args):
     cfg_path = args.cfg
     config_file_path = osp.join(os.getcwd(), cfg_path)
     cfg = Config.fromfile(config_file_path)
-    print(cfg)
-    exit()
+ 
+ 
     cfg.seed = np.random.randint(2**31)
     cfg.device = get_device()    
-    
+
     if args.test and args.val:
         cfg.workflow = [("test", None), ("val", None)]
     elif not args.test and not args.val:  pass
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     print(f"torch.version.cuda: {torch.version.cuda}")
     
     args = parse_args()
-    cfg = set_config(args)
+    cfg = set_config(args)                                            
     
     logger_timestamp = set_logger_info(cfg)
     logger = create_logger('enviroments')
@@ -141,7 +141,7 @@ if __name__ == "__main__":
             val_data_cfg = cfg.data.val.copy()
             _ = val_data_cfg.pop("batch_size", None)
             train_dataset, val_dataset = build_dataset(train_cfg = cfg.data.train, val_cfg = val_data_cfg)
-            
+
             if cfg.model.type == 'MaskRCNN':
                 cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
                 cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)    
@@ -155,11 +155,13 @@ if __name__ == "__main__":
                                     seed = cfg.seed,
                                     shuffle = True)
             train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
+          
             # build model
             assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
+            
             model = build_model(cfg.model)
             
-            if cfg.pretrained is not None: model.init_weights()
+            if cfg.pretrained is not None: model.init_weights() # TODO: init_weights X, O in custom
             dp_cfg = dict(model = model, device = cfg.device,
                           cfg = cfg,
                           classes = train_dataset.CLASSES)
@@ -231,14 +233,15 @@ if __name__ == "__main__":
             elif cfg.load_from:
                 train_runner.load_checkpoint(cfg.load_from)
             
-            if args.kaitb:
-                katib_logger = create_logger("katib")
+            # if args.kaitb:
+            #     katib_logger = create_logger("katib")
+          
             run_cfg = dict(train_dataloader = train_dataloader,
                            val_dataloader = val_dataloader,
                            flow = flow,
                            val_cfg = cfg,
-                           mask_to_polygon = mask_to_polygon,
-                           katib_logger=katib_logger)
+                           mask_to_polygon = mask_to_polygon)
+                           # katib_logger=katib_logger)
             train_runner.run(**run_cfg)
             
         
