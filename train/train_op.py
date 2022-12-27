@@ -6,7 +6,7 @@ base_image = Base_Image_Cfg()
 
 
 def train(cfg : dict):
-    
+    import torch
     import numpy as np
     import os, os.path as osp
     import pymysql
@@ -22,27 +22,108 @@ def train(cfg : dict):
     
     
     from hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
-    from hibernation_no1.mmdet.data.dataset.dataset import build_dataset
-    from hibernation_no1.mmdet.data.dataset.dataloader import build_dataloader
+    from hibernation_no1.mmdet.data.dataset import build_dataset
+    from hibernation_no1.mmdet.data.dataloader import build_dataloader
     from hibernation_no1.mmdet.modules.dataparallel import build_dp
     from hibernation_no1.mmdet.optimizer import build_optimizer
     from hibernation_no1.mmdet.runner import build_runner
+    from hibernation_no1.mmdet.visualization import mask_to_polygon
     
-    # def get_images(dataset_df):
-    #     category = dataset_df.category[0]
-    #     recode_version = dataset_df.recode_version[0]
-    #     image_path_list = []
-    #     for image_name in dataset_df.image_name:
-    #         image_path_list.append(osp.join(os.getcwd(),
-    #                         category,
-    #                         "recode",     # TODO: bring using db.column
-    #                         recode_version,
-    #                         image_name
-    #                         ))
-    #     return image_path_list
     
-    # train_images = get_images(df_image["train"])
-    # val_images = get_images(df_image["val"])
+    
+    def main(cfg, in_pipeline = False):
+        assert torch.cuda.is_available()
+        cfg_flag = cfg.pop('flag')
+        cfg = change_to_tuple(cfg, cfg_flag)
+        cfg = Config(cfg)
+        
+        train_result = osp.join(os.getcwd(), cfg.train_result)
+        os.makedirs(train_result, exist_ok=True)
+        
+        set_logs(cfg, train_result)
+        cfg.seed = np.random.randint(2**31)
+        cfg.device = "cuda"
+        
+      
+        if in_pipeline:
+            train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, load_dataset_from_dvc_db(cfg)))
+        else:
+            dataset_cfg = dict(train_cfg = cfg.data.train, val_cfg = cfg.data.val)
+            train_dataset, val_dataset = build_dataset(**dataset_cfg)
+            
+        
+        
+        if cfg.model.type == 'MaskRCNN':
+            cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
+            cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)
+        
+        train_loader_cfg = dict(train_dataset = train_dataset,
+                                val_dataset = val_dataset,
+                                train_batch_size=cfg.data.samples_per_gpu,
+                                val_batch_size = cfg.val.batch_size,
+                                num_workers=cfg.data.workers_per_gpu,
+                                seed = cfg.seed,
+                                shuffle = True)
+        train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
+        # build model
+        assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
+        
+        
+        if cfg.model.type == 'MaskRCNN':
+            cfg.model.pop("type")
+            from hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
+            model = MaskRCNN(**cfg.model)
+        
+        
+        
+        dp_cfg = dict(model = model, 
+                      device = cfg.device,
+                      cfg = cfg,
+                      classes = train_dataset.CLASSES)
+        model = build_dp(**dp_cfg)
+        
+        
+        optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])               
+        
+        # build runner
+        runner_build_cfg = dict(model = model,
+                                optimizer = optimizer,
+                                work_dir = train_result,
+                                logger = LOGGERS[cfg.log.train]['logger'],
+                                meta = dict(config = cfg.pretty_text, seed = cfg.seed),
+                                batch_size = cfg.data.samples_per_gpu,
+                                max_epochs = cfg.max_epochs,
+                                iterd_per_epochs = len(train_dataloader))
+        train_runner = build_runner(runner_build_cfg)
+        
+        train_runner.register_training_hooks(hook_cfg_list = cfg.hook_config,
+                                             ev_iter = len(train_dataloader))       # iter per epoch
+        
+        
+        resume_from = cfg.get('resume_from', None)
+        load_from = cfg.get('load_from', None)
+        
+        # TODO
+        if resume_from is not None:
+            train_runner.resume(cfg.resume_from)
+        elif cfg.load_from:
+            train_runner.load_checkpoint(cfg.load_from)
+            
+        # TODO: katib
+        
+        cfg.val.mask2polygon = mask_to_polygon 
+        
+        
+        run_cfg = dict(train_dataloader = train_dataloader,
+                        val_dataloader = val_dataloader,
+                        val_cfg = cfg.val)
+
+        if not in_pipeline:
+            run_cfg['katib']= get_logger("katib")
+      
+        train_runner.run(**run_cfg)
+        
+        
         
         
     
@@ -84,13 +165,13 @@ def train(cfg : dict):
     
     def load_dataset_from_dvc_db(cfg):
         data_root = osp.join(os.getcwd(), cfg.dvc.category,
-                                            cfg.dvc.ann.name,
-                                            cfg.dvc.ann.version)
+                                            cfg.dvc.recode.name,
+                                            cfg.dvc.recode.version)
         
-        dvc_cfg = dict(remote = cfg.dvc.remote,
-                    bucket_name = cfg.gs.bucket.recoded,
-                    client_secrets = get_client_secrets(),
-                    data_root = data_root)
+        dvc_cfg = dict(remote = cfg.dvc.recode.remote,
+                       bucket_name = cfg.dvc.recode.gs_bucket,
+                       client_secrets = get_client_secrets(),
+                       data_root = data_root)
         dvc_pull(**dvc_cfg)
 
         database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
@@ -107,7 +188,7 @@ def train(cfg : dict):
             
     def set_logs(cfg, train_result):
         env_logger = get_logger(cfg.log.env, log_level = cfg.log_level,
-                                log_file = osp.join(train_result, "{cfg.log.env}.log"))       # TODO: save log file
+                                log_file = osp.join(train_result, f"{cfg.log.env}.log"))       # TODO: save log file
         env_info_dict = collect_env_cuda()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
@@ -117,92 +198,26 @@ def train(cfg : dict):
         get_logger(cfg.log.train, log_level = cfg.log_level,
                     log_file = osp.join(train_result, f"{cfg.log.train}.log"))      # TODO: save log file
             
+            
+    
         
     
+    if __name__=="train.train_op":
+        main(cfg)
+        
+        
     if __name__=="__main__":
-        cfg_flag = cfg.pop('flag')
-        cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-        
-        train_result = osp.join(os.getcwd(), cfg.train_result)
-        os.makedirs(train_result, exist_ok=True)
-        
-        set_logs(cfg, train_result)
+        main(cfg, in_pipeline = True)
+        result = osp.join(os.getced(), cfg.train_result)
+        print(f"os.listdir(result) : {os.listdir(result)}")
         
 
-
-        cfg.seed = np.random.randint(2**31)
-        cfg.device = "cuda"            
+          
         
-        train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, load_dataset_from_dvc_db(cfg)))
                 
-        if cfg.model.type == 'MaskRCNN':
-            cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
-            cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES) 
+         
             
-        train_loader_cfg = dict(train_dataset = train_dataset,
-                                    val_dataset = val_dataset,
-                                    train_batch_size=cfg.data.samples_per_gpu,
-                                    val_batch_size = cfg.data.val.get("batch_size", None),
-                                    num_workers=cfg.data.workers_per_gpu,
-                                    seed = cfg.seed,
-                                    shuffle = True)
-        train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
         
-        # build model
-        assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
-        
-        
-        if cfg.model.type == 'MaskRCNN':
-            cfg.model.pop("type")
-            from hibernation_no1.mmdet.modules.maskrcnn.maskrcnn import MaskRCNN
-            model = MaskRCNN(**cfg.model)
-        
-        
-        
-        dp_cfg = dict(model = model, 
-                      device = cfg.device,
-                      cfg = cfg,
-                      classes = train_dataset.CLASSES)
-        model = build_dp(**dp_cfg)
-        
-        
-        optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])               
-        
-        # build runner
-        runner_build_cfg = dict(model = model,
-                                optimizer = optimizer,
-                                work_dir = train_result,
-                                logger = LOGGERS[cfg.log.train]['logger'],
-                                meta = dict(config = cfg.pretty_text, seed = cfg.seed),
-                                batch_size = cfg.data.samples_per_gpu,
-                                max_epochs = cfg.max_epochs)
-        train_runner = build_runner(runner_build_cfg)
-        
-        train_runner.register_training_hooks(hook_cfg_list = cfg.hook_config,
-                                             ev_iter = len(train_dataloader))       # iter per epoch
-        
-        
-        resume_from = cfg.get('resume_from', None)
-        load_from = cfg.get('load_from', None)
-        
-        # TODO
-        if resume_from is not None:
-            train_runner.resume(cfg.resume_from)
-        elif cfg.load_from:
-            train_runner.load_checkpoint(cfg.load_from)
-            
-        # TODO: katib
-        from hibernation_no1.mmdet.visualization import mask_to_polygon
-        cfg.val.mask2polygon = mask_to_polygon 
-        
-       
-        run_cfg = dict(train_dataloader = train_dataloader,
-                           val_dataloader = val_dataloader,
-                           val_cfg = cfg.val)
-                           # katib_logger=katib_logger
-        
-        train_runner.run(**run_cfg)
         
         
     
