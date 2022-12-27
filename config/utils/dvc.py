@@ -1,19 +1,26 @@
 dvc = dict(
-    remote = "ann_dataset",
-    
-    
     category = "test_dataset",
     ann = dict(
         name = "ann",
+        remote = "ann_dataset",
+        gs_bucket = "ann_dataset_taeuk4958",
         version = "0.0.1",
     ),
     
     recode = dict(
         name = "recode",
+        remote = 'recode_dataset',
+        gs_bucket = "train_dataset_taeuk4958",
         version = "0.0.1",
         train = 'train_dataset.json',      # name of recoded file(.json format) for training 
         val = 'val_dataset.json'           # name of recoded file(.json format) for validation 
     ),
+    
+    models = dict(
+        name = "models",
+        remote = "models",
+        gs_bucket = 'pipeline_models_taeuk4958'     # TODO
+    )
 )
 
 git = dict(
