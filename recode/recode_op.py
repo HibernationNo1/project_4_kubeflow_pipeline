@@ -22,11 +22,69 @@ def recode(cfg : dict) :
     from hibernation_no1.configs.config import Config
     from hibernation_no1.utils.utils import get_environ
     from hibernation_no1.cloud.google.storage import get_client_secrets
-    from hibernation_no1.cloud.google.dvc import dvc_pull, dvc_push
+    from hibernation_no1.cloud.google.dvc import dvc_pull, dvc_add, dvc_push
     from hibernation_no1.database.mysql import check_table_exist
     
     
     TODAY = str(datetime.date.today())
+    
+    
+    def main(cfg):
+        cfg_flag = cfg.pop('flag')
+        cfg = change_to_tuple(cfg, cfg_flag)
+        cfg = Config(cfg)
+
+        target_dataset = osp.join(os.getcwd(), cfg.dvc.category,
+                                               cfg.dvc.ann.name,
+                                               cfg.dvc.ann.version)
+        
+        dvc_cfg = dict(remote = cfg.dvc.ann.remote,
+                       bucket_name = cfg.dvc.ann.gs_bucket,
+                       client_secrets = get_client_secrets(),
+                       data_root = target_dataset)
+        dataset_dir_path = dvc_pull(**dvc_cfg)
+        
+        database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
+                        port=int(get_environ(cfg.db, 'port')), 
+                        user=cfg.db.user, 
+                        passwd=os.environ['password'], 
+                        database=cfg.db.name, 
+                        charset=cfg.db.charset)
+    
+        cursor = database.cursor() 
+
+        check_table_exist(cursor, cfg.db.table)
+        
+        image_list, json_list = select_ann_data(cfg, cursor, database)
+        
+        recode_dataset = Record_Dataset(cfg, image_list, json_list, dataset_dir_path)
+        
+        result_dir = recode_dataset.recode_dataset_path
+        
+        assert osp.isdir(result_dir), f"Path: {result_dir} is not exist!!"
+        assert len(os.listdir(result_dir)) != 0, f"Images not saved!  \nPath: {result_dir}"
+        assert osp.isfile(recode_dataset.train_dataset_path),\
+            f"Paht: {recode_dataset.train_dataset_path}, is not exist!!"
+
+        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_train, "train")
+        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_val, "val")
+       
+      
+        dvc_add(target_dir = result_dir, dvc_name = cfg.dvc.recode.version)
+        
+        
+        git_push(cfg)
+        
+        dvc_push(remote = cfg.dvc.recode.remote,
+                 bucket_name = cfg.dvc.recode.gs_bucket,
+                 client_secrets = get_client_secrets())
+        
+        
+        database.commit()
+        database.close()
+        print(f"completion")
+        
+        
     
     class Record_Dataset():
         """
@@ -66,9 +124,9 @@ def recode(cfg : dict) :
             self.object_names = []
             
             self.recode_dataset_path = osp.join(os.getcwd(), 
-                                          cfg.dvc.category,
-                                          cfg.dvc.recode.name,
-                                          cfg.dvc.recode.version)
+                                                cfg.dvc.category,
+                                                cfg.dvc.recode.name,
+                                                cfg.dvc.recode.version)
             os.makedirs(self.recode_dataset_path, exist_ok=True)
             
             self.data_transfer()
@@ -288,8 +346,8 @@ def recode(cfg : dict) :
                 
         
         def save_json(self):             
-            self.train_dataset_path = osp.join(self.recode_dataset_path, cfg.recode.train_dataset)
-            self.val_dataset_path = osp.join(self.recode_dataset_path, cfg.recode.val_dataset)
+            self.train_dataset_path = osp.join(self.recode_dataset_path, self.cfg.recode.train_dataset)
+            self.val_dataset_path = osp.join(self.recode_dataset_path, self.cfg.recode.val_dataset)
             json.dump(self.train_dataset, open(self.train_dataset_path, "w"), indent=4, cls = NpEncoder)
             json.dump(self.val_dataset, open(self.val_dataset_path, "w"), indent=4, cls = NpEncoder)
 
@@ -323,7 +381,7 @@ def recode(cfg : dict) :
                
                
     
-    def select_ann_data(cursor, cfg):
+    def select_ann_data(cfg, cursor, database):
         # select ann data
         select_sql = f"SELECT * FROM {cfg.db.table.anns} WHERE ann_version = '{cfg.dvc.ann.version}';"
         num_results = cursor.execute(select_sql)
@@ -391,66 +449,28 @@ def recode(cfg : dict) :
     def git_push(cfg):
         repo = Repo(os.getcwd())
         # Path for git add must not include $(pwd) path.
-        repo.git.add(f"{cfg.dvc.category}/{cfg.dvc.recode.name}/.gitignore")        
-        repo.git.add(f"{cfg.dvc.category}/{cfg.dvc.recode.name}/{cfg.dvc.recode.version}.dvc")
+        print(f"\ngit add {cfg.dvc.category}/{cfg.dvc.recode.name}/")
+        repo.git.add(f"{cfg.dvc.category}/{cfg.dvc.recode.name}/")    
+        
+        print(f"\ngit add .dvc/config")    
+        repo.git.add(f".dvc/config")
         repo.index.commit(f"{cfg.dvc.category}:: {cfg.dvc.recode.name}:: {cfg.dvc.recode.version}")
         subprocess.call([f"git push {cfg.git.remote} {cfg.git.branch}"], shell=True)
         ##  repo.remote is not work in container
         # origin = repo.remote(name= 'origin')
         # origin.push()
             
-            
+    
      
-    if __name__=="__main__":  
-        cfg_flag = cfg.pop('flag')
-        cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-
-        target_dataset = osp.join(os.getcwd(), cfg.dvc.category,
-                                               cfg.dvc.ann.name,
-                                               cfg.dvc.ann.version)
-        
-        dvc_cfg = dict(remote = cfg.dvc.remote,
-                       bucket_name = cfg.gs.bucket.ann,
-                       client_secrets = get_client_secrets(),
-                       data_root = target_dataset)
-        dataset_dir_path = dvc_pull(**dvc_cfg)
-        
-        database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
-                        port=int(get_environ(cfg.db, 'port')), 
-                        user=cfg.db.user, 
-                        passwd=os.environ['password'], 
-                        database=cfg.db.name, 
-                        charset=cfg.db.charset)
+     
     
-        cursor = database.cursor() 
-
-        check_table_exist(cursor, cfg.db.table)
+    if __name__=="recode.recode_op":
+        main(cfg)
         
-        image_list, json_list = select_ann_data(cursor, cfg)
         
-        recode_dataset = Record_Dataset(cfg, image_list, json_list, dataset_dir_path)
-        
-        result_dir = recode_dataset.recode_dataset_path
-        
-        assert osp.isdir(result_dir), f"Path: {result_dir} is not exist!!"
-        assert len(os.listdir(result_dir)) != 0, f"Images not saved!  \nPath: {result_dir}"
-        assert osp.isfile(recode_dataset.train_dataset_path),\
-            f"Paht: {recode_dataset.train_dataset_path}, is not exist!!"
-
-        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_train, "train")
-        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_val, "val")
-       
-        
-        dvc_push(cfg.dvc.remote, cfg.gs.bucket.recoded, get_client_secrets(), 
-                 result_dir, cfg.dvc.recode.version)
-        
-        git_push(cfg)
-        
-        database.commit()
-        database.close()
-        print(f"completion")
-    
+    if __name__=="__main__":
+        main(cfg)
+            
 
 recode_op = create_component_from_func(func = recode,
                                         base_image = base_image.recode,
