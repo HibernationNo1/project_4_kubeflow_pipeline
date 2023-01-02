@@ -1,6 +1,7 @@
 
 from kfp.components import create_component_from_func
 
+
 from pipeline_base_image_cfg import Base_Image_Cfg
 base_image = Base_Image_Cfg()
 
@@ -11,11 +12,13 @@ def train(cfg : dict):
     import os, os.path as osp
     import pymysql
     import pandas as pd
-    
+    from google.cloud import storage
+    from tqdm import tqdm
+        
     from hibernation_no1.configs.utils import change_to_tuple
     from hibernation_no1.configs.config import Config
     from hibernation_no1.database.mysql import check_table_exist
-    from hibernation_no1.cloud.google.storage import get_client_secrets
+    from hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
     from hibernation_no1.cloud.google.dvc import dvc_pull
     
     from hibernation_no1.utils.utils import get_environ
@@ -31,12 +34,8 @@ def train(cfg : dict):
     
     
     
-    def main(cfg, in_pipeline = False):
+    def main(cfg, in_pipeline = False):        
         assert torch.cuda.is_available()
-        cfg_flag = cfg.pop('flag')
-        cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-        
         train_result = osp.join(os.getcwd(), cfg.train_result)
         os.makedirs(train_result, exist_ok=True)
         
@@ -187,7 +186,7 @@ def train(cfg : dict):
             
             
     def set_logs(cfg, train_result):
-        env_logger = get_logger(cfg.log.env, log_level = cfg.log_level,
+        env_logger = get_logger(cfg.log.env, log_level = cfg.log.level,
                                 log_file = osp.join(train_result, f"{cfg.log.env}.log"))       # TODO: save log file
         env_info_dict = collect_env_cuda()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
@@ -195,32 +194,57 @@ def train(cfg : dict):
         # env_logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
         # env_logger.info(f'Config:\n{cfg.pretty_text}')
         
-        get_logger(cfg.log.train, log_level = cfg.log_level,
+        get_logger(cfg.log.train, log_level = cfg.log.level,
                     log_file = osp.join(train_result, f"{cfg.log.train}.log"))      # TODO: save log file
             
             
     
+    def dict2Config(cfg):
+        cfg_flag = cfg.pop('flag')
+        cfg = change_to_tuple(cfg, cfg_flag)
+        cfg = Config(cfg)
+        return cfg
+    
+    
+    def upload_model(cfg):
+        set_gs_credentials(get_client_secrets())
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(cfg.gs.models_bucket)
+
+        dir_bucket = cfg.gs.get('path', None)  
+        if dir_bucket is None:
+            import time 
+            # yyyy_mm_dd_hh_mm
+            dir_bucket = time.strftime('%Y-%m-%d', time.localtime(time.time())) \
+                        + " "+ str(time.localtime(time.time()).tm_hour) \
+                        + ":" + str(time.localtime(time.time()).tm_min)     
         
+        result = osp.join(os.getcwd(), cfg.train_result)
+
+        for file_name in tqdm(os.listdir(result)):
+            print(f"upload {file_name}")
+            blob = bucket.blob(os.path.join(dir_bucket, file_name))
+            blob.upload_from_filename(osp.join(result, file_name))
+    
     
     if __name__=="train.train_op":
+        cfg = dict2Config(cfg)
         main(cfg)
         
         
     if __name__=="__main__":
+        
+        os.listdir()
+        cfg = dict2Config(cfg)
+        
+        print(os.path)
         main(cfg, in_pipeline = True)
-        result = osp.join(os.getced(), cfg.train_result)
-        print(f"os.listdir(result) : {os.listdir(result)}")
         
-
-          
+        upload_model(cfg)
         
-                
-         
+     
+        
             
-        
-        
-        
-    
 train_op = create_component_from_func(func = train,
                                         base_image = base_image.train,
                                         output_component_file= base_image.train_cp)
