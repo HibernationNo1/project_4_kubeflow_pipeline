@@ -1,7 +1,6 @@
 _base_ = [
-    "pipeline/dvc.py",
-    "pipeline/database.py",
-    "pipeline/gs.py"
+    "utils/dvc.py",
+    "utils/database.py",
 ]
 
 

@@ -60,7 +60,6 @@ class MaskRCNN(BaseModule):
         rpn_head_cfg = Config(rpn_head_cfg) 
         self.rpn_head = RPNHead_(**rpn_head_cfg)    
         
-        
         # rcnn_train_cfg = train_cfg.rcnn if train_cfg is not None else None
         # roi_head.update(train_cfg=rcnn_train_cfg)
         # roi_head.update(test_cfg=test_cfg.rcnn)
@@ -176,7 +175,7 @@ class MaskRCNN(BaseModule):
                       **kwargs):
         """
             len(gt_bboxe) = batch_size
-                gt_bboxe: [num_gts, 4] in [x_min, y_min, x_max, y_max]
+                gt_bboxe: [num_gts, 4] in [x_min, y_min, x_max, y_max]x = self.neck
         """
 
         # img: [B=2, C=3, H=768, W=1344]
@@ -189,6 +188,7 @@ class MaskRCNN(BaseModule):
         # [2, 192, 96, 168]
         # [2, 384, 48, 84]
         # [2, 768, 24, 42]
+        
         
         x = self.neck(x)
 
@@ -208,6 +208,8 @@ class MaskRCNN(BaseModule):
         # proposal: [proposal_cfg.max_per_img, 5],    5: [x_min, y_min, x_max, y_max, score]
         # rpn_losses, proposal_list = self.rpn_head.forward_train(x, img_metas, gt_bboxes, proposal_cfg, 
         #                                                         **kwargs)
+        print(f"self.rpn_head ; {type(self.rpn_head)}")
+        exit()
         rpn_losses, proposal_list = self.rpn_head.forward_train(x,
                                                                 img_metas,
                                                                 gt_bboxes,

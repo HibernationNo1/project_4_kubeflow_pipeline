@@ -8,7 +8,7 @@ ENV TORCH_CUDA_ARCH_LIST="7.5"
 ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
 ENV CMAKE_PREFIX_PATH="$(dirname $(which conda))/../"	
 
-RUN pip install hibernation_no1==0.1.23
+RUN pip install hibernation_no1==0.2.31
 
 # To fix GPG key error when running apt-get update
 RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
