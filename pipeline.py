@@ -15,16 +15,29 @@ from pipeline_config import set_config, CONFIGS
 from pipeline_utils import (connet_client, get_experiment, run_pipeline, upload_pipeline, set_intput_papams, 
                             kfb_print)
 
+
 from kubernetes.client.models import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
+from kubernetes.client import V1Volume, V1EmptyDirVolumeSource
 
 SECRETS = dict()
+
+
 
 @dsl.pipeline(name="hibernation_project")
 def project_pipeline(cfg_train : dict, train_using, 
                      cfg_recode : dict, recode_using
-                     ):  # TODO: rename
-     
-
+                     ):  
+    
+    volume_cfg = CONFIGS['pipeline'].kbf.volume
+    
+    # for allocate shared memory
+    shm_volume = dsl.PipelineVolume(
+        volume=V1Volume(
+            name= volume_cfg.share_memory.name,
+            empty_dir=V1EmptyDirVolumeSource(medium=volume_cfg.share_memory.medium))
+        )  
+    
+    
     client_sc_name = "client-secrets"
     for secrets_cate, secrets_cfg in SECRETS.items():
         for key in secrets_cfg:
@@ -60,22 +73,25 @@ def project_pipeline(cfg_train : dict, train_using,
             .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
             .add_env_variable(SECRETS['db']["password"]) \
             .add_env_variable(SECRETS['db']["host"]) \
-            .add_env_variable(SECRETS['db']["port"]) 
+            .add_env_variable(SECRETS['db']["port"]) \
+            .add_pvolumes({volume_cfg.share_memory.path: shm_volume})
+                
+
   
 
          
 def _parse_args():
     
     parser = argparse.ArgumentParser()    
-    parser.add_argument("--cfg_pipeline", required = True, help="name of config file which for pipeline")       
+    parser.add_argument("--cfg_pipeline", help="name of config file which for pipeline")       
     parser.add_argument("--cfg_train", help="name of config file which for training")                           # TODO: rename
     parser.add_argument("--cfg_recode", help="name of config file which for recode") 
     
     
     
     kbf_parser = parser.add_argument_group('kubeflow')
-    kbf_parser.add_argument("--pipeline_pw", type = str, required = True, help="password of kubeflow dashboard")        # required
-    kbf_parser.add_argument("--pipeline_v", type = str, required = True, help="version of pipeline")                    # required
+    kbf_parser.add_argument("--pipeline_pw", type = str , help="password of kubeflow dashboard")        
+    kbf_parser.add_argument("--pipeline_v", type = str, help="version of pipeline")                    
     kbf_parser.add_argument("--pipeline_n", type = str, help="name of pipeline")    
     kbf_parser.add_argument("--experiment_n", type = str, help="name of experiment") 
     kbf_parser.add_argument("--run_n", type = str, help="name of run") 
@@ -112,8 +128,9 @@ if __name__=="__main__":
     args, input_args = _parse_args()  
     set_config(args)
 
-    SECRETS['gs'] = dict(CONFIGS.get('pipeline', None).secrets.gs)  
-    SECRETS['db'] = dict(CONFIGS.get('pipeline', None).secrets.db)  
+    
+    SECRETS['gs'] = dict(CONFIGS['pipeline'].secrets.gs)  
+    SECRETS['db'] = dict(CONFIGS['pipeline'].secrets.db)  
     
 
     cfg_pipeline = CONFIGS.get('pipeline', None)

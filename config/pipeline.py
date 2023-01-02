@@ -1,18 +1,3 @@
-dir = dict(
-    config = dict(
-        name = "config",
-        models = "models",
-        utils = "utils",
-        base = "base"
-    ),
-    components = dict(
-        recode = "recode",
-        trina = "train"
-    )
-    
-)
-
-
 kbf = dict(
     dashboard = dict(
         user_n = "winter4958@gmail.com",
@@ -32,7 +17,20 @@ kbf = dict(
         ),
     run = dict(
         name = "project"
+        ),
+    volume = dict(
+        share_memory = dict(
+            name = "shm",
+            medium = "Memory",
+            path = '/dev/shm'
+        ),
+        data = dict(
+            name = "data",
+            medium = "Memory",
+            path = '/home/tmp'
         )
+
+    )
     
     )
 
