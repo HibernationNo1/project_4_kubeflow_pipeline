@@ -14,12 +14,6 @@ dvc = dict(
         version = "0.0.1",
         train = 'train_dataset.json',      # name of recoded file(.json format) for training 
         val = 'val_dataset.json'           # name of recoded file(.json format) for validation 
-    ),
-    
-    models = dict(
-        name = "models",
-        remote = "models",
-        gs_bucket = 'pipeline_models_taeuk4958'     # TODO
     )
 )
 
