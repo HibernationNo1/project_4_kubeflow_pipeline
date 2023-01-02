@@ -1,7 +1,19 @@
+# conda create -n pipeline python=3.8 pytorch==1.13.0 torchvision cudatoolkit=11.6 -c conda-forge -y  
+# pip install mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu116/torch1.13.0/index.html    
+# pip install -r requirements.txt
+hibernation_no1==0.2.11
+mmdet
+
 dvc[gs]
 kfp
-twine
-numpy
 kubernetes
+
+pymysql
+pandas
+numpy
+GitPython
+pycocotools
+terminaltables
+opencv-python
 
 
