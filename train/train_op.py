@@ -13,24 +13,24 @@ def train(cfg : dict):
     import pymysql
     import pandas as pd
     from google.cloud import storage
-    from tqdm import tqdm
-        
-    from hibernation_no1.configs.utils import change_to_tuple
-    from hibernation_no1.configs.config import Config
-    from hibernation_no1.database.mysql import check_table_exist
-    from hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
-    from hibernation_no1.cloud.google.dvc import dvc_pull
+    import sys
+ 
+    from docker.hibernation_no1.configs.utils import change_to_tuple
+    from docker.hibernation_no1.configs.config import Config
+    from docker.hibernation_no1.database.mysql import check_table_exist
+    from docker.hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
+    from docker.hibernation_no1.cloud.google.dvc import dvc_pull
     
-    from hibernation_no1.utils.utils import get_environ
+    from docker.hibernation_no1.utils.utils import get_environ
     
     
-    from hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
-    from hibernation_no1.mmdet.data.dataset import build_dataset
-    from hibernation_no1.mmdet.data.dataloader import build_dataloader
-    from hibernation_no1.mmdet.modules.dataparallel import build_dp
-    from hibernation_no1.mmdet.optimizer import build_optimizer
-    from hibernation_no1.mmdet.runner import build_runner
-    from hibernation_no1.mmdet.visualization import mask_to_polygon
+    from docker.hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
+    from docker.hibernation_no1.mmdet.data.dataset import build_dataset
+    from docker.hibernation_no1.mmdet.data.dataloader import build_dataloader
+    from docker.hibernation_no1.mmdet.modules.dataparallel import build_dp
+    from docker.hibernation_no1.mmdet.optimizer import build_optimizer
+    from docker.hibernation_no1.mmdet.runner import build_runner
+    from docker.hibernation_no1.mmdet.visualization import mask_to_polygon
     
     
     
@@ -70,7 +70,7 @@ def train(cfg : dict):
         
         if cfg.model.type == 'MaskRCNN':
             cfg.model.pop("type")
-            from hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
+            from docker.hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
             model = MaskRCNN(**cfg.model)
         
         
@@ -80,7 +80,6 @@ def train(cfg : dict):
                       cfg = cfg,
                       classes = train_dataset.CLASSES)
         model = build_dp(**dp_cfg)
-        
         
         optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])               
         
@@ -206,7 +205,7 @@ def train(cfg : dict):
         return cfg
     
     
-    def upload_model(cfg):
+    def upload_models(cfg):
         set_gs_credentials(get_client_secrets())
         storage_client = storage.Client()
         bucket = storage_client.get_bucket(cfg.gs.models_bucket)
@@ -221,8 +220,8 @@ def train(cfg : dict):
         
         result = osp.join(os.getcwd(), cfg.train_result)
 
-        for file_name in tqdm(os.listdir(result)):
-            print(f"upload {file_name}")
+        for file_name in os.listdir(result):
+            print(f"upload {file_name} to google storage...")
             blob = bucket.blob(os.path.join(dir_bucket, file_name))
             blob.upload_from_filename(osp.join(result, file_name))
     
@@ -240,7 +239,7 @@ def train(cfg : dict):
         print(os.path)
         main(cfg, in_pipeline = True)
         
-        upload_model(cfg)
+        upload_models(cfg)
         
      
         
