@@ -3,7 +3,6 @@ pymysql
 pandas
 GitPython
 google-cloud-storage
-tqdm
 
 # for mmdet
 terminaltables

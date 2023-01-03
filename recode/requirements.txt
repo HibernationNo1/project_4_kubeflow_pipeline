@@ -1,4 +1,0 @@
-hibernation_no1 == 0.0.12
-dvc[gs]
-pymysql
-pandas
