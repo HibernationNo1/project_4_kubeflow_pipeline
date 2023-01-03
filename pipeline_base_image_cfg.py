@@ -1,7 +1,7 @@
 
 BASE_IMG = dict(
     recode = "localhost:5000/recode:0.1",
-    train = "localhost:5000/train:0.4"
+    train = "localhost:5000/docker:0.10"
     )
 
 
@@ -14,7 +14,11 @@ class Base_Image_Cfg():
     
         
 """
-docker build train --no-cache -t localhost:5000/train:0.4
+docker run --rm -it localhost:5000/docker:0.2
+docker build docker --no-cache -t localhost:5000/docker:0.10
+
+
+docker build train --no-cache -t localhost:5000/train:0.5
 docker build recode --no-cache -t localhost:5000/recode:0.1
 
 docker push localhost:5000/train:0.1

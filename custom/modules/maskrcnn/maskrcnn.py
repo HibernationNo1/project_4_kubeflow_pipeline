@@ -208,8 +208,7 @@ class MaskRCNN(BaseModule):
         # proposal: [proposal_cfg.max_per_img, 5],    5: [x_min, y_min, x_max, y_max, score]
         # rpn_losses, proposal_list = self.rpn_head.forward_train(x, img_metas, gt_bboxes, proposal_cfg, 
         #                                                         **kwargs)
-        print(f"self.rpn_head ; {type(self.rpn_head)}")
-        exit()
+        
         rpn_losses, proposal_list = self.rpn_head.forward_train(x,
                                                                 img_metas,
                                                                 gt_bboxes,

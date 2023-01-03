@@ -4,7 +4,7 @@ import requests
 
 from pipeline_base_image_cfg import BASE_IMG
 from pipeline_config import CONFIGS
-from hibernation_no1.configs.utils import get_tuple_key
+from docker.hibernation_no1.configs.utils import get_tuple_key
 
 
 def kfb_print(string, nn = True): 
@@ -79,10 +79,9 @@ def run_pipeline(client, cfg, experiment_id, pipeline_id, params):
                 )
     
 
-    run_id = exec_run.id
-    
-    completed_run = client.wait_for_run_completion(run_id=run_id, timeout=600)
-    kfb_print(f"status of {cfg.run.name} : {completed_run.run.status}")
+    # run_id = exec_run.id
+    # completed_run = client.wait_for_run_completion(run_id=run_id, timeout=600)
+    # kfb_print(f"status of {cfg.run.name} : {completed_run.run.status}")
     
 
 
@@ -123,10 +122,11 @@ def connet_client(cfg):
 
 
 
-def set_intput_papams():
+def set_intput_papams(pipeline = True):
     """ Convert type from ConfigDict to Dict for input to pipeline.
         And sets flags That determine which components be include in pipeline  
     """
+    
     params = dict()
     
     def convert(flag):
@@ -139,7 +139,8 @@ def set_intput_papams():
             
             
             if flag: 
-                kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
+                if pipeline:
+                    kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
                 params[f"{key}_using"] = True
             else:                     
                 params[f"cfg_{key}"] = dict(item)
