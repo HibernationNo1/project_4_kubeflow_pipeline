@@ -47,43 +47,31 @@ test_pipeline = [
 
 
 
-data_root = "dataset"
-train_data = "train"
-val_data= "val"
-test_data = "test"
+data_root = "test_dataset"
 
-test_result = "result/test"
-eval_result = 'eval'
+
+
 
 data = dict(
     api = "COCO",
     samples_per_gpu=1,  # batch_size
-    workers_per_gpu=1, 
+    workers_per_gpu=1,  # set 0 when running by katib or in pod (not have enough shared memory) 
     train=dict(
-        data_root = data_root + "/" + train_data,
+        data_root = data_root,
         ann_file= 'train_dataset.json',
         img_prefix= "",          
         pipeline=train_pipeline
         ),
     val=dict(      
-        data_root = data_root + "/" + val_data, 
+        data_root = data_root, 
         ann_file= 'val_dataset.json',
         img_prefix= "",          
         pipeline=val_pipeline,   
-        batch_size = 4),
-    test=dict(
-        data_root = data_root + "/" + test_data,
-        batch_size = 10,
-        ann_file= None,                            # work_dir/model_dir/dataset.json
-        img_prefix="",                      
-        pipeline=test_pipeline)
+        )
     )
 
 models_dir = "models"
 model_name = "last.pth"
 model_path = models_dir + "/" + model_name
 
-show_score_thr = 0.3
-
-evaluation = dict(metric=['bbox', 'segm'])      # choise in ['bbox', 'segm']
 
