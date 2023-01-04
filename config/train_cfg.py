@@ -11,7 +11,7 @@ _base_ = [
 
 train_result = "result/train"
 
-max_epochs = 30
+max_epochs = 2
 
 dist_params = dict(backend='nccl')      # TODO: ?
 
@@ -52,12 +52,11 @@ hook_config = [
         interval=50,
         out_dir = train_result,
         max_epochs = max_epochs,
-        ev_iter = None,             # set in register_training_hooks
-        out_suffix = '.log'
+        out_suffix = '.json'
         ),         
     dict(
         type = "IterTimerHook",  
-        show_eta_iter = 10,         # Divisor number of iter printing the training state log.
+        show_eta_iter = 20,         # Divisor number of iter printing the training state log.
         priority='LOW'            # more important than LoggerHook for log_buffer.update
     )   
 ]
