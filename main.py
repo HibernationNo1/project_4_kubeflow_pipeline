@@ -6,6 +6,7 @@ from pipeline_utils import set_intput_papams
 
 from train.train_op import train
 from recode.recode_op import recode
+from test import inference
 
 
 import torch
@@ -13,13 +14,15 @@ import torch
 if __name__=="__main__":     
     args, input_args = _parse_args()  
     cfg = set_config(args)
-        
-    params = set_intput_papams()
+    
+    params = set_intput_papams(pipeline = False)        
     
     for key, item in params.items():
-        if key == 'cfg_recode' and isinstance(item, dict):
+        if key == 'cfg_recode' and isinstance(item, dict):      
             recode(params[key])
         elif key == 'cfg_train' and isinstance(item, dict):
-            cfg = params[key]
-            train(cfg)
+            train(params[key])
+        
+        elif key == 'cfg_test' and isinstance(item, dict):
+            inference(params[key])
   
