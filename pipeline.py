@@ -21,8 +21,6 @@ from kubernetes.client import V1Volume, V1EmptyDirVolumeSource
 
 SECRETS = dict()
 
-
-
 @dsl.pipeline(name="hibernation_project")
 def project_pipeline(cfg_train : dict, train_using, 
                      cfg_recode : dict, recode_using
@@ -43,7 +41,8 @@ def project_pipeline(cfg_train : dict, train_using,
         for key in secrets_cfg:
             SECRETS[secrets_cate][key] = V1EnvVar(name=key, value_from=V1EnvVarSource(secret_key_ref=V1SecretKeySelector(name=client_sc_name, key=key)))
     
-    with dsl.Condition(recode_using != None) :   
+    
+    with dsl.Condition(recode_using == True) :   
         _check_status_op = recode_op(cfg_recode)\
             .add_env_variable(SECRETS['gs']["type"]) \
             .add_env_variable(SECRETS['gs']["project_id"]) \
@@ -59,7 +58,7 @@ def project_pipeline(cfg_train : dict, train_using,
             .add_env_variable(SECRETS['db']["host"]) \
             .add_env_variable(SECRETS['db']["port"]) 
     
-    with dsl.Condition(train_using != None) :
+    with dsl.Condition(train_using == True) :
         _train_op = train_op(cfg_train)\
             .add_env_variable(SECRETS['gs']["type"]) \
             .add_env_variable(SECRETS['gs']["project_id"]) \
@@ -76,9 +75,6 @@ def project_pipeline(cfg_train : dict, train_using,
             .add_env_variable(SECRETS['db']["port"]) \
             .add_pvolumes({volume_cfg.share_memory.path: shm_volume})
                 
-
-  
-
          
 def _parse_args():
     
@@ -86,6 +82,7 @@ def _parse_args():
     parser.add_argument("--cfg_pipeline", help="name of config file which for pipeline")       
     parser.add_argument("--cfg_train", help="name of config file which for training")                           # TODO: rename
     parser.add_argument("--cfg_recode", help="name of config file which for recode") 
+    parser.add_argument("--cfg_infer", help="name of config file which for inference")  
     
     
     
@@ -105,9 +102,14 @@ def _parse_args():
     
     
     train_parser = parser.add_argument_group('train')
-    train_parser.add_argument("--model", type = str, help="name of the model to be trained") 
+    train_parser.add_argument("--model", type = str, choices = ['MaskRCNN'],
+                              help="Name of the model to be trained") 
     train_parser.add_argument('--save_model_name', type = str, help= "Name of model(.pth format)") 
     train_parser.add_argument('--val_iter', type = str, help= "Divisor number of iter printing the training state log.") 
+    
+    
+    test_parser = parser.add_argument_group('test')
+    test_parser.add_argument("--model_path", type = str, help = "Path of trained model(.pth format)")
     
     
     swin_parser = parser.add_argument_group('SwinTransformer')
@@ -151,6 +153,7 @@ if __name__=="__main__":
     pipeline_id = upload_pipeline(client, cfg_pipeline.kbf.pipeline)     
      
     params = set_intput_papams() 
+
     run_pipeline(client, cfg_pipeline.kbf, experiment_id, pipeline_id, params)
     
     
