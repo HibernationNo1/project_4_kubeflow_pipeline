@@ -95,12 +95,16 @@ def train(cfg : dict):
         train_runner = build_runner(runner_build_cfg)
         
         # init hooks
-        for hook_cfg in cfg.hook_config:            
-            if hook_cfg.type == 'LoggerHook': 
-                hook_cfg.ev_iter = len(train_dataloader)          # for compute remain time
-            
+        for hook_cfg in cfg.hook_config:     
             if hook_cfg.type == 'CheckpointHook': 
                 hook_cfg.model_cfg = cfg.model
+                
+            if hook_cfg.type == 'Validation_Hook': 
+                hook_cfg.val_dataloader = val_dataloader
+                hook_cfg.val_cfg = cfg.val
+                hook_cfg.logger = get_logger("validation")
+                    
+                
         train_runner.register_training_hooks(cfg.hook_config)  
         
         
@@ -112,8 +116,7 @@ def train(cfg : dict):
             train_runner.resume(cfg.resume_from)
         elif cfg.load_from:
             train_runner.load_checkpoint(cfg.load_from)
-            
-        # TODO: katib
+
         
         cfg.val.mask2polygon = mask_to_polygon 
         
@@ -122,13 +125,8 @@ def train(cfg : dict):
                         val_dataloader = val_dataloader,
                         val_cfg = cfg.val)
 
-        if not in_pipeline:
-            run_cfg['katib']= get_logger("katib")
-      
         train_runner.run(**run_cfg)
-        
-        
-        
+                
         
     
     def set_dataset_cfg(cfg, database):
@@ -205,8 +203,9 @@ def train(cfg : dict):
             
     
     def dict2Config(cfg):
-        cfg_flag = cfg.pop('flag')
-        cfg = change_to_tuple(cfg, cfg_flag)
+        cfg_flag = cfg.get('flag', None)
+        if cfg_flag is not None:
+            cfg = change_to_tuple(cfg, cfg_flag)
         cfg = Config(cfg)
         return cfg
     
@@ -245,15 +244,15 @@ def train(cfg : dict):
             blob.upload_from_filename(osp.join(cfg.train_result, file_name))
     
     
-    if __name__=="train.train_op":
-        git_repo = git.Git('git@github.com:HibernationNo1/pipeline_dataset.git')
-        git_repo.pull('origin', 'master')
-        
+    if __name__=="train.train_op":        
         cfg = dict2Config(cfg)
         main(cfg)
         
         
     if __name__=="__main__":
+        from git.repo import Repo
+        Repo.clone_from('git@github.com:HibernationNo1/pipeline_dataset.git', os.getcwd())
+        
         cfg = dict2Config(cfg)
         main(cfg, in_pipeline = True)
         
