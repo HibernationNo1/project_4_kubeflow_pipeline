@@ -87,11 +87,20 @@ def run_pipeline(client, cfg, experiment_id, pipeline_id, params):
 
 def get_experiment(client, cfg) : 
     list_experiments = client.list_experiments(page_size = 50)
+    
     if list_experiments.total_size == None:
-        print(f"There no experiment. create experiment | name: {cfg.kbf.experiment.name}")
+        kfb_print(f"There no experiment. create experiment | name: {cfg.kbf.experiment.name}", nn= False)
         experiment = client.create_experiment(name = cfg.kbf.experiment.name)
     else:
-        experiment = client.get_experiment(experiment_name= cfg.kbf.experiment.name, namespace= cfg.kbf.dashboard.name_space)
+        for i, experiment_info in enumerate(list_experiments.experiments):
+            if cfg.kbf.experiment.name == experiment_info.name:
+                experiment = client.get_experiment(experiment_name= cfg.kbf.experiment.name, namespace= cfg.kbf.dashboard.name_space)
+                break
+            
+            if i == list_experiments.total_size-1:
+                kfb_print(f"There is no experiment named {cfg.kbf.experiment.name}. Create experiment.", nn = False)
+                experiment = client.create_experiment(name = cfg.kbf.experiment.name)
+        
     
     experiment_id = experiment.id
     return experiment_id
@@ -128,7 +137,6 @@ def set_intput_papams(pipeline = True):
     """
     
     params = dict()
-    
     def convert(flag):
         for key, item in CONFIGS.items():
             if key == "pipeline": continue
@@ -136,7 +144,6 @@ def set_intput_papams(pipeline = True):
                 if flag: params[f"{key}_using"] = False
                 else: params[f"cfg_{key}"] = False
                 continue
-            
             
             if flag: 
                 if pipeline:
@@ -152,5 +159,10 @@ def set_intput_papams(pipeline = True):
     # params.keys(): 
     # ['train_using', 'recode_using', 'cfg_train', 'cfg_recode']
     # If 'recode' is not selected as a pipeline component, it has a value of `False`.
+    
+    key = 'test'
+    if pipeline:
+        params.pop(f'cfg_{key}')
+        params.pop(f'{key}_using')
     
     return params
