@@ -43,8 +43,6 @@ class LoggerHook(Hook):
     """
 
     def __init__(self,
-                 max_epochs,
-                 ev_iter,
                  interval: int = 10,
                  ignore_last: bool = True,
                  reset_flag: bool = False,
@@ -53,8 +51,6 @@ class LoggerHook(Hook):
                  out_suffix: str = '.log',
                  log_file_name: str = 'RUN_log',
                  keep_local: bool = True):
-        self.max_epochs = max_epochs 
-        self.ev_iter = ev_iter
         self.iter_count = 1     # for compute remain time at self.compute_remain_time
         self.interval = interval
         self.ignore_last = ignore_last
@@ -81,21 +77,6 @@ class LoggerHook(Hook):
             return round(items, 5)
         else:
             return items
-    
-    def get_mode(self, runner) -> str:
-        if runner.mode == 'train':
-            if 'time' in runner.log_buffer.output:
-                mode = 'train'
-            else:
-                mode = 'val'
-        elif runner.mode == 'val':
-            mode = 'val'
-        else:
-            raise ValueError(f"runner mode should be 'train' or 'val', "
-                             f'but got {runner.mode}')
-        return mode
-    
-    
     
     
     def _get_max_memory(self, runner) :
@@ -176,7 +157,7 @@ class LoggerHook(Hook):
     def write_log(self, status, log_):    
         # dump log in .log format
 
-        if self.out_suffix=='.json' :
+        if self.out_suffix=='.json' :       # can write max 21889 lines
             if not isinstance(log_, dict): raise TypeError(f"if out_suffix is '.json', input log type must be dict! ")
             if not osp.isfile(self.log_file_path):
                 text_log = dict()
@@ -252,7 +233,9 @@ class LoggerHook(Hook):
         log_dict = dict(bach_size = runner.get('batch_size') ,
                         max_iteration = runner.get('_max_iters'),
                         max_epoche = runner.get('_max_epochs'))
-   
+
+        if self.out_suffix=='.log':
+            log_dict = [log_dict]
         self.write_log('before_run', log_dict)  
         
         self.r_t = time.time()  
@@ -260,9 +243,12 @@ class LoggerHook(Hook):
         
         
     def before_train_epoch(self, runner):
-        log_dict = dict(epoch = f'[{self.get_epoch(runner)}/{self.max_epochs}]',
-                        iterd_per_epochs = self.ev_iter)
+        log_dict = dict(epoch = f'[{runner.epoch}/{runner._max_epochs}]',
+                        iterd_per_epochs = runner._iterd_per_epochs)
         
+        if self.out_suffix=='.log':
+            log_dict = [log_dict]
+            
         self.write_log('before_epoch', log_dict)
         runner.log_buffer.clear()  # clear logs of last epoch
         self.e_t = time.time()      # epoch start time 
@@ -288,8 +274,8 @@ class LoggerHook(Hook):
         
         
         current_iter = runner._inner_iter  
-        log_dict = dict(epoch=f'[{self.get_epoch(runner)}/{self.max_epochs}]',
-                        iter=f'[{current_iter}/{self.ev_iter}]')
+        log_dict = dict(epoch=f'[{runner.epoch}/{runner._max_epochs}]',
+                        iter=f'[{current_iter}/{runner._iterd_per_epochs}]')
         
         log_dict_loss = dict(**runner.log_buffer.get_last())        
         if log_dict_loss.get("data_time", None) is not None: del log_dict_loss['data_time']
@@ -297,7 +283,9 @@ class LoggerHook(Hook):
 
         for key, item in log_dict_loss.items():
             log_dict[key] = item
-  
+
+        if self.out_suffix=='.log':
+            log_dict = [log_dict]
 
         self.write_log("after_iter", log_dict)
         
@@ -316,8 +304,10 @@ class LoggerHook(Hook):
         taken_time_epoch = time.time() - self.e_t
         log_dict_meta = dict(
             taken_time_epoch = self.compute_sec_to_h_d(taken_time_epoch),
-            remain_time = self.compute_remain_time(taken_time_epoch/self.ev_iter, runner._max_iters))
+            remain_time = self.compute_remain_time(taken_time_epoch/runner._iterd_per_epochs, runner._max_iters))
         
+        if self.out_suffix=='.log':
+            log_dict_meta = [log_dict_meta]
         self.write_log("after_epoch", log_dict_meta)
 
    
@@ -330,6 +320,9 @@ class LoggerHook(Hook):
 
         for key, item in log_dict_loss.items():
             log_dict[key] = item
+            
+        if self.out_suffix=='.log':
+            log_dict = [log_dict]
  
         
         self.write_log("after_run", log_dict)
@@ -343,10 +336,8 @@ class LoggerHook(Hook):
         else:
             cur_iter = runner._inner_iter
 
-        log_dict = OrderedDict(
-            mode=self.get_mode(runner),
-            epoch=runner.epoch, 
-            iter=cur_iter)
+        log_dict = OrderedDict(epoch=runner.epoch, 
+                               iter=cur_iter)
         
         # assign learning rate
         cur_lr = runner.current_lr()
