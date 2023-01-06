@@ -133,8 +133,10 @@ class StepLrUpdaterHook(Hook):
                 warmup_lr = [_lr * k for _lr in regular_lr]
             return warmup_lr
 
+        
         if isinstance(self.regular_lr, dict):
             lr_groups = {}
+        
             for key, regular_lr in self.regular_lr.items():
                 lr_groups[key] = _get_warmup_lr(cur_iters, regular_lr)
             return lr_groups
