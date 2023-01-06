@@ -51,11 +51,6 @@ def train(cfg : dict):
             train_dataset, val_dataset = build_dataset(**dataset_cfg)
             
         
-        
-        if cfg.model.type == 'MaskRCNN':
-            cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
-            cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)
-        
         train_loader_cfg = dict(train_dataset = train_dataset,
                                 val_dataset = val_dataset,
                                 train_batch_size=cfg.data.samples_per_gpu,
@@ -67,11 +62,16 @@ def train(cfg : dict):
         # build model
         assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
         
-        
+        # TODO : build with registry
         if cfg.model.type == 'MaskRCNN':
-            cfg.model.pop("type")
+            cfg.model.roi_head.bbox_head.num_classes = len(train_dataset.CLASSES) 
+            cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)
+            
+            model_cfg = cfg.model.copy()
+        
+            model_cfg.pop("type")
             from docker.hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
-            model = MaskRCNN(**cfg.model)
+            model = MaskRCNN(**model_cfg)
         
         
         
@@ -94,8 +94,14 @@ def train(cfg : dict):
                                 iterd_per_epochs = len(train_dataloader))
         train_runner = build_runner(runner_build_cfg)
         
-        train_runner.register_training_hooks(hook_cfg_list = cfg.hook_config,
-                                             ev_iter = len(train_dataloader))       # iter per epoch
+        # init hooks
+        for hook_cfg in cfg.hook_config:            
+            if hook_cfg.type == 'LoggerHook': 
+                hook_cfg.ev_iter = len(train_dataloader)          # for compute remain time
+            
+            if hook_cfg.type == 'CheckpointHook': 
+                hook_cfg.model_cfg = cfg.model
+        train_runner.register_training_hooks(cfg.hook_config)  
         
         
         resume_from = cfg.get('resume_from', None)
@@ -218,25 +224,37 @@ def train(cfg : dict):
                         + " "+ str(time.localtime(time.time()).tm_hour) \
                         + ":" + str(time.localtime(time.time()).tm_min)     
         
-        result = osp.join(os.getcwd(), cfg.train_result)
+        # sort file to upload non-models first
+        result_list = os.listdir(osp.join(os.getcwd(), cfg.train_result))
+        upload_list = []
+        model_list = list()
+        for i, result in enumerate(result_list):
+            if result.split("_")[0] == 'model':
+                model_list.append(result)
+            else:
+                upload_list.append(result)
+            
+            if i == len(result_list)-1:
+                for model in model_list:
+                    upload_list.append(model)
 
-        for file_name in os.listdir(result):
+
+        for file_name in upload_list:
             print(f"upload {file_name} to google storage...")
             blob = bucket.blob(os.path.join(dir_bucket, file_name))
-            blob.upload_from_filename(osp.join(result, file_name))
+            blob.upload_from_filename(osp.join(cfg.train_result, file_name))
     
     
     if __name__=="train.train_op":
+        git_repo = git.Git('git@github.com:HibernationNo1/pipeline_dataset.git')
+        git_repo.pull('origin', 'master')
+        
         cfg = dict2Config(cfg)
         main(cfg)
         
         
     if __name__=="__main__":
-        
-        os.listdir()
         cfg = dict2Config(cfg)
-        
-        print(os.path)
         main(cfg, in_pipeline = True)
         
         upload_models(cfg)
