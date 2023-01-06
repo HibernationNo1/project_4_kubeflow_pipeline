@@ -21,7 +21,7 @@ class MaskRCNN(BaseModule):
         self.roi_head = build_from_cfg(roi_head, ROI_HEAD)   
         
         self.CLASSES = None
-        self.rpn_proposal_cfg = rpn_head.train_cfg.pop('rpn_proposal')
+        self.rpn_proposal_cfg = rpn_head.train_cfg.get('rpn_proposal', None)
         
     # @auto_fp16(apply_to=('img', ))
     def forward(self, img, img_metas, return_loss=True, **kwargs):

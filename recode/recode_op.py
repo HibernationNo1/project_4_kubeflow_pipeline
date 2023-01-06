@@ -4,6 +4,7 @@ base_image = Base_Image_Cfg()
 
 def recode(cfg : dict) :
     
+    import git
     import os, os.path as osp
     import numpy as np
     import json
@@ -13,23 +14,25 @@ def recode(cfg : dict) :
     import time    
     import pandas as pd
     import shutil
+    import warnings
     
     from PIL.Image import fromarray as fromarray
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
     
-    from hibernation_no1.configs.utils import change_to_tuple, NpEncoder
-    from hibernation_no1.configs.config import Config
-    from hibernation_no1.utils.utils import get_environ
-    from hibernation_no1.cloud.google.storage import get_client_secrets
-    from hibernation_no1.cloud.google.dvc import dvc_pull, dvc_add, dvc_push
-    from hibernation_no1.database.mysql import check_table_exist
-    
+    from docker.hibernation_no1.configs.utils import change_to_tuple, NpEncoder
+    from docker.hibernation_no1.configs.config import Config
+    from docker.hibernation_no1.utils.utils import get_environ
+    from docker.hibernation_no1.cloud.google.storage import get_client_secrets
+    from docker.hibernation_no1.cloud.google.dvc import dvc_pull, dvc_add, dvc_push
+    from docker.hibernation_no1.database.mysql import check_table_exist
     
     TODAY = str(datetime.date.today())
     
-    
     def main(cfg):
+        git_repo = git.Git('git@github.com:HibernationNo1/pipeline_dataset.git')
+        git_repo.pull('origin', 'master')
+        
         cfg_flag = cfg.pop('flag')
         cfg = change_to_tuple(cfg, cfg_flag)
         cfg = Config(cfg)
@@ -82,7 +85,7 @@ def recode(cfg : dict) :
         
         database.commit()
         database.close()
-        print(f"completion")
+        print(f"completed.")
         
         
     
@@ -129,6 +132,7 @@ def recode(cfg : dict) :
                                                 cfg.dvc.recode.version)
             os.makedirs(self.recode_dataset_path, exist_ok=True)
             
+            print(f" Number of image: {len(image_list)}")
             self.data_transfer()
             
             
@@ -236,19 +240,24 @@ def recode(cfg : dict) :
         
         def get_annotations(self, val_split_num):
             id_count = 1
+            unvalid_object = list()
             for i, json_file in enumerate(self.json_list):
                 with open(json_file, "r") as fp:
                     data = json.load(fp) 
 
                     image_height, image_width = data["imageHeight"], data["imageWidth"]
     
-                    for shape in data['shapes']:    # shape == 1 thing object.    
-                        if shape['label'] not in self.object_names:
-                            if shape['label'] in self.cfg.recode.valid_object:
-                                self.object_names.append(shape['label'])
+                    for shape in data['shapes']:    # shape == 1 thing object.   
+                        object_name = shape['label'] 
+                        if object_name not in self.object_names:
+                            if object_name in self.cfg.recode.valid_object:
+                                self.object_names.append(object_name)
                             else: 
-                                if self.cfg.recode.options.only_val_obj: raise KeyError(f"{shape['label']} is not valid object.")   
-                                else: continue
+                                if object_name not in unvalid_object:
+                                    warnings.warn(f"{object_name} is not valid object.", UserWarning)   
+                                    unvalid_object.append(object_name)
+                                continue
+                                
 
 
                         tmp_annotations_dict = {}
@@ -463,8 +472,8 @@ def recode(cfg : dict) :
     
      
      
-    
-    if __name__=="recode.recode_op":
+
+    if __name__=="recode.recode_op":    # TODO
         main(cfg)
         
         

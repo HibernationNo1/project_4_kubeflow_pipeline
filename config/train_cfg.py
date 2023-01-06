@@ -11,7 +11,7 @@ _base_ = [
 
 train_result = "result/train"
 
-max_epochs = 2
+max_epochs = 30
 
 dist_params = dict(backend='nccl')      # TODO: ?
 

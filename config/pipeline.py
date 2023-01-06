@@ -6,14 +6,14 @@ kbf = dict(
         pw = None
         ),
     pipeline = dict(
-        name = "train",
+        name = "recode",
         pac = "project.yaml",
         discription = "project",
         run_uploaded_pipeline = True,      
         version = None
         ),
     experiment = dict(
-        name = "test01"
+        name = "recode"
         ),
     run = dict(
         name = "project"

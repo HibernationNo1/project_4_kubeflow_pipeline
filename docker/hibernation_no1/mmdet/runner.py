@@ -120,7 +120,7 @@ class Runner:
         if max_epochs is not None and max_iters is not None:
             raise ValueError(
                 'Only one of `max_epochs` or `max_iters` can be set.')
-        self._max_epochs = max_epochs
+        self._max_epochs = max_epochs 
         self._max_iters = max_iters
         
         if self._max_epochs is not None:     
@@ -170,10 +170,10 @@ class Runner:
         self.call_hook('before_run')
         self.start_time = time.time()
         if self._by_epoch:        
-            while self._epoch < self._max_epochs:        # Training in epochs unit
+            while self._epoch < self._max_epochs + 1:        # Training in epochs unit
                 self.train(train_dataloader, val_dataloader, **kwargs)
         else:   
-            while self._iter < self._max_iters:
+            while self._iter < self._max_iters + 1:
                 # self.train(train_dataloader, val_dataloader, **kwargs)
                 
                 pass
@@ -229,7 +229,7 @@ class Runner:
         
     def val(self, val_dataloader, **kwargs):     
         self.model.eval()
-        eval_cfg = dict(model= self.model.eval(), 
+        eval_cfg = dict(model= self.model, 
                         cfg= self.val_cfg,
                         dataloader= val_dataloader,
                         mask_to_polygon= self.mask_to_polygon)
@@ -302,21 +302,15 @@ class Runner:
                 break
         if not inserted:
             self._hooks.insert(0, hook)
-        
+         
     
-    def register_training_hooks(self,
-                                hook_cfg_list,
-                                ev_iter):       # len(train_dataloader)
-
+    def register_training_hooks(self, hook_cfg_list):
         for hook_cfg in hook_cfg_list:            
             if hook_cfg.get("priority", None) is None: priority = "VERY_LOW"
             else: priority = hook_cfg.pop("priority")
             
-            if hook_cfg.type == 'LoggerHook': hook_cfg.ev_iter = ev_iter
-                
             hook = build_from_cfg(hook_cfg, HOOK)
             self.register_hook(hook, priority=priority)
-        
   
         
       
@@ -421,8 +415,11 @@ class Runner:
             raise TypeError(
                 f'meta should be a dict or None, but got {type(meta)}')
         
+        
         if self.meta is not None:
-            meta.update(self.meta)
+            runner_meta = self.meta.copy()
+            runner_meta.pop("config")
+            meta.update(runner_meta)
 
         if model_cfg is not None:
             meta.update(model_cfg = model_cfg)

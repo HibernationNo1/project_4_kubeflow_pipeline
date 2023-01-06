@@ -38,9 +38,8 @@ def save_checkpoint(model: torch.nn.Module,
     if hasattr(model, 'CLASSES') and model.CLASSES is not None:
         # save class name to the meta
         meta.update(CLASSES=model.CLASSES)
-    
+        
     # create dict that with parameters of model
-    
     checkpoint = {
         'meta': meta,
         'state_dict': weights_to_cpu(get_state_dict(model))

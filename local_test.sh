@@ -1,3 +1,3 @@
 python main.py \
 --cfg_infer config/test_cfg.py \
---model_path for_test/models/model_2.pth
+--model_path result/train/model_30.pth

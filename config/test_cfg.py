@@ -22,12 +22,12 @@ test_pipeline = [
 ]
 
 test_result = "result/test"
-eval_result = 'eval'
-
+model_path = None
+device = 'cuda:0'
 
 data = dict(
     test=dict(
-        data_root = "tmp",  # TODO
+        data_root = "for_test/images",  # TODO
         batch_size = 10,
         ann_file= None,                            # work_dir/model_dir/dataset.json
         img_prefix="",                      
