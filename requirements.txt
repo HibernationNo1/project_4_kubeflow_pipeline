@@ -15,5 +15,5 @@ GitPython
 pycocotools
 terminaltables
 opencv-python
-
+tensorboard
 
