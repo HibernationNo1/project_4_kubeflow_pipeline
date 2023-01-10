@@ -11,12 +11,7 @@ _base_ = [
 
 train_result = "result/train"
 
-max_epochs = 30
-
 dist_params = dict(backend='nccl')      # TODO: ?
-
-load_from = None
-resume_from = None
 
 device = 'cuda:0'
 
@@ -35,9 +30,10 @@ hook_config = [
         type = "StepLrUpdaterHook",
         priority = 'HIGH',
         warmup='linear',
-        warmup_iters=1000,
+        warmup_iters=1000,              # last iteration at the end of warmup
         warmup_ratio=0.001,
-        step=[8, 11]
+        step=[10, 15, 20, 25, 30],      # epoch step to apply gamma by the learning rate
+        gamma = 0.1                     # value of the exponent to apply by the learning rate
     ),
     dict(
         type = "OptimizerHook",
@@ -64,7 +60,7 @@ hook_config = [
     dict(
         type = "TensorBoard_Hook",
         interval = ['iter', 10],
-        out_dir = train_result      # tensorboard --logdir=result/train
+        out_dir = "tensorboard"              # tensorboard --logdir=
         # priority='VERY_LOW'       # default priority: 'VERY_LOW'
     )      
 ]
