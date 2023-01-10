@@ -36,13 +36,7 @@ RUN chmod 600 /root/.ssh/id_rsa
 RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 
+# nema of repo to be git clone
+WORKDIR pipeline_dataset        
 
-# git repo version fixed in the docker image even the docker image tag version is a different.
-# run this command in python code
 
-WORKDIR pipeline_dataset
-# RUN git init
-# RUN git remote add origin git@github.com:HibernationNo1/pipeline_dataset.git
-# RUN git pull git@github.com:HibernationNo1/pipeline_dataset.git
-
-COPY ./hibernation_no1  /tmp/docker/hibernation_no1
