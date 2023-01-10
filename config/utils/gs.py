@@ -6,3 +6,7 @@ gs = dict(
     path = None
     
 )
+
+volume_path = "/pvc"
+
+git_repo = "pipeline_dataset"
