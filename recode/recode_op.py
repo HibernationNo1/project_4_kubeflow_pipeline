@@ -15,50 +15,55 @@ def recode(cfg : dict) :
     import pandas as pd
     import shutil
     import warnings
+    import sys
+    
+    WORKSPACE = '/workspace'
+    assert osp.isdir(WORKSPACE), f"The path '{WORKSPACE}' is not exist!"
+    # for import hibernation_no1
+    sys.path.append(f'{WORKSPACE}')    
     
     from PIL.Image import fromarray as fromarray
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
     
-    from docker.hibernation_no1.configs.utils import change_to_tuple, NpEncoder
-    from docker.hibernation_no1.configs.config import Config
-    from docker.hibernation_no1.utils.utils import get_environ
-    from docker.hibernation_no1.cloud.google.storage import get_client_secrets
-    from docker.hibernation_no1.cloud.google.dvc import dvc_pull, dvc_add, dvc_push
-    from docker.hibernation_no1.database.mysql import check_table_exist
+    from hibernation_no1.configs.utils import change_to_tuple, NpEncoder
+    from hibernation_no1.configs.config import Config
+    from hibernation_no1.utils.utils import get_environ
+    from hibernation_no1.cloud.google.storage import get_client_secrets
+    from hibernation_no1.cloud.google.dvc import dvc_pull, dvc_add, dvc_push
+    from hibernation_no1.database.mysql import check_table_exist
     
     TODAY = str(datetime.date.today())
     
-    def main(cfg):
-        git_repo = git.Git('git@github.com:HibernationNo1/pipeline_dataset.git')
-        git_repo.pull('origin', 'master')
-        
+    def main(cfg, in_pipeline = False):   
         cfg_flag = cfg.pop('flag')
         cfg = change_to_tuple(cfg, cfg_flag)
         cfg = Config(cfg)
 
-        target_dataset = osp.join(os.getcwd(), cfg.dvc.category,
-                                               cfg.dvc.ann.name,
-                                               cfg.dvc.ann.version)
+        if in_pipeline:
+            target_dataset = osp.join(os.getcwd(), cfg.dvc.category,
+                                                cfg.dvc.ann.name,
+                                                cfg.dvc.ann.version)
+            
+            dvc_cfg = dict(remote = cfg.dvc.ann.remote,
+                        bucket_name = cfg.dvc.ann.gs_bucket,
+                        client_secrets = get_client_secrets(),
+                        data_root = target_dataset)
+            dataset_dir_path = dvc_pull(**dvc_cfg)
+            
+            database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
+                            port=int(get_environ(cfg.db, 'port')), 
+                            user=cfg.db.user, 
+                            passwd=os.environ['password'], 
+                            database=cfg.db.name, 
+                            charset=cfg.db.charset)
         
-        dvc_cfg = dict(remote = cfg.dvc.ann.remote,
-                       bucket_name = cfg.dvc.ann.gs_bucket,
-                       client_secrets = get_client_secrets(),
-                       data_root = target_dataset)
-        dataset_dir_path = dvc_pull(**dvc_cfg)
+            cursor = database.cursor() 
+            check_table_exist(cursor, cfg.db.table)
         
-        database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
-                        port=int(get_environ(cfg.db, 'port')), 
-                        user=cfg.db.user, 
-                        passwd=os.environ['password'], 
-                        database=cfg.db.name, 
-                        charset=cfg.db.charset)
-    
-        cursor = database.cursor() 
-
-        check_table_exist(cursor, cfg.db.table)
-        
-        image_list, json_list = select_ann_data(cfg, cursor, database)
+            image_list, json_list = select_ann_data(cfg, cursor, database)
+        else:
+            exit()  # TODO
         
         recode_dataset = Record_Dataset(cfg, image_list, json_list, dataset_dir_path)
         
@@ -470,15 +475,54 @@ def recode(cfg : dict) :
         # origin.push()
             
     
-     
+    def dict2Config(cfg):
+        cfg_flag = cfg.get('flag', None)
+        if cfg_flag is not None:
+            cfg = change_to_tuple(cfg, cfg_flag)
+        cfg = Config(cfg)
+        return cfg
+    
+    
+    def git_clone_dataset(cfg):
+        repo_path = osp.join(WORKSPACE, cfg.git_repo)
+        if len(os.listdir(repo_path)) != 0:
+            # ----
+            # repo = Repo(osp.join(WORKSPACE, cfg.git_repo))
+            # origin = repo.remotes.origin  
+            # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
+            # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
+            
+            # import subprocess       # this command working only shell, not gitpython.
+            # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
+            # subprocess.call([safe_directory_str], shell=True)      
+
+            # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
+            # origin.pull()   
+            # ----
+            
+            # ssh key not working when trying git pull with gitpython
+            # delete all file cloned before and git clone again  
+            import shutil
+            shutil.rmtree(repo_path, ignore_errors=True)
+            os.makedirs(repo_path, exist_ok=True)
+
+        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo}.git', os.getcwd())  
+        
+         
      
 
     if __name__=="recode.recode_op":    # TODO
+        cfg = dict2Config(cfg)
         main(cfg)
         
         
     if __name__=="__main__":
-        main(cfg)
+                
+        
+        cfg = dict2Config(cfg)
+        git_clone_dataset(cfg)
+        
+        main(cfg, in_pipeline = True)
             
 
 recode_op = create_component_from_func(func = recode,
