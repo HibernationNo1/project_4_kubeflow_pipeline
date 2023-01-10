@@ -5,10 +5,6 @@ from docker.hibernation_no1.configs.config import Config
 CONFIGS = dict()     # parameters for pipeline run  
 MAP_CONFIG = "config/map.py"
 
-def set_cfg_recode(args, cfg):
-    assert cfg.dvc.recode.train == cfg.recode.train_dataset
-    assert cfg.dvc.recode.val == cfg.recode.val_dataset
-   
 def set_cfg_pipeline(args, cfg):
     if args.pipeline_n is not None: cfg.kbf.pipeline.name = args.pipeline_n
     cfg.kbf.pipeline.version =  args.pipeline_v
@@ -16,13 +12,37 @@ def set_cfg_pipeline(args, cfg):
     if args.run_n is not None: cfg.kbf.run.name = args.run_n    
     cfg.kbf.dashboard.pw =  args.pipeline_pw 
     
+    if cfg.kbf.volume.get("pvc", None) is not None:
+        import kfp.dsl as dsl
+        mode = cfg.kbf.volume.pvc.mode
+        if mode == 'VOLUME_MODE_RWO':
+            cfg.kbf.volume.pvc.mode = dsl.VOLUME_MODE_RWO
+        elif mode == 'VOLUME_MODE_RWM':
+            cfg.kbf.volume.pvc.mode = dsl.VOLUME_MODE_RWM
+        elif mode == 'VOLUME_MODE_ROM':
+            cfg.kbf.volume.pvc.mode = dsl.VOLUME_MODE_ROM
+            
+       
+            
+def comman_set(cfg):
+    if CONFIGS['pipeline'].kbf.volume.get("pvc", None) is not None:
+        cfg.volume_path = CONFIGS['pipeline'].kbf.volume.pvc.mount_path
+        
+        
+def set_cfg_recode(args, cfg):
+    assert cfg.dvc.recode.train == cfg.recode.train_dataset
+    assert cfg.dvc.recode.val == cfg.recode.val_dataset
+    
+    comman_set(cfg)
     
      
 def set_cfg_train(args, cfg):
     # set config of model to training 
     assert args.model, f"Model to be trained must be specified!!\n"\
         f"add `--model` option when entering the command."  
-
+    
+    comman_set(cfg)
+    
     map_cfg = Config.fromfile(MAP_CONFIG)
     models_cfg_path = osp.join(os.getcwd(), 
                                 map_cfg.dir.config.name, 
@@ -74,6 +94,15 @@ def set_cfg_train(args, cfg):
     if args.drop_rate is not None: cfg.model.backbone.drop_rate = args.drop_rate
     if args.drop_path_rate is not None: cfg.model.backbone.drop_path_rate = args.drop_path_rate
     if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
+    
+    
+    if CONFIGS['pipeline'].kbf.volume.get('pvc', None) is not None:
+        for i, hook_cfg in enumerate(cfg.hook_config):
+            if hook_cfg.type == "TensorBoard_Hook":
+                cfg.hook_config[i].out_dir = osp.join(CONFIGS['pipeline'].kbf.volume.pvc.mount_path,
+                                                      cfg.hook_config[i].out_dir)
+                break
+            
 
 def set_cfg_infer(args, cfg):
     if args.model_path is None:
