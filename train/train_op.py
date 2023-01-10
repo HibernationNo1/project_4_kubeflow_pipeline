@@ -1,36 +1,45 @@
 
-from kfp.components import create_component_from_func
+from kfp.components import create_component_from_func, OutputPath
 
 
 from pipeline_base_image_cfg import Base_Image_Cfg
 base_image = Base_Image_Cfg()
 
-
-def train(cfg : dict):
+import kfp
+def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):    
     import torch
     import numpy as np
     import os, os.path as osp
     import pymysql
     import pandas as pd
     from google.cloud import storage
+    from git.repo import Repo
     import sys
+    
+    WORKSPACE = dict(pack = '/pvc',     # pvc volume path
+                     work = '/workspace')
+    
+    assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
+    # for import hibernation_no1
+    sys.path.append(f"{WORKSPACE['pack']}")
+
+    
  
-    from docker.hibernation_no1.configs.utils import change_to_tuple
-    from docker.hibernation_no1.configs.config import Config
-    from docker.hibernation_no1.database.mysql import check_table_exist
-    from docker.hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
-    from docker.hibernation_no1.cloud.google.dvc import dvc_pull
+    from hibernation_no1.configs.utils import change_to_tuple
+    from hibernation_no1.configs.config import Config
+    from hibernation_no1.database.mysql import check_table_exist
+    from hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
+    from hibernation_no1.cloud.google.dvc import dvc_pull
     
-    from docker.hibernation_no1.utils.utils import get_environ
+    from hibernation_no1.utils.utils import get_environ
     
-    
-    from docker.hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
-    from docker.hibernation_no1.mmdet.data.dataset import build_dataset
-    from docker.hibernation_no1.mmdet.data.dataloader import build_dataloader
-    from docker.hibernation_no1.mmdet.modules.dataparallel import build_dp
-    from docker.hibernation_no1.mmdet.optimizer import build_optimizer
-    from docker.hibernation_no1.mmdet.runner import build_runner
-    from docker.hibernation_no1.mmdet.visualization import mask_to_polygon
+    from hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
+    from hibernation_no1.mmdet.data.dataset import build_dataset
+    from hibernation_no1.mmdet.data.dataloader import build_dataloader
+    from hibernation_no1.mmdet.modules.dataparallel import build_dp
+    from hibernation_no1.mmdet.optimizer import build_optimizer
+    from hibernation_no1.mmdet.runner import build_runner
+    from hibernation_no1.mmdet.visualization import mask_to_polygon
     
     
     
@@ -70,7 +79,7 @@ def train(cfg : dict):
             model_cfg = cfg.model.copy()
         
             model_cfg.pop("type")
-            from docker.hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
+            from hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
             model = MaskRCNN(**model_cfg)
         
         
@@ -126,7 +135,32 @@ def train(cfg : dict):
                         val_cfg = cfg.val)
 
         train_runner.run(**run_cfg)
-                
+        
+        # if in_pipeline:
+        #     tmp = train_runner.log_buffer.get_last()
+            
+        #     for hook_cfg in cfg.hook_config:
+        #         if hook_cfg.get("type") == "TensorBoard_Hook":
+        #             out_dir = osp.join(os.getcwd(), hook_cfg.out_dir)
+            
+        #     metadata = {
+        #         'outputs': [{
+        #             'type': 'tensorboard',
+        #             'source': out_dir,
+        #         }]
+        #     }
+        #     metrics = {
+        #         'metrics': [{
+        #             'name': 'loss',
+        #             'numberValue': tmp['loss'],
+        #             'format': "RAW",
+        #         }]
+        #     }
+            
+        #     return metrics
+        # else: return None
+             
+        
         
     
     def set_dataset_cfg(cfg, database):
@@ -229,6 +263,7 @@ def train(cfg : dict):
         model_list = list()
         for i, result in enumerate(result_list):
             if result.split("_")[0] == 'model':
+                continue        ###
                 model_list.append(result)
             else:
                 upload_list.append(result)
@@ -236,13 +271,39 @@ def train(cfg : dict):
             if i == len(result_list)-1:
                 for model in model_list:
                     upload_list.append(model)
-
-
+                            
         for file_name in upload_list:
             print(f"upload {file_name} to google storage...")
             blob = bucket.blob(os.path.join(dir_bucket, file_name))
             blob.upload_from_filename(osp.join(cfg.train_result, file_name))
+            
     
+    def git_clone_dataset(cfg):
+        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo)
+        if len(os.listdir(repo_path)) != 0:
+            # ----
+            # repo = Repo(osp.join(WORKSPACE['work'], cfg.git_repo))
+            # origin = repo.remotes.origin  
+            # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
+            # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
+            
+            # import subprocess       # this command working only shell, not gitpython.
+            # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
+            # subprocess.call([safe_directory_str], shell=True)      
+
+            # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
+            # origin.pull()   
+            # ----
+            
+            # ssh key not working when trying git pull with gitpython
+            # delete all file cloned before and git clone again  
+            import shutil
+            shutil.rmtree(repo_path, ignore_errors=True)
+            os.makedirs(repo_path, exist_ok=True)
+
+        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo}.git', os.getcwd())  
+            
+            
     
     if __name__=="train.train_op":        
         cfg = dict2Config(cfg)
@@ -250,12 +311,46 @@ def train(cfg : dict):
         
         
     if __name__=="__main__":
-        from git.repo import Repo
-        Repo.clone_from('git@github.com:HibernationNo1/pipeline_dataset.git', os.getcwd())
+        cfg = dict2Config(cfg)       
+         
+        git_clone_dataset(cfg)       
         
-        cfg = dict2Config(cfg)
-        main(cfg, in_pipeline = True)
         
+                
+        
+        main(cfg, in_pipeline = True)        
+        # result_list = os.listdir(osp.join(os.getcwd(), cfg.train_result))
+        # print(f"result_list : {result_list}")
+        
+        tensorboard_dir = None
+        for i, hook_cfg in enumerate(cfg.hook_config):
+            if hook_cfg.type == "TensorBoard_Hook":
+                tensorboard_dir = cfg.hook_config[i].out_dir
+                break
+            
+        tensorboard_list = os.listdir(tensorboard_dir)
+        print(f"tensorboard_list : {tensorboard_list}")
+        
+        
+        # url = f"gs://{cfg.gs.models_bucket}/{dir_bucket}"
+        #url = f"http://storage.googleapis.com/{cfg.gs.models_bucket}/{dir_bucket}"
+        
+        
+        
+        tensorboard_resource = {
+            'outputs' : [{
+            'type': 'tensorboard',
+            'source': tensorboard_dir
+            }]
+        }
+        
+        
+        
+        with open(Tensorboard_path, 'w') as f:
+            json.dump(tensorboard_resource, f)
+        
+        
+        exit()
         upload_models(cfg)
         
      
