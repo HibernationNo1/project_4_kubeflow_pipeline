@@ -120,7 +120,7 @@ class TensorBoard_Hook(Hook):
             
             if category == "loss":
                 if key == "loss": 
-                    key = 'total_loss'
+                    name = 'total_loss'
                 self.writer.add_scalar(f"Loss/{name}", item, runner._iter)
             elif category == "acc":
                 self.writer.add_scalar(f"Acc/{name}", item, runner._iter)

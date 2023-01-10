@@ -4,14 +4,14 @@ dvc = dict(
         name = "ann",
         remote = "ann_dataset",
         gs_bucket = "ann_dataset_taeuk4958",
-        version = "0.0.3",
+        version = "0.0.5",
     ),
     
     recode = dict(
         name = "recode",
         remote = 'recode_dataset',
         gs_bucket = "train_dataset_taeuk4958",
-        version = "0.0.3",                 # match the version of the ann dataset you want to download. 
+        version = "0.0.5",                 # match the version of the ann dataset you want to download. 
         train = 'train_dataset.json',      # name of recoded file(.json format) for training 
         val = 'val_dataset.json'           # name of recoded file(.json format) for validation 
     )

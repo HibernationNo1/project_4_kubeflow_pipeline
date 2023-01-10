@@ -131,6 +131,7 @@ class StepLrUpdaterHook(Hook):
             elif self.warmup == 'exp':
                 k = self.warmup_ratio**(1 - cur_iters / self.warmup_iters)
                 warmup_lr = [_lr * k for _lr in regular_lr]
+               
             return warmup_lr
 
         
