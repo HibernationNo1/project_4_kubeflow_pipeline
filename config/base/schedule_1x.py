@@ -1,10 +1,6 @@
-# learning policy
-
-# epochs단위로 설정 시 training time의 단위가 크다.
-# max_iters 사용시 iteration단위로 train
-runner = dict(max_epochs=12)        # EpochBasedRunner
-
-
+max_epochs = 1
+load_from = None
+resume_from = None
 
 # optimizer
 optimizer = dict(
