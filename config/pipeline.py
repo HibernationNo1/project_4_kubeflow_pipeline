@@ -24,10 +24,13 @@ kbf = dict(
             medium = "Memory",
             path = '/dev/shm'
         ),
-        data = dict(
-            name = "data",
-            medium = "Memory",
-            path = '/home/tmp'
+        pvc = dict(
+            name = "hibernation_pvc_2",
+            resource_name = "pipeline-pvc_2",
+            mode = 'VOLUME_MODE_RWO',      # choices in ['VOLUME_MODE_RWO', 'VOLUME_MODE_RWM', 'VOLUME_MODE_ROM']
+            size = "10Gi",
+            storage_class = None,
+            mount_path = "/pvc"
         )
 
     )
