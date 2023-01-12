@@ -2,9 +2,8 @@ import kfp
 import os, os.path as osp
 import requests
 
-from pipeline_base_image_cfg import BASE_IMG
+from pipeline_base_config import BASE_IMG
 from pipeline_config import CONFIGS
-from docker.hibernation_no1.configs.utils import get_tuple_key
 
 
 def kfb_print(string, nn = True): 
@@ -107,7 +106,7 @@ def get_experiment(client, cfg) :
 
 
 
-def connet_client(cfg):   
+def connet_client(cfg, return_session = False):   
     session = requests.Session()
     response = session.get(cfg.host)
 
@@ -124,9 +123,11 @@ def connet_client(cfg):
     client = kfp.Client(
         host=f"{cfg.host}/pipeline",
         namespace=f"{cfg.name_space}",
-        cookies=f"authservice_session={session_cookie}",
-    )
-    return client
+        cookies=f"authservice_session={session_cookie}")
+    if return_session:
+        return client, session
+    else:
+        return client 
 
 
 
@@ -166,3 +167,48 @@ def set_intput_papams(pipeline = True):
         params.pop(f'{key}_using')
     
     return params
+
+
+def get_tuple_key(cfg):    
+    """ 
+        return boolean flag equal to the dict map of input 'cfg'. 
+        flag gets True or index where if type of key and type of value in list are tuple.
+
+    Args:
+        cfg (_type_): config dict
+
+    Returns:
+        _type_: config dict, all value are boolean.
+    """
+
+    if isinstance(cfg, dict) or isinstance(cfg, Config):
+        tmp_dict = {}
+        for key in list(cfg.keys()):
+            is_tuple = get_tuple_key(cfg[key]) 
+            
+            if is_tuple :
+                tmp_dict[key] = is_tuple
+            else: continue
+
+        
+        return tmp_dict     
+    elif isinstance(cfg, tuple):
+        return True
+    
+    elif isinstance(cfg, list):
+        tmp_list = []
+        for i, ele in enumerate(cfg):       # list에 tuple이 포함되어 있는 경우
+            is_tuple = get_tuple_key(ele)
+            if isinstance(is_tuple, dict):
+                tmp_list.append(is_tuple)
+            elif isinstance(is_tuple, bool) and is_tuple:
+                tmp_list.append(i)      
+            
+            
+            else: continue
+            
+        
+        if len(tmp_list) == 0: return False
+        return tmp_list
+    
+    else: return False
