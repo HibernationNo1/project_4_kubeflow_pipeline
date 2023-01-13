@@ -63,7 +63,8 @@ def project_pipeline(cfg_train : dict, train_using,
             .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
             .add_env_variable(SECRETS['db']["password"]) \
             .add_env_variable(SECRETS['db']["host"]) \
-            .add_env_variable(SECRETS['db']["port"]) 
+            .add_env_variable(SECRETS['db']["port"]) \
+            .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
     
     with dsl.Condition(train_using == True) :
         _train_op = train_op(cfg_train)\
@@ -150,7 +151,7 @@ if __name__=="__main__":
     cfg_pipeline = CONFIGS.get('pipeline', None)
     kfb_print("connet to kubeflow client")
     client = connet_client(cfg_pipeline.kbf.dashboard)  
-    
+        
     kfb_print("compile pipeline")             
     kfp.compiler.Compiler().compile(
         project_pipeline,

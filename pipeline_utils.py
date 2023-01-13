@@ -2,7 +2,7 @@ import kfp
 import os, os.path as osp
 import requests
 
-from pipeline_base_config import BASE_IMG
+from pipeline_base_config import BASE_IMG, Config
 from pipeline_config import CONFIGS
 
 

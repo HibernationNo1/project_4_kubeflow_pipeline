@@ -16,6 +16,7 @@ PypI/pipeline_taeuk4958/pipeline_taeuk4958.egg-info/
 
 id_rsa
 
+/ann_daataset
 /result
-/dataset
+/train_dataset 
 start.sh

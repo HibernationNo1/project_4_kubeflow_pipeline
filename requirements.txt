@@ -7,6 +7,7 @@ mmdet
 dvc[gs]
 kfp
 kubernetes
+kserve
 
 pymysql
 pandas

@@ -1,4 +1,4 @@
-max_epochs = 1
+max_epochs = 30
 load_from = None
 resume_from = None
 

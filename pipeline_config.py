@@ -1,6 +1,6 @@
 import os, os.path as osp
 
-from docker.hibernation_no1.configs.config import Config
+from pipeline_base_config import Config
 
 CONFIGS = dict()     # parameters for pipeline run  
 MAP_CONFIG = "config/map.py"
@@ -25,8 +25,9 @@ def set_cfg_pipeline(args, cfg):
        
             
 def comman_set(cfg):
-    if CONFIGS['pipeline'].kbf.volume.get("pvc", None) is not None:
-        cfg.volume_path = CONFIGS['pipeline'].kbf.volume.pvc.mount_path
+    if CONFIGS['pipeline'] is not None:     # when run only by kubeflow pipeline
+        if CONFIGS['pipeline'].kbf.volume.get("pvc", None) is not None:
+            cfg.path.volume = CONFIGS['pipeline'].kbf.volume.pvc.mount_path
         
         
 def set_cfg_recode(args, cfg):
@@ -96,12 +97,13 @@ def set_cfg_train(args, cfg):
     if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
     
     
-    if CONFIGS['pipeline'].kbf.volume.get('pvc', None) is not None:
-        for i, hook_cfg in enumerate(cfg.hook_config):
-            if hook_cfg.type == "TensorBoard_Hook":
-                cfg.hook_config[i].out_dir = osp.join(CONFIGS['pipeline'].kbf.volume.pvc.mount_path,
-                                                      cfg.hook_config[i].out_dir)
-                break
+    if CONFIGS['pipeline'] is not None:     # when run only by kubeflow pipeline
+        if CONFIGS['pipeline'].kbf.volume.get('pvc', None) is not None:
+            for i, hook_cfg in enumerate(cfg.hook_config):
+                if hook_cfg.type == "TensorBoard_Hook":
+                    cfg.hook_config[i].pvc_dir = osp.join(CONFIGS['pipeline'].kbf.volume.pvc.mount_path,
+                                                          cfg.hook_config[i].pvc_dir)
+                    break
             
 
 def set_cfg_infer(args, cfg):

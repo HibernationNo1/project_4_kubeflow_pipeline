@@ -4,9 +4,9 @@ from pipeline import _parse_args
 from pipeline_config import set_config, CONFIGS
 from pipeline_utils import set_intput_papams
 
-from train.train_op import train
-from recode.recode_op import recode
-from test import inference
+
+
+
 
 
 import torch
@@ -18,11 +18,14 @@ if __name__=="__main__":
     params = set_intput_papams(pipeline = False)        
     
     for key, item in params.items():
-        if key == 'cfg_recode' and isinstance(item, dict):      
+        if key == 'cfg_recode' and isinstance(item, dict):   
+            from recode.recode_op import recode   
             recode(params[key])
         elif key == 'cfg_train' and isinstance(item, dict):
+            from train.train_op import train
             train(params[key])
         
         elif key == 'cfg_test' and isinstance(item, dict):
+            from test import inference
             inference(params[key])
   
