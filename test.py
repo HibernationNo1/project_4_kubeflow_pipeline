@@ -5,10 +5,20 @@ import torch
 import cv2
 from tqdm import tqdm
 
-from docker.hibernation_no1.configs.config import Config
-from docker.hibernation_no1.mmdet.inference import build_detector, inference_detector, parse_inferece_result
-from docker.hibernation_no1.mmdet.modules.dataparallel import build_dp
-from docker.hibernation_no1.mmdet.visualization import draw_to_img
+
+# WORKSPACE = dict(pack = '/pvc',         # pvc volume path
+#                      work = '/workspace',   # path if workspace in docker container
+#                      local = '/opt/local-path-provisioner'\
+#                              '/pvc-c16a15b9-962b-4636-a0b4-2fd18a1423ae_project-pipeline_hibernation-project-qffnp-pipeline-pvc-2'
+#                     )    
+# import sys
+# sys.path.append(f"{WORKSPACE['local']}")    
+    
+from hibernation_no1.configs.config import Config
+from hibernation_no1.mmdet.inference import build_detector, inference_detector, parse_inferece_result
+from hibernation_no1.mmdet.modules.dataparallel import build_dp
+from hibernation_no1.mmdet.visualization import draw_to_img
+
 
 def inference(cfg):
     cfg.pop('flag')
