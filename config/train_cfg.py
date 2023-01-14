@@ -5,7 +5,7 @@ _base_ = [
     'base/validation.py',
     "utils/dvc.py",
     "utils/database.py",
-    "utils/gs.py"
+    "utils/utils.py"
 ]
 
 
@@ -48,7 +48,7 @@ hook_config = [
     ),
     dict(
         type = "LoggerHook", 
-        interval=50,                # unit: iter
+        interval=10,                # unit: iter
         out_dir = train_result,
         out_suffix = '.log',        #  if '.json', can write max 21889 lines
     ),         
@@ -60,7 +60,8 @@ hook_config = [
     dict(
         type = "TensorBoard_Hook",
         interval = ['iter', 10],
-        out_dir = "tensorboard"              # tensorboard --logdir=
+        pvc_dir = "tensorboard",
+        out_dir = train_result          
         # priority='VERY_LOW'       # default priority: 'VERY_LOW'
     )      
 ]
