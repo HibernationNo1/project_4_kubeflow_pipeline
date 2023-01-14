@@ -1,11 +1,12 @@
 _base_ = [
     "utils/dvc.py",
     "utils/database.py",
+    "utils/utils.py"
 ]
 
 
-
-
+data_root = 'ann_dataset'
+result = "test_dataset"
 
 recode = dict(
     options = dict(
