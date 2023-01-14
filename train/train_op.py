@@ -1,13 +1,13 @@
 
 from kfp.components import create_component_from_func, OutputPath
 
-
-from pipeline_base_image_cfg import Base_Image_Cfg
-base_image = Base_Image_Cfg()
+from pipeline_base_config import Base_Image_cfg
+base_image = Base_Image_cfg()
 
 import kfp
-def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):    
+def train(cfg : dict):    
     import torch
+    import psutil
     import numpy as np
     import os, os.path as osp
     import pymysql
@@ -16,14 +16,20 @@ def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):
     from git.repo import Repo
     import sys
     
-    WORKSPACE = dict(pack = '/pvc',     # pvc volume path
-                     work = '/workspace')
-    
-    assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
-    # for import hibernation_no1
-    sys.path.append(f"{WORKSPACE['pack']}")
+    WORKSPACE = dict(package = cfg['path']['volume'],       # pvc volume path
+                     work =  cfg['path']['work_space'],     # path if workspace in docker container
+                     local_package = cfg['path']['local_volume'])    
 
-    
+    if __name__=="train.train_op": 
+        assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
+        sys.path.append(f"{WORKSPACE['local_package']}")    
+              
+    if __name__=="__main__":    
+        assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
+        assert osp.isdir(WORKSPACE['package']), f"The path '{WORKSPACE['package']}' is not exist!"
+        # for import hibernation_no1
+        sys.path.append(f"{WORKSPACE['package']}")    
+        
  
     from hibernation_no1.configs.utils import change_to_tuple
     from hibernation_no1.configs.config import Config
@@ -40,10 +46,9 @@ def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):
     from hibernation_no1.mmdet.optimizer import build_optimizer
     from hibernation_no1.mmdet.runner import build_runner
     from hibernation_no1.mmdet.visualization import mask_to_polygon
-    
-    
-    
-    def main(cfg, in_pipeline = False):        
+            
+        
+    def main(cfg, in_pipeline = False):    
         assert torch.cuda.is_available()
         train_result = osp.join(os.getcwd(), cfg.train_result)
         os.makedirs(train_result, exist_ok=True)
@@ -52,14 +57,12 @@ def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):
         cfg.seed = np.random.randint(2**31)
         cfg.device = "cuda"
         
-      
         if in_pipeline:
             train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, load_dataset_from_dvc_db(cfg)))
         else:
             dataset_cfg = dict(train_cfg = cfg.data.train, val_cfg = cfg.data.val)
             train_dataset, val_dataset = build_dataset(**dataset_cfg)
             
-        
         train_loader_cfg = dict(train_dataset = train_dataset,
                                 val_dataset = val_dataset,
                                 train_batch_size=cfg.data.samples_per_gpu,
@@ -83,14 +86,13 @@ def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):
             model = MaskRCNN(**model_cfg)
         
         
-        
         dp_cfg = dict(model = model, 
                       device = cfg.device,
                       cfg = cfg,
                       classes = train_dataset.CLASSES)
         model = build_dp(**dp_cfg)
         
-        optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])               
+        optimizer = build_optimizer(model, cfg, LOGGERS[cfg.log.train]['logger'])          
         
         # build runner
         runner_build_cfg = dict(model = model,
@@ -100,7 +102,8 @@ def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):
                                 meta = dict(config = cfg.pretty_text, seed = cfg.seed),
                                 batch_size = cfg.data.samples_per_gpu,
                                 max_epochs = cfg.max_epochs,
-                                iterd_per_epochs = len(train_dataloader))
+                                iterd_per_epochs = len(train_dataloader),
+                                in_pipeline = in_pipeline)
         train_runner = build_runner(runner_build_cfg)
         
         # init hooks
@@ -126,39 +129,14 @@ def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):
         elif cfg.load_from:
             train_runner.load_checkpoint(cfg.load_from)
 
-        
-        cfg.val.mask2polygon = mask_to_polygon 
-        
-        
+        # cfg.val.mask2polygon = mask_to_polygon 
         run_cfg = dict(train_dataloader = train_dataloader,
                         val_dataloader = val_dataloader,
                         val_cfg = cfg.val)
 
         train_runner.run(**run_cfg)
         
-        # if in_pipeline:
-        #     tmp = train_runner.log_buffer.get_last()
-            
-        #     for hook_cfg in cfg.hook_config:
-        #         if hook_cfg.get("type") == "TensorBoard_Hook":
-        #             out_dir = osp.join(os.getcwd(), hook_cfg.out_dir)
-            
-        #     metadata = {
-        #         'outputs': [{
-        #             'type': 'tensorboard',
-        #             'source': out_dir,
-        #         }]
-        #     }
-        #     metrics = {
-        #         'metrics': [{
-        #             'name': 'loss',
-        #             'numberValue': tmp['loss'],
-        #             'format': "RAW",
-        #         }]
-        #     }
-            
-        #     return metrics
-        # else: return None
+
              
         
         
@@ -310,49 +288,14 @@ def train(cfg : dict, Tensorboard_path:OutputPath("Tensorboard")):
         main(cfg)
         
         
-    if __name__=="__main__":
+    if __name__=="__main__":       
         cfg = dict2Config(cfg)       
          
-        git_clone_dataset(cfg)       
-        
-        
-                
-        
+        git_clone_dataset(cfg)              
         main(cfg, in_pipeline = True)        
-        # result_list = os.listdir(osp.join(os.getcwd(), cfg.train_result))
-        # print(f"result_list : {result_list}")
-        
-        tensorboard_dir = None
-        for i, hook_cfg in enumerate(cfg.hook_config):
-            if hook_cfg.type == "TensorBoard_Hook":
-                tensorboard_dir = cfg.hook_config[i].out_dir
-                break
-            
-        tensorboard_list = os.listdir(tensorboard_dir)
-        print(f"tensorboard_list : {tensorboard_list}")
-        
-        
-        # url = f"gs://{cfg.gs.models_bucket}/{dir_bucket}"
-        #url = f"http://storage.googleapis.com/{cfg.gs.models_bucket}/{dir_bucket}"
-        
-        
-        
-        tensorboard_resource = {
-            'outputs' : [{
-            'type': 'tensorboard',
-            'source': tensorboard_dir
-            }]
-        }
-        
-        
-        
-        with open(Tensorboard_path, 'w') as f:
-            json.dump(tensorboard_resource, f)
-        
-        
-        exit()
         upload_models(cfg)
         
+      
      
         
             

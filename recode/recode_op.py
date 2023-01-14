@@ -1,6 +1,6 @@
 from kfp.components import create_component_from_func
-from pipeline_base_image_cfg import Base_Image_Cfg
-base_image = Base_Image_Cfg()
+from pipeline_base_config import Base_Image_cfg
+base_image = Base_Image_cfg()
 
 def recode(cfg : dict) :
     
@@ -15,12 +15,24 @@ def recode(cfg : dict) :
     import pandas as pd
     import shutil
     import warnings
+    import glob
     import sys
     
-    WORKSPACE = '/workspace'
-    assert osp.isdir(WORKSPACE), f"The path '{WORKSPACE}' is not exist!"
-    # for import hibernation_no1
-    sys.path.append(f'{WORKSPACE}')    
+    WORKSPACE = dict(package = cfg['path']['volume'],       # pvc volume path
+                     work =  cfg['path']['work_space'],     # path if workspace in docker container
+                     local_package = cfg['path']['local_volume'])    
+    
+    if __name__=="recode.recode_op": 
+        assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
+        sys.path.append(f"{WORKSPACE['local_package']}")     
+        
+    if __name__=="__main__":    
+        assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
+        assert osp.isdir(WORKSPACE['package']), f"The path '{WORKSPACE['package']}' is not exist!"
+        # for import hibernation_no1
+        sys.path.append(f"{WORKSPACE['package']}")    
+    
+    
     
     from PIL.Image import fromarray as fromarray
     from PIL.ImageDraw import Draw as Draw    
@@ -63,9 +75,13 @@ def recode(cfg : dict) :
         
             image_list, json_list = select_ann_data(cfg, cursor, database)
         else:
-            exit()  # TODO
+            dataset_dir_path = osp.join(os.getcwd(), cfg.data_root)  
+            data_root = osp.join(os.getcwd(), cfg.data_root)
+            image_list = glob.glob(data_root +'/*.jpg')
+            json_list = glob.glob(data_root +'/*.json')
+            
         
-        recode_dataset = Record_Dataset(cfg, image_list, json_list, dataset_dir_path)
+        recode_dataset = Record_Dataset(cfg, image_list, json_list, dataset_dir_path, in_pipeline)
         
         result_dir = recode_dataset.recode_dataset_path
         
@@ -74,22 +90,18 @@ def recode(cfg : dict) :
         assert osp.isfile(recode_dataset.train_dataset_path),\
             f"Paht: {recode_dataset.train_dataset_path}, is not exist!!"
 
-        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_train, "train")
-        insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_val, "val")
-       
-      
-        dvc_add(target_dir = result_dir, dvc_name = cfg.dvc.recode.version)
-        
-        
-        git_push(cfg)
-        
-        dvc_push(remote = cfg.dvc.recode.remote,
-                 bucket_name = cfg.dvc.recode.gs_bucket,
-                 client_secrets = get_client_secrets())
-        
-        
-        database.commit()
-        database.close()
+        if in_pipeline:
+            insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_train, "train")
+            insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_val, "val")
+            
+            dvc_add(target_dir = result_dir, dvc_name = cfg.dvc.recode.version)
+            git_push(cfg)
+            dvc_push(remote = cfg.dvc.recode.remote,
+                    bucket_name = cfg.dvc.recode.gs_bucket,
+                    client_secrets = get_client_secrets())
+            
+            database.commit()
+            database.close()
         print(f"completed.")
         
         
@@ -98,7 +110,7 @@ def recode(cfg : dict) :
         """
 
         """
-        def __init__(self, cfg, image_list, json_list, dataset_dir_path, pre_processing = False):
+        def __init__(self, cfg, image_list, json_list, dataset_dir_path, pre_processing = False, in_pipeline = False):
             """ Parsing the json list and recode the train dataset and validation dataset
                 to one file json format each.
                 
@@ -119,6 +131,7 @@ def recode(cfg : dict) :
             self.json_list = json_list   
             self.dataset_dir_path = dataset_dir_path
             self.pre_processing = pre_processing
+            self.in_pipeline = in_pipeline
             
             self.train_dataset = dict(info = {}, 
                                 licenses = [],
@@ -131,10 +144,15 @@ def recode(cfg : dict) :
             
             self.object_names = []
             
-            self.recode_dataset_path = osp.join(os.getcwd(), 
-                                                cfg.dvc.category,
-                                                cfg.dvc.recode.name,
-                                                cfg.dvc.recode.version)
+            if self.in_pipeline:
+                self.recode_dataset_path = osp.join(os.getcwd(), 
+                                                    cfg.dvc.category,
+                                                    cfg.dvc.recode.name,
+                                                    cfg.dvc.recode.version)
+            else:
+                self.recode_dataset_path = osp.join(os.getcwd(),
+                                                    cfg.result)
+        
             os.makedirs(self.recode_dataset_path, exist_ok=True)
             
             print(f" Number of image: {len(image_list)}")
@@ -223,7 +241,7 @@ def recode(cfg : dict) :
                         + " "+ str(time.localtime(time.time()).tm_hour) \
                         + ":" + str(time.localtime(time.time()).tm_min)
             
-            for i, json_file in enumerate(self.json_list):                
+            for i, json_file in enumerate(self.json_list):   
                 tmp_images_dict = {}
                 with open(json_file, "r") as fp:
                     data = json.load(fp) 
@@ -379,6 +397,7 @@ def recode(cfg : dict) :
                 for file_info in image_info_list:
                     image_name = file_info["file_name"]
                     
+            
                     after_image_list.append(osp.join(self.recode_dataset_path, image_name))
                     before_image_list.append(osp.join(self.dataset_dir_path, image_name))
                     
@@ -386,7 +405,9 @@ def recode(cfg : dict) :
                         self.saved_image_list_train.append(image_name)
                     elif purpose == "val":
                         self.saved_image_list_val.append(image_name)
-            
+
+                
+                # copy images from ann dataset to training dataset
                 for befor_image_path, after_image_path in zip(before_image_list, after_image_list):
                     shutil.copyfile(befor_image_path, after_image_path)
             
@@ -484,27 +505,28 @@ def recode(cfg : dict) :
     
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE, cfg.git_repo)
-        if len(os.listdir(repo_path)) != 0:
-            # ----
-            # repo = Repo(osp.join(WORKSPACE, cfg.git_repo))
-            # origin = repo.remotes.origin  
-            # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
-            # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
-            
-            # import subprocess       # this command working only shell, not gitpython.
-            # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
-            # subprocess.call([safe_directory_str], shell=True)      
+        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo)
+        if osp.isdir(repo_path):
+            if len(os.listdir(repo_path)) != 0:
+                # ----
+                # repo = Repo(osp.join(WORKSPACE['work'], cfg.git_repo))
+                # origin = repo.remotes.origin  
+                # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
+                # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
+                
+                # import subprocess       # this command working only shell, not gitpython.
+                # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
+                # subprocess.call([safe_directory_str], shell=True)      
 
-            # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
-            # origin.pull()   
-            # ----
-            
-            # ssh key not working when trying git pull with gitpython
-            # delete all file cloned before and git clone again  
-            import shutil
-            shutil.rmtree(repo_path, ignore_errors=True)
-            os.makedirs(repo_path, exist_ok=True)
+                # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
+                # origin.pull()   
+                # ----
+                
+                # ssh key not working when trying git pull with gitpython
+                # delete all file cloned before and git clone again  
+                import shutil
+                shutil.rmtree(repo_path, ignore_errors=True)
+                os.makedirs(repo_path, exist_ok=True)
 
         Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo}.git', os.getcwd())  
         
