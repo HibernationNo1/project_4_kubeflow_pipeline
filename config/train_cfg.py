@@ -2,7 +2,6 @@ _base_ = [
     'base/model.py',
     'base/dataset_config.py',
     'base/schedule_1x.py',
-    'base/validation.py',
     "utils/dvc.py",
     "utils/database.py",
     "utils/utils.py"
@@ -20,8 +19,14 @@ hook_config = [
     dict(
         type='Validation_Hook',        
         priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-        interval = ['iter', 50]     # epoch(or iter) unit to run validation ['epoch', 1]
-    ),          
+        interval = ['iter', 50],     # epoch(or iter) unit to run validation ['epoch', 1]
+        val_cfg = dict(
+            iou_thrs = [0.3, 0.9],          # range of iou threshold
+            num_thrs_divi = 10,             # divide range of `iou_threshold` by number of `num_thrshd_divi` for compute mAP
+            confidence_thrs = 0.6,                 # threshold of confidence score
+            batch_size = 4)
+    ),
+             
     dict(
         type='Check_Hook',
         priority = 'VERY_HIGH'
@@ -48,7 +53,7 @@ hook_config = [
     ),
     dict(
         type = "LoggerHook", 
-        interval=10,                # unit: iter
+        interval=20,                # unit: iter
         out_dir = train_result,
         out_suffix = '.log',        #  if '.json', can write max 21889 lines
     ),         
