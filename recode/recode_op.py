@@ -18,19 +18,25 @@ def recode(cfg : dict) :
     import glob
     import sys
     
-    WORKSPACE = dict(package = cfg['path']['volume'],       # pvc volume path
+    WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
-    
-    if __name__=="recode.recode_op": 
+
+    if __name__=="train.train_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
-        sys.path.append(f"{WORKSPACE['local_package']}")     
-        
+        sys.path.append(f"{WORKSPACE['local_package']}")    
+              
     if __name__=="__main__":    
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
-        assert osp.isdir(WORKSPACE['package']), f"The path '{WORKSPACE['package']}' is not exist!"
+        assert osp.isdir(WORKSPACE['volume']), f"The path '{WORKSPACE['volume']}' is not exist!"
         # for import hibernation_no1
-        sys.path.append(f"{WORKSPACE['package']}")    
+        package_path = osp.join(WORKSPACE['volume'], cfg['git_repo']['package'])
+        if not osp.isdir(package_path):
+            print(f" git clone 'hibernation_no1' to {package_path}")
+            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git_repo']['package']}.git", package_path)
+        
+        sys.path.append(f"{WORKSPACE['volume']}")    
+        
     
     
     
@@ -80,8 +86,14 @@ def recode(cfg : dict) :
             image_list = glob.glob(data_root +'/*.jpg')
             json_list = glob.glob(data_root +'/*.json')
             
-        
-        recode_dataset = Record_Dataset(cfg, image_list, json_list, dataset_dir_path, in_pipeline)
+        record_dataset_cfg = dict(
+            cfg = cfg,
+            image_list = image_list,
+            json_list = json_list,
+            dataset_dir_path = dataset_dir_path,
+            in_pipeline = in_pipeline
+        )
+        recode_dataset = Record_Dataset(**record_dataset_cfg)
         
         result_dir = recode_dataset.recode_dataset_path
         
@@ -505,7 +517,7 @@ def recode(cfg : dict) :
     
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo)
+        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo.dataset)
         if osp.isdir(repo_path):
             if len(os.listdir(repo_path)) != 0:
                 # ----
@@ -528,7 +540,7 @@ def recode(cfg : dict) :
                 shutil.rmtree(repo_path, ignore_errors=True)
                 os.makedirs(repo_path, exist_ok=True)
 
-        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo}.git', os.getcwd())  
+        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo.dataset}.git', os.getcwd())  
         
          
      
