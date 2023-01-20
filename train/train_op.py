@@ -16,7 +16,7 @@ def train(cfg : dict):
     from git.repo import Repo
     import sys
     
-    WORKSPACE = dict(package = cfg['path']['volume'],       # pvc volume path
+    WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
 
@@ -26,9 +26,14 @@ def train(cfg : dict):
               
     if __name__=="__main__":    
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
-        assert osp.isdir(WORKSPACE['package']), f"The path '{WORKSPACE['package']}' is not exist!"
+        assert osp.isdir(WORKSPACE['volume']), f"The path '{WORKSPACE['volume']}' is not exist!"
         # for import hibernation_no1
-        sys.path.append(f"{WORKSPACE['package']}")    
+        package_path = osp.join(WORKSPACE['volume'], cfg['git_repo']['package'])
+        if not osp.isdir(package_path):
+            print(f" git clone 'hibernation_no1' to {package_path}")
+            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git_repo']['package']}.git", package_path)
+        
+        sys.path.append(f"{WORKSPACE['volume']}")    
         
  
     from hibernation_no1.configs.utils import change_to_tuple
@@ -71,6 +76,7 @@ def train(cfg : dict):
                                 seed = cfg.seed,
                                 shuffle = True)
         train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
+        
         # build model
         assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
         
@@ -106,7 +112,7 @@ def train(cfg : dict):
                                 in_pipeline = in_pipeline)
         train_runner = build_runner(runner_build_cfg)
         
-        # init hooks
+        # get config about each hooks
         for hook_cfg in cfg.hook_config:     
             if hook_cfg.type == 'CheckpointHook': 
                 hook_cfg.model_cfg = cfg.model
@@ -115,10 +121,12 @@ def train(cfg : dict):
                 hook_cfg.val_dataloader = val_dataloader
                 hook_cfg.val_cfg = cfg.val
                 hook_cfg.logger = get_logger("validation")
-                    
-                
+                 
+            if hook_cfg.type == 'TensorBoard_Hook' and in_pipeline: 
+                hook_cfg.pvc_dir = osp.join(WORKSPACE['volume'], hook_cfg.pvc_dir) 
+                                    
         train_runner.register_training_hooks(cfg.hook_config)  
-        
+
         
         resume_from = cfg.get('resume_from', None)
         load_from = cfg.get('load_from', None)
@@ -257,10 +265,10 @@ def train(cfg : dict):
             
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo)
+        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo.dataset)
         if len(os.listdir(repo_path)) != 0:
             # ----
-            # repo = Repo(osp.join(WORKSPACE['work'], cfg.git_repo))
+            # repo = Repo(osp.join(WORKSPACE['work'], cfg.git_repo.dataset))
             # origin = repo.remotes.origin  
             # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
             # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
@@ -279,7 +287,7 @@ def train(cfg : dict):
             shutil.rmtree(repo_path, ignore_errors=True)
             os.makedirs(repo_path, exist_ok=True)
 
-        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo}.git', os.getcwd())  
+        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo.dataset}.git', os.getcwd())  
             
             
     
