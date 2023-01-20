@@ -4,15 +4,13 @@ import glob
 import torch
 import cv2
 from tqdm import tqdm
+import sys
 
 
-# WORKSPACE = dict(pack = '/pvc',         # pvc volume path
-#                      work = '/workspace',   # path if workspace in docker container
-#                      local = '/opt/local-path-provisioner'\
-#                              '/pvc-c16a15b9-962b-4636-a0b4-2fd18a1423ae_project-pipeline_hibernation-project-qffnp-pipeline-pvc-2'
-#                     )    
-# import sys
-# sys.path.append(f"{WORKSPACE['local']}")    
+LOCAL_PACKAGE_PATH = '/opt/local-path-provisioner'\
+                      '/pvc-e242aba4-a270-4000-a361-064f7c3dc91e_project-pipeline_hibernation-project-gdcr5-pipeline-pvc-2'
+
+sys.path.append(LOCAL_PACKAGE_PATH)    
     
 from hibernation_no1.configs.config import Config
 from hibernation_no1.mmdet.inference import build_detector, inference_detector, parse_inferece_result
