@@ -65,13 +65,16 @@ def train(cfg : dict):
         if in_pipeline:
             train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, load_dataset_from_dvc_db(cfg)))
         else:
-            dataset_cfg = dict(train_cfg = cfg.data.train, val_cfg = cfg.data.val)
+            val_cfg = cfg.data.val.copy()
+            val_cfg.pop("batch_size")
+            dataset_cfg = dict(train_cfg = cfg.data.train, val_cfg = val_cfg)
             train_dataset, val_dataset = build_dataset(**dataset_cfg)
-            
+        
+         
         train_loader_cfg = dict(train_dataset = train_dataset,
                                 val_dataset = val_dataset,
                                 train_batch_size=cfg.data.samples_per_gpu,
-                                val_batch_size = cfg.val.batch_size,
+                                val_batch_size = cfg.data.val.batch_size,
                                 num_workers=cfg.data.workers_per_gpu,
                                 seed = cfg.seed,
                                 shuffle = True)
@@ -119,8 +122,8 @@ def train(cfg : dict):
                 
             if hook_cfg.type == 'Validation_Hook': 
                 hook_cfg.val_dataloader = val_dataloader
-                hook_cfg.val_cfg = cfg.val
                 hook_cfg.logger = get_logger("validation")
+                
                  
             if hook_cfg.type == 'TensorBoard_Hook' and in_pipeline: 
                 hook_cfg.pvc_dir = osp.join(WORKSPACE['volume'], hook_cfg.pvc_dir) 
@@ -139,8 +142,7 @@ def train(cfg : dict):
 
         # cfg.val.mask2polygon = mask_to_polygon 
         run_cfg = dict(train_dataloader = train_dataloader,
-                        val_dataloader = val_dataloader,
-                        val_cfg = cfg.val)
+                        val_dataloader = val_dataloader)
 
         train_runner.run(**run_cfg)
         
