@@ -23,7 +23,8 @@ SECRETS = dict()
 
 @dsl.pipeline(name="hibernation_project")
 def project_pipeline(cfg_train : dict, train_using, 
-                     cfg_recode : dict, recode_using
+                     cfg_recode : dict, recode_using,
+                     pvc: dict
                      ): 
     # persistance volume
     pvc_cfg = CONFIGS['pipeline'].kbf.volume.pvc
@@ -47,8 +48,7 @@ def project_pipeline(cfg_train : dict, train_using,
     for secrets_cate, secrets_cfg in SECRETS.items():
         for key in secrets_cfg:
             SECRETS[secrets_cate][key] = V1EnvVar(name=key, value_from=V1EnvVarSource(secret_key_ref=V1SecretKeySelector(name=client_sc_name, key=key)))
-    
-    
+       
     with dsl.Condition(recode_using == True) :   
         _check_status_op = recode_op(cfg_recode)\
             .add_env_variable(SECRETS['gs']["type"]) \
