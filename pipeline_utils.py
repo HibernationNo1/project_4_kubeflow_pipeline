@@ -150,7 +150,16 @@ def set_intput_papams(pipeline = True):
                 if pipeline:
                     kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
                 params[f"{key}_using"] = True
-            else:                     
+            else:    
+                
+                if item.get('path', None) is not None:
+                    if pipeline:
+                        item.path.local_package = None
+                    else:
+                        item.path.volume = None
+                        item.path.work_space = None
+                        item.path.tensorboard = None
+                        
                 params[f"cfg_{key}"] = dict(item)
                 params[f"cfg_{key}"]['flag'] = get_tuple_key(item)
     
