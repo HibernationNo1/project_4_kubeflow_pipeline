@@ -123,6 +123,7 @@ def train(cfg : dict):
             if hook_cfg.type == 'Validation_Hook': 
                 hook_cfg.val_dataloader = val_dataloader
                 hook_cfg.logger = get_logger("validation")
+                hook_cfg.result_dir = train_result
                 
                  
             if hook_cfg.type == 'TensorBoard_Hook' and in_pipeline: 
