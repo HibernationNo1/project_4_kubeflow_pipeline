@@ -26,6 +26,9 @@ if __name__=="__main__":
             train(params[key])
         
         elif key == 'cfg_test' and isinstance(item, dict):
-            from test import inference
-            inference(params[key])
-  
+            from inference import test
+            test(params[key])
+
+        elif key == 'cfg_validation' and isinstance(item, dict):
+            from inference import validation
+            validation(params[key])
