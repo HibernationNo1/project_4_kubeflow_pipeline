@@ -17,6 +17,12 @@ from hibernation_no1.mmdet.inference import build_detector, inference_detector, 
 from hibernation_no1.mmdet.modules.dataparallel import build_dp
 from hibernation_no1.mmdet.visualization import draw_to_img
 
+from hibernation_no1.mmdet.data.dataset import build_dataset
+from hibernation_no1.mmdet.data.dataloader import build_dataloader
+from hibernation_no1.mmdet.eval import Evaluate
+
+import numpy as np
+
 
 def test(cfg):
     cfg.pop('flag')
@@ -75,13 +81,6 @@ def test(cfg):
 
 
 
-
-from hibernation_no1.mmdet.data.dataset import build_dataset
-from hibernation_no1.mmdet.data.dataloader import build_dataloader
-from hibernation_no1.mmdet.eval import Evaluate
-
-import numpy as np
-
 def validation(cfg):
     cfg.pop('flag')
     cfg = Config(cfg)
@@ -121,7 +120,7 @@ def validation(cfg):
                     cfg= cfg.eval_cfg,
                     dataloader= val_dataloader)
     eval = Evaluate(**eval_cfg)   
-    # mAP = eval.compute_mAP()
+    mAP = eval.compute_mAP()
 
 
     
