@@ -91,8 +91,8 @@ def _parse_args():
     parser.add_argument("--cfg_pipeline", help="name of config file which for pipeline")       
     parser.add_argument("--cfg_train", help="name of config file which for training")                           # TODO: rename
     parser.add_argument("--cfg_recode", help="name of config file which for recode") 
-    parser.add_argument("--cfg_infer", help="name of config file which for inference")  
-    
+    parser.add_argument("--cfg_test", help="name of config file which for test")  
+    parser.add_argument("--cfg_val", help="name of config file which for validation") 
     
     
     kbf_parser = parser.add_argument_group('kubeflow')
