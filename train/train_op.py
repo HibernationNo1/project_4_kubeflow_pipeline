@@ -50,7 +50,6 @@ def train(cfg : dict):
     from hibernation_no1.mmdet.modules.dataparallel import build_dp
     from hibernation_no1.mmdet.optimizer import build_optimizer
     from hibernation_no1.mmdet.runner import build_runner
-    from hibernation_no1.mmdet.visualization import mask_to_polygon
             
         
     def main(cfg, in_pipeline = False):    
@@ -71,14 +70,14 @@ def train(cfg : dict):
             train_dataset, val_dataset = build_dataset(**dataset_cfg)
         
          
-        train_loader_cfg = dict(train_dataset = train_dataset,
+        dataloader_cfg = dict(train_dataset = train_dataset,
                                 val_dataset = val_dataset,
                                 train_batch_size=cfg.data.samples_per_gpu,
                                 val_batch_size = cfg.data.val.batch_size,
                                 num_workers=cfg.data.workers_per_gpu,
                                 seed = cfg.seed,
                                 shuffle = True)
-        train_dataloader, val_dataloader = build_dataloader(**train_loader_cfg)
+        train_dataloader, val_dataloader = build_dataloader(**dataloader_cfg)
         
         # build model
         assert cfg.get('train_cfg') is None , 'train_cfg must be specified in both outer field and model field'
@@ -142,8 +141,8 @@ def train(cfg : dict):
             train_runner.load_checkpoint(cfg.load_from)
 
         # cfg.val.mask2polygon = mask_to_polygon 
-        run_cfg = dict(train_dataloader = train_dataloader,
-                        val_dataloader = val_dataloader)
+        run_cfg = dict(train_dataloader = train_dataloader)
+                       # val_dataloader = val_dataloader
 
         train_runner.run(**run_cfg)
         

@@ -26,13 +26,10 @@ model_path = None
 device = 'cuda:0'
 
 data = dict(
-    test=dict(
-        data_root = "for_test/images",  # TODO
-        batch_size = 10,
-        ann_file= None,                            # work_dir/model_dir/dataset.json
-        img_prefix="",                      
-        pipeline=test_pipeline)
-    )
+    data_root = "for_test/images",  # TODO
+    batch_size = 10
+)
+
 
 show_score_thr = 0.3
 

@@ -170,7 +170,7 @@ def set_intput_papams(pipeline = True):
     # ['train_using', 'recode_using', 'cfg_train', 'cfg_recode']
     # If 'recode' is not selected as a pipeline component, it has a value of `False`.
     
-    key = 'test'
+    key = 'test'    # 'validation'  TODO: run test, validation in pipeline
     if pipeline:
         params.pop(f'cfg_{key}')
         params.pop(f'{key}_using')
