@@ -233,6 +233,8 @@
 
 #### Install Mirantis cri-dockerd
 
+**nvidia dirver, cuda toolkit 이 사전에 install된 상태여야 한다.**
+
 [공식 문서](https://computingforgeeks.com/install-mirantis-cri-dockerd-as-docker-engine-shim-for-kubernetes/)
 
 Docker 엔진의 경우 shim 인터페이스가 필요
@@ -577,7 +579,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    ```
    $ sudo kubeadm init \
      --pod-network-cidr=10.244.0.0/16 \
-     --apiserver-advertise-address 192.168.219.100\
+     --apiserver-advertise-address 192.168.219.102\
      --cri-socket /run/cri-dockerd.sock
    ```
 
@@ -603,6 +605,10 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
      > installed `cri-dockerd`
 
+   - `--apiserver-advertise-address`: master node의 API Server주소를 설정할 때 사용
+
+     > ifconfig를 통해 IP주소 확인 후 진행
+     
    - `--upload-certs` : control-plane 인증서를 kubeadm-certs Secret에 업로드한다.
 
    - `--control-plane-endpoint` : control-plane의 IP 주소 또는 DNS 이름을 지정
@@ -1676,8 +1682,14 @@ docker rmi $(docker images -q)
 
 ```
 $ sudo kubeadm reset
-$ sudo rm -rf /home/ainsoft/.kube
+$ sudo rm -rf /home/username/.kube
 ```
+
+> ```
+> sudo rm -rf /home/hibernation/.kube
+> ```
+>
+> 
 
 
 
