@@ -1,8 +1,16 @@
 # Install kubeflow at Kubernetes
 
+- ubuntu: `20.04`
+
+- cri-dockerd: `0.3.1`
+
+- kubernetes : `1.25.4`
+
+
+
 ## Kubernetes
 
-### check before installation
+### check before installationttoelzhdpqkf
 
 1. ```
    $ sudo apt update
@@ -231,7 +239,7 @@
 
    
 
-#### Install Mirantis cri-dockerd
+#### Install cri-dockerd
 
 **nvidia dirver, cuda toolkit 이 사전에 install된 상태여야 한다.**
 
@@ -254,6 +262,8 @@ Mirantis cri-dockerd CRI 소켓 파일 경로는 `/run/cri-dockerd.sock` (Kubern
    $ echo $VER
    ```
 
+   > - `0.2.5` version에서 kubernetest init이 안됨을 확인 >> `0.3.1` version에서 됨
+
 2. download the archive file from [Github cri-dockerd releases](https://github.com/Mirantis/cri-dockerd/releases) page.
 
    ```
@@ -274,7 +284,7 @@ Mirantis cri-dockerd CRI 소켓 파일 경로는 `/run/cri-dockerd.sock` (Kubern
    ```
 
    ```
-   cri-dockerd 0.2.5 (10797dc)
+   cri-dockerd 0.3.1 (7e528b98)
    ```
 
 4. Configure systemd
@@ -330,7 +340,12 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
                sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
    ```
 
-   > `ubuntu18.04/$(ARCH)` 떠도 20.04에서 정상 작동
+   > ```
+   > deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/ubuntu18.04/$(ARCH) /
+   > #deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/experimental/ubuntu18.04/$(ARCH) /
+   > ```
+   >
+   > 떠도 20.04에서 정상 작동
 
 2. install nvidia-docker2
 
@@ -383,7 +398,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    
 
-4. edit daemon
+4. edit `daemon`
 
    ```
    $ sudo vi /etc/docker/daemon.json
@@ -405,6 +420,28 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    ```
    $ sudo systemctl daemon-reload 
+   ```
+   
+5. edit `systemd`
+
+   ```
+   $ mkdir -p /etc/systemd/system/docker.service.d
+   ```
+
+   ```
+   $ tee /etc/systemd/system/docker.service.d/override.conf <<EOF
+   [Service]
+   ExecStart=
+   ExecStart=/usr/bin/dockerd --host=fd:// --add-runtime=nvidia=/usr/bin/nvidia-container-runtime
+   EOF
+   ```
+
+   ```
+   $ systemctl daemon-reload
+   ```
+
+   ```
+   $ systemctl restart docker
    ```
 
 
@@ -439,10 +476,14 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    ```
    $ sudo apt-get update
-   $ sudo apt-get install -y kubectl=1.22.13-00 kubelet=1.22.13-00 kubeadm=1.22.13-00
+   $ sudo apt-get install -y kubectl=1.25.4-00 kubelet=1.25.4-00 kubeadm=1.25.4-00
    ```
 
-   > 차후 `kserve`를 위해  version을 1.22.13으로 결정 (`1.22.13-00`) 이라 명시해줘야 함
+   > `kubeflow` 를 사용하기 위해 지원 가능한 kubernetes version check 필요 (check [here](https://github.com/kubeflow/manifests#prerequisites))
+   >
+   > kserve를 사용하기 위한 version도 확인 (from [here](https://kserve.github.io/website/0.10/admin/serverless/serverless/))
+   >
+   > - `1.25.4-00`에서 됨
 
    
 
@@ -456,6 +497,8 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    Client Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.13", GitCommit:"a43c0904d0de10f92aa3956c74489c45e6453d6e", GitTreeState:"clean", BuildDate:"2022-08-17T18:28:56Z", GoVersion:"go1.16.15", Compiler:"gc", Platform:"linux/amd64"}
    kubeadm version: &version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.13", GitCommit:"a43c0904d0de10f92aa3956c74489c45e6453d6e", GitTreeState:"clean", BuildDate:"2022-08-17T18:27:51Z", GoVersion:"go1.16.15", Compiler:"gc", Platform:"linux/amd64"}
    ```
+
+   > version은 다르더라도 위 처럼 나옴
 
    hold version
 
@@ -509,13 +552,13 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    - `br_netfilter` kernel module이 존재하고 있으나 아무도 사용을 하고 있지 않아서 `0`
    - `br_netfilter`가 이 `bridge` module에 의존해서 동작함을 **확인**
 
-2. set host
+2. set host(host name이 이미 결정되어 있다면 skip)
 
    ```
    $ hostnamectl set-hostname master_node_name
    ```
 
-   
+   > host name에는 대문자가 포함되지 않도록 하자.
 
    - if you have plan to set up worker nodes
 
@@ -579,7 +622,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    ```
    $ sudo kubeadm init \
      --pod-network-cidr=10.244.0.0/16 \
-     --apiserver-advertise-address 192.168.219.102\
+     --apiserver-advertise-address 192.168.219.100\
      --cri-socket /run/cri-dockerd.sock
    ```
 
@@ -607,7 +650,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    - `--apiserver-advertise-address`: master node의 API Server주소를 설정할 때 사용
 
-     > ifconfig를 통해 IP주소 확인 후 진행
+     > **ifconfig를 통해 IP주소 확인 후 진행**
      
    - `--upload-certs` : control-plane 인증서를 kubeadm-certs Secret에 업로드한다.
 
@@ -671,48 +714,121 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
 
    ```
    NAME                 STATUS     ROLES                  AGE   VERSION
-   master.example.com   Ready   control-plane,master   30s   v1.22.13
+   hibernation  		 Ready   	control-plane,master   30s   v1.22.13
    ```
 
-   > kubeadm init을 안하면 아래 출력이 나옴
+   > - kubeadm init을 안하면 아래 출력이 나옴
    >
-   > ```
-   > The connection to the server 192.168.0.107:6443 was refused - did you specify the right host or port?
-   > ```
-
+   >   ```
+   >   The connection to the server 192.168.0.107:6443 was refused - did you specify the right host or port?
+   >   ```
+   >
+   >   
+   >
+   > - `ROLES`에 `master` 가 포함되지 않은 경우 master node가 아닌 것이다.
+   >
+   >   ```
+   >   NAME                 STATUS     ROLES                  AGE   VERSION
+   >   hibernation  		 Ready   	control-plane          30s   v1.25.4
+   >   ```
+   >
+   >   `ROLES`에 `master`를 포함하고자 한다면 label을 붙이자(master가 안붙어도 master처럼 사용됨)
+   >
+   >   ```
+   >   $ kubectl label nodes hibernation node-role.kubernetes.io/master=
+   >   ```
+   >
+   >   ```
+   >   $ kubectl get nodes
+   >   
+   >   NAME          STATUS     ROLES                  AGE     VERSION
+   >   hibernation   Ready      control-plane,master   9m14s   v1.25.4
+   >   ```
+   >
+   >   이후 해당 node의 Taints가 `node-role.kubernetes.io/master`인지 확인 할 것.
+   >
+   >   
+   >
+   > - node의 Taints 확인
+   >
+   >   ```
+   >   $ kubectl describe node hibernation  | grep Taints
+   >   ```
+   >
+   >   ```
+   >   Taints:             node-role.kubernetes.io/control-plane:NoSchedule
+   >   ```
+   >
+   >   node의 `ROLES`가 control-plane이고, `NoSchedule` 상태임을 알 수 있다.
+   >
+   >   `NoSchedule`인 경우 해당 node에서는 Pod를 Schedule할 수 없다(STATUS가 Running이 되지 못하고 계속 pending이 된다.)
+   >
+   >   이를 없애기 위해 아래 명령어
+   >
+   >   ```
+   >   $ kubectl taint node hibernation node-role.kubernetes.io/control-plane-
+   >   ```
+   >
+   >   다시 확인
+   >
+   >   ```
+   >   $ kubectl describe node hibernation  | grep Taints
+   >   
+   >   Taints:             <none>
+   >   ```
+   >
+   >   > `control-plane`이 아니라 `master` 로 명시되어 있어도 같은 방법 사용
+   >   >
+   >   > kubernetes는 1.6부터 Daemonset이 기본적으로 master node에서 schedule되지 않는다.
+   >   >
+   >   > > 정확히는, taint에 의해 master node에서 pod구동이 안되도록 되어 있다.
+   >   >
+   >   > 만일 master node에서 pod작업을 이어가고자 한다면 taint를 해제
+   >   >
+   >   > ```
+   >   > $ kubectl taint nodes hibernation node-role.kubernetes.io/master-
+   >   > ```
+   >
+   >   이후 nodes `STATUS` 가 NotReady가 된다
+   >
+   >   ```
+   >   $ kubectl get nodes
+   >   
+   >   NAME          STATUS     ROLES                  AGE   VERSION
+   >   hibernation   NotReady   control-plane,master   17m   v1.25.4
+   >   ```
+   >
+   >   이후 아래 내용 순서대로 진행
+   
    - STATUS: `NotReady` 인 경우
-
+   
      1. ```
         $ kubectl get pod -n kube-system
         ```
-
+   
         ```
         NAME                                     READY   STATUS    RESTARTS   AGE
         coredns-78fcd69978-cdf4d                 1/1     padding   0          49s
         coredns-78fcd69978-snxdp                 1/1     padding   0          49s
         ```
-
+   
         위 pods의 STATUS: `padding` 인 경우에는 **`install CNI(flannel)`**
-
+   
         해당 CNI를 설치하지 않으면 nodes의 STATUS가 계속해서 `NotReady`이다.
-
+   
         ```
         $ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
         ```
-
+   
         ```
         $ kubectl get pod -n kube-system
         ```
-
+   
         모든 STAUS가 `Running`임을 확인
 
 
 
-
-
 ### nvidia-device-plugin
-
-[doc](https://github.com/NVIDIA/k8s-device-plugin)
 
 1. graphic driver 존재 확인
 
@@ -726,17 +842,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    $ kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.13.0/nvidia-device-plugin.yml
    ```
 
-   > version은 공식 doc에서 확인 후 결정
-
-   - kubernetes는 1.6부터 Daemonset이 기본적으로 master node에서 schedule되지 않는다.
-
-     > 정확히는, taint에 의해 master node에서 pod구동이 안되도록 되어 있다.
-
-     만일 master node에서 pod작업을 이어가고자 한다면 taint를 해제
-
-     ```
-     $ kubectl taint nodes hibernationno1 node-role.kubernetes.io/master-
-     ```
+   > version은 공식 [doc](https://github.com/NVIDIA/k8s-device-plugin#enabling-gpu-support-in-kubernetes)에서 확인
 
 3. confirm enabling GPU support in Kubernetes
 
@@ -750,8 +856,72 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    ```
 
    > 1 확인
-
-   
+   >
+   > - 계속 `<none>` 인 경우
+   >
+   >   1. kube-system namespace의 모든 pod가 running인지 확인
+   >
+   >      ```
+   >      $ kubectl get pod -n kube-system
+   >      ```
+   >
+   >   2. nvidia pod가 running인지 확인
+   >
+   >      ```
+   >      $ kubectl get pod -A | grep nvidia
+   >      ```
+   >
+   >   3. `nvidia driver`와 `cuda toolkit`확인
+   >
+   >      ```
+   >      $ nvidia-smi
+   >      $ nvcc -V
+   >      ```
+   >
+   >   4. `nvidia-docker2` 설치 여부 확인
+   >
+   >      ```
+   >      $ sudo docker run --rm --gpus all nvidia/cuda:11.3.1-base-ubuntu20.04 nvidia-smi
+   >      ```
+   >
+   >   5. 위 1, 2, 3, 4번 모두 확인했음에도 이상이 없다면 
+   >
+   >      nvidia pod이름 확인
+   >
+   >      ```
+   >      $ kubectl get pod -A | grep nvidia
+   >      ```
+   >
+   >      해당 pod의 log확인
+   >
+   >      ```
+   >      $ kubectl logs nvidia-device-plugin-daemonset-sksnl -n kube-system
+   >      ```
+   >
+   >      ```
+   >      2023/02/23 05:31:16 Retreiving plugins.
+   >      2023/02/23 05:31:16 Detected non-NVML platform: could not load NVML: libnvidia-ml.so.1: cannot open shared object file: No such file or directory
+   >      2023/02/23 05:31:16 Detected non-Tegra platform: /sys/devices/soc0/family file not found
+   >      2023/02/23 05:31:16 Incompatible platform detected
+   >      2023/02/23 05:31:16 If this is a GPU node, did you configure the NVIDIA Container Toolkit?
+   >      2023/02/23 05:31:16 You can check the prerequisites at: https://github.com/NVIDIA/k8s-device-plugin#prerequisites
+   >      2023/02/23 05:31:16 You can learn how to set the runtime at: https://github.com/NVIDIA/k8s-device-plugin#quick-start
+   >      2023/02/23 05:31:16 If this is not a GPU node, you should set up a toleration or nodeSelector to only deploy this plugin on GPU nodes
+   >      2023/02/23 05:31:16 No devices found. Waiting indefinitely.
+   >      ```
+   >
+   >      log의 맨 하단 내용이 위와 같다면 GPU를 못잡고 있는 것임. `nvidia-docker2` 설치가 제대로 되어 있는지 확인하자.
+   >
+   >      > 정상적이라면 아래처럼 나와야 함
+   >      >
+   >      > ```
+   >      > 2023/02/23 05:55:17 Retreiving plugins.
+   >      > 2023/02/23 05:55:17 Detected NVML platform: found NVML library
+   >      > 2023/02/23 05:55:17 Detected non-Tegra platform: /sys/devices/soc0/family file not found
+   >      > 2023/02/23 05:55:17 Starting GRPC server for 'nvidia.com/gpu'
+   >      > 2023/02/23 05:55:17 Starting to serve 'nvidia.com/gpu' on /var/lib/kubelet/device-plugins/nvidia-gpu.sock
+   >      > 2023/02/23 05:55:17 Registered device plugin for 'nvidia.com/gpu' with Kubelet
+   >      > ```
 
    pod구동 확인
 
@@ -805,7 +975,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    gpu    0/1     ContainerCreating   0          90s
    ```
 
-   > `STATUS : Runniing` 확인 후 아래 명령어 실행
+   > `STATUS : Runniing` 확인 후 아래 명령어 실행 
 
    ```
    $ kubectl logs gpu
@@ -870,9 +1040,10 @@ $ kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storag
 >
 > ```
 > $ kubectl get storageclass
+> 
+> NAME                   PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+> local-path (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  12s
 > ```
-
-
 
 
 
@@ -880,38 +1051,19 @@ $ kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storag
 
 ### **kustomize** 
 
-[여기](https://github.com/kubernetes-sigs/kustomize/) 에서 현재 k8s version에 맞는 kustomize version을 확인하고 download binary
+[공식](https://github.com/kubernetes-sigs/kustomize/) 
 
-```
-$ kubectl version
-```
-
-> kustomize 3.2.0에 알맞는 version확인
+[kubeflow](https://github.com/kubeflow/manifests) 에서 현재 k8s version에 맞는 kustomize version을 확인하고 download binary
 
 [여기](https://github.com/kubernetes-sigs/kustomize/releases/tag/v3.2.0)의 **Asset** 아래 `kustomize_3.2.0_darwin_amd64` 의 링크 복사 (arm이면 arm꺼 복사)
 
 > 링크 없어지면 [releases](https://github.com/kubernetes-sigs/kustomize/releases?page) 에서 3.2.0 찾은 후 진행
+>
+> 2023.02.23 기준 4.5.7도 지원됨을 확인
 
 ```
 $ sudo wget https://github.com/kubernetes-sigs/kustomize/releases/download/v3.2.0/kustomize_3.2.0_linux_amd64
 ```
-
-> - 4.2.0 설치 시 (**아직까진  kubeflow가 3.2.0외의 version과는 호환되지 않고 있음**)
->
->   releases에서 4.2.0찾은 후 `kustomize_v4.2.0_linux_amd64.tar.gz` 복사 
->
->   ```
->   sudo wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.2.0/kustomize_v4.2.0_linux_amd64.tar.gz
->   ```
->
-> 
->
->   압축 풀고 진행
->
->   ```
-> $ gzip -d kustomize_v4.2.0_linux_amd64.tar.gz
-> $ tar -xvf kustomize_v4.2.0_linux_amd64.tar
->   ```
 
 file의 mode 변경 (실행 가능하도록)
 
@@ -944,8 +1096,6 @@ Version: {KustomizeVersion:3.2.0 GitCommit:a3103f1e62ddb5b696daa3fd359bb6f2e8333
 >   $ sudo mv kustomize /usr/local/bin/kustomize
 >   $ kustomize version
 >   ```
-
-
 
 
 
@@ -1140,7 +1290,7 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
       apiVersion: kubeflow.org/v1beta1
       kind: Profile
       metadata:
-        name: namesapce
+        name: namespace
       spec:
         owner:
           kind: User
@@ -1300,8 +1450,6 @@ $ kubectl -n project-pipeline create secret generic client-secrets --from-env-fi
    Generating public/private rsa key pair.
    ```
 
-   
-
    - 저장하고자 하는 위치 결정
 
      ```
@@ -1343,6 +1491,24 @@ $ kubectl -n project-pipeline create secret generic client-secrets --from-env-fi
    - `id_rsa`: private key가 저장되어 있음
 
      개인키는 절대 공개되어선 안된다.
+
+     - docker file에 private git repository를 clone할 때 사용하려면 build하고자 하는 dockerfile과 같은 위치로  `id_rsa`를 옮기고
+
+       ```
+       $ mv id_rsa path_located_dockerfile
+       ```
+
+        dockerfile에는 아래 내용이 포함되어 있어야 한다.
+
+       ```
+       RUN mkdir /root/.ssh
+       ADD id_rsa /root/.ssh/id_rsa
+       RUN chmod 600 /root/.ssh/id_rsa
+       RUN touch /root/.ssh/known_hosts
+       RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
+       ```
+
+       
 
    - `id_rsa.pub`: pubilc key가 저장되어 있음
 
