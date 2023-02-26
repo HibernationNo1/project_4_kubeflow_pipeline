@@ -22,8 +22,9 @@ from kubernetes.client import V1Volume, V1EmptyDirVolumeSource
 SECRETS = dict()
 
 @dsl.pipeline(name="hibernation_project")
-def project_pipeline(cfg_train : dict, train_using, 
-                     cfg_recode : dict, recode_using,
+def project_pipeline(cfg_recode : dict, recode_using,
+                     cfg_train : dict, train_using, 
+                     cfg_validation : dict, validation_using,
                      pvc: dict
                      ): 
     # persistance volume
@@ -42,6 +43,7 @@ def project_pipeline(cfg_train : dict, train_using,
             name= shm_volume_cfg.name,
             empty_dir=V1EmptyDirVolumeSource(medium=shm_volume_cfg.medium))
         )  
+
     
     # set secrets
     client_sc_name = "client-secrets"
