@@ -114,7 +114,8 @@ def validation(cfg):
     else:
         raise OSError(f"The path is not exist!!     path : {model_path}")
 
-    os.makedirs(osp.join(os.getcwd(), cfg.val_result), exist_ok = True) 
+    output_path = osp.join(os.getcwd(), cfg.val_result) 
+    os.makedirs(output_path, exist_ok = True) 
 
 
     model = build_detector(cfg, model_path, device = cfg.device)
@@ -126,6 +127,7 @@ def validation(cfg):
 
 
     eval_cfg = dict(model= model, 
+                    output_path = output_path,
                     cfg= cfg.eval_cfg,
                     dataloader= val_dataloader)
     eval = Evaluate(**eval_cfg)   
