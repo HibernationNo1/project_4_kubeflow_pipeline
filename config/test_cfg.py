@@ -1,7 +1,7 @@
 
 
 
-img_scale = (1333, 800)     # expected resizing image shape (1280, 720)  width, height
+img_scale = (3000, 2000)     # expected resizing image shape (1280, 720)  width, height
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 
@@ -27,10 +27,13 @@ device = 'cuda:0'
 
 data = dict(
     data_root = "for_test/images",  # TODO
-    batch_size = 10
+    batch_size = 2
 )
 
 
-show_score_thr = 0.3
+show_score_thr = 0.7
 
 evaluation = dict(metric=['bbox', 'segm'])      # choise in ['bbox', 'segm']
+
+
+get_board_info = True

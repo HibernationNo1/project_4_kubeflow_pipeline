@@ -12,7 +12,9 @@ class Base_Image_cfg():
     train = BASE_IMG['train'] 
     train_cp = "train/train.component.yaml"
     
-        
+class Path_cfg():
+    volume = 'pvc-c5ecf260-b80c-4cf4-92ff-e5a7bf57aac1_pipeline_hibernation-project-pggtm-pipeline-pvc-2'  
+          
 """
 docker build docker --no-cache -t localhost:5000/pipeline:0.1
 docker push localhost:5000/pipeline:0.1

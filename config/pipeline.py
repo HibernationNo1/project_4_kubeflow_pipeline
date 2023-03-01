@@ -1,7 +1,7 @@
 kbf = dict(
     dashboard = dict(
         user_n = "winter4958@gmail.com",
-        name_space = "project-pipeline",
+        name_space = "pipeline",
         host = "http://localhost:8080",
         pw = None
         ),
@@ -13,7 +13,7 @@ kbf = dict(
         version = None
         ),
     experiment = dict(
-        name = "recode"
+        name = "train"
         ),
     run = dict(
         name = "project"

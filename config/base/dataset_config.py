@@ -1,4 +1,4 @@
-img_scale = (1333, 800)     # expected resizing image shape (1280, 720)  width, height
+img_scale = (1800, 1200)     # expected resizing image shape (1280, 720)  width, height      1333, 800
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
@@ -16,12 +16,12 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),   # 
 ]
 
-
+val_img_scale = (1333, 800)
 val_infer_pipeline = [              # infernce for during validation
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=img_scale,
+        img_scale=val_img_scale,
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=True),

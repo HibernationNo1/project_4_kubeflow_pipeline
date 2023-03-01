@@ -59,8 +59,7 @@ def upload_pipeline(client, cfg):
 
 def run_pipeline(client, cfg, experiment_id, pipeline_id, params):
     
-    
-    if isinstance(pipeline_id, dict):       # TODO: Unrecognized input parameter: 뜬다.
+    if isinstance(pipeline_id, dict):      
         kfb_print(f"Run pipeline:: this version uploaded before | name: {cfg.pipeline.name}, version: {cfg.pipeline.version}")
         exec_run = client.run_pipeline(
             experiment_id = experiment_id,

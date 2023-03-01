@@ -22,7 +22,7 @@ def recode(cfg : dict) :
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
 
-    if __name__=="train.train_op": 
+    if __name__=="recode.recode_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
         sys.path.append(f"{WORKSPACE['local_package']}")    
               
@@ -58,6 +58,7 @@ def recode(cfg : dict) :
         cfg = change_to_tuple(cfg, cfg_flag)
         cfg = Config(cfg)
 
+        
         if in_pipeline:
             target_dataset = osp.join(os.getcwd(), cfg.dvc.category,
                                                 cfg.dvc.ann.name,
@@ -67,7 +68,7 @@ def recode(cfg : dict) :
                         bucket_name = cfg.dvc.ann.gs_bucket,
                         client_secrets = get_client_secrets(),
                         data_root = target_dataset)
-            dataset_dir_path = dvc_pull(**dvc_cfg)
+            data_root = dvc_pull(**dvc_cfg)
             
             database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
                             port=int(get_environ(cfg.db, 'port')), 
@@ -81,16 +82,17 @@ def recode(cfg : dict) :
         
             image_list, json_list = select_ann_data(cfg, cursor, database)
         else:
-            dataset_dir_path = osp.join(os.getcwd(), cfg.data_root)  
             data_root = osp.join(os.getcwd(), cfg.data_root)
+            if not osp.isdir(data_root): raise OSError(f"The path dose not exist!  \n path: {data_root}")
             image_list = glob.glob(data_root +'/*.jpg')
             json_list = glob.glob(data_root +'/*.json')
-            
+            if len(image_list) == 0 : raise OSError(f"Images dose not exist!  \n dir path: {data_root}")
+       
         record_dataset_cfg = dict(
             cfg = cfg,
             image_list = image_list,
             json_list = json_list,
-            dataset_dir_path = dataset_dir_path,
+            data_root = data_root,
             in_pipeline = in_pipeline
         )
         recode_dataset = Record_Dataset(**record_dataset_cfg)
@@ -122,7 +124,12 @@ def recode(cfg : dict) :
         """
 
         """
-        def __init__(self, cfg, image_list, json_list, dataset_dir_path, pre_processing = False, in_pipeline = False):
+        def __init__(self, 
+                     cfg, 
+                     image_list, 
+                     json_list, 
+                     data_root, 
+                     pre_processing = False, in_pipeline = False):
             """ Parsing the json list and recode the train dataset and validation dataset
                 to one file json format each.
                 
@@ -133,7 +140,7 @@ def recode(cfg : dict) :
                 image_list (list): List of file jpg format.
                 json_list (list): List of file json format.
                                 Contains annotations information of label.
-                dataset_dir_path: path of dataset.     `category/ann/version`
+                data_root: path of dataset.     
                 pre_processing (optional): whether apply pre-processing to dataset.
                                            It can be data augmentation.
                                              
@@ -141,7 +148,7 @@ def recode(cfg : dict) :
             self.cfg = cfg
             self.image_list = image_list   
             self.json_list = json_list   
-            self.dataset_dir_path = dataset_dir_path
+            self.data_root = data_root
             self.pre_processing = pre_processing
             self.in_pipeline = in_pipeline
             
@@ -208,7 +215,7 @@ def recode(cfg : dict) :
             
             # if self.pre_processing, save pre-processed image in run_pre_processing()
             if not self.pre_processing:     
-                print(f"\n Part_7: save images for taining")
+                print(f"\n Part_7: save images for training")
                 self.save_image()
 
 
@@ -411,7 +418,7 @@ def recode(cfg : dict) :
                     
             
                     after_image_list.append(osp.join(self.recode_dataset_path, image_name))
-                    before_image_list.append(osp.join(self.dataset_dir_path, image_name))
+                    before_image_list.append(osp.join(self.data_root, image_name))
                     
                     if purpose == "train":
                         self.saved_image_list_train.append(image_name)
