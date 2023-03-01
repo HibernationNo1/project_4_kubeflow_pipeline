@@ -21,8 +21,9 @@ recode = dict(
                 licenses = dict(url = ' ', id = 1, name = ' ')  
                 ), 
     category = None,
-    valid_object = ["leaf", 'midrid', 'stem', 'petiole', 'flower', 'fruit', 'y_fruit', 'cap', 'cap_2', 
-                    'first_midrid', 'last_midrid', 'mid_midrid', 'side_midrid'],
+    valid_object = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+                    'a', 'b', 'c', 'd', 'e',
+                    "r_board", "r_m_n", "r_s_n", "l_board", "l_m_n", "l_s_n"],
     train_dataset = 'train_dataset.json',
     val_dataset = 'val_dataset.json'
                 )
