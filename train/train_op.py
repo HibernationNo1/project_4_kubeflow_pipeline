@@ -4,7 +4,6 @@ from kfp.components import create_component_from_func, OutputPath
 from pipeline_base_config import Base_Image_cfg
 base_image = Base_Image_cfg()
 
-import kfp
 def train(cfg : dict):    
     import torch
     import psutil

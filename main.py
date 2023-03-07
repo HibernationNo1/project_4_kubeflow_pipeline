@@ -29,6 +29,6 @@ if __name__=="__main__":
             from inference import test
             test(params[key])
 
-        elif key == 'cfg_validation' and isinstance(item, dict):
-            from inference import validation
-            validation(params[key])
+        elif key == 'cfg_evaluate' and isinstance(item, dict):
+            from evaluate.evaluate_op import evaluate
+            evaluate(params[key])

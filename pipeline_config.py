@@ -113,7 +113,7 @@ def set_cfg_test(args, cfg):
     cfg.model_path = args.model_path
     
 
-def sef_cfg_validation(args, cfg):
+def sef_cfg_evaluate(args, cfg):
     if args.model_path is None:
         raise KeyError(f"Path of model file must be specific to run inference, but got None..  add option '--model_path'")
     
@@ -125,7 +125,7 @@ CONFIG_SET_FUNCTION = dict(
     recode = set_cfg_recode,
     train = set_cfg_train,
     test = set_cfg_test,
-    validation = sef_cfg_validation
+    evaluate = sef_cfg_evaluate
 )
 
 
@@ -153,7 +153,7 @@ def set_config(args):
     CONFIGS['train'] = args.cfg_train
     CONFIGS['recode'] = args.cfg_recode
     CONFIGS['test'] = args.cfg_test
-    CONFIGS['validation'] = args.cfg_val
+    CONFIGS['evaluate'] = args.cfg_eval
    
     for key, func in CONFIG_SET_FUNCTION.items():        
         if CONFIGS[key] is not None:
