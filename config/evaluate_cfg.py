@@ -1,8 +1,9 @@
 _base_ = [
-    'base/dataset_config.py'
+    'base/dataset_config.py',
+    "utils/utils.py"
 ]
 
-val_result = "result/validation"
+val_result = "result/evaluate"
 model_path = None
 
 device = 'cuda:0'
@@ -14,6 +15,8 @@ eval_cfg = dict(
     num_window = 3,
     batch_size = 4,
     save_plot = True,
-    show_plot = False
+    show_plot = False,
+    show_score_thr = 0.7,           # threshold of score to draw image
+    compare_board_info = True        
 )
 
