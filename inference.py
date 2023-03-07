@@ -53,7 +53,7 @@ def test(cfg):
         
         with torch.no_grad():
             # len: batch_size
-            results = inference_detector(model, batch_imgs)   
+            batch_results = inference_detector(model, batch_imgs)   
             
         # set path of result images
         out_files = []
@@ -62,10 +62,10 @@ def test(cfg):
             out_file = osp.join(os.getcwd(), cfg.test_result, file_name)
             out_files.append(out_file)
 
-        for img_path, out_file, result in zip(batch_imgs, out_files, results):
+        for img_path, out_file, results in zip(batch_imgs, out_files, results):
             img = cv2.imread(img_path)  
             
-            bboxes, labels, masks = parse_inferece_result(result)    
+            bboxes, labels, masks = parse_inferece_result(results)    
 
             # draw bbox, seg, label and save drawn_img
             draw_cfg = dict(img = img,
@@ -90,48 +90,6 @@ def test(cfg):
 
 
 
-def validation(cfg):
-    cfg.pop('flag')
-    cfg = Config(cfg)
-    cfg.seed = np.random.randint(2**31)
-
-
-    val_cfg = cfg.data.val.copy()
-    val_cfg.pop("batch_size")
-    _, val_dataset = build_dataset(val_cfg = val_cfg)
-   
-    dataloader_cfg = dict(val_dataset = val_dataset,
-                          val_batch_size = cfg.data.val.batch_size,
-                          num_workers=cfg.data.workers_per_gpu,
-                          seed = cfg.seed,
-                          shuffle = True)
-    _, val_dataloader = build_dataloader(**dataloader_cfg)
-
-
-    model_path = cfg.model_path
-    if osp.isfile(model_path):
-        model_path = osp.join(os.getcwd(), cfg.model_path)
-    else:
-        raise OSError(f"The path is not exist!!     path : {model_path}")
-
-    output_path = osp.join(os.getcwd(), cfg.val_result) 
-    os.makedirs(output_path, exist_ok = True) 
-
-
-    model = build_detector(cfg, model_path, device = cfg.device)
-    dp_cfg = dict(model = model, 
-                  cfg = cfg,
-                  device = cfg.device,
-                  classes = model.CLASSES)
-    model = build_dp(**dp_cfg)
-
-
-    eval_cfg = dict(model= model, 
-                    output_path = output_path,
-                    cfg= cfg.eval_cfg,
-                    dataloader= val_dataloader)
-    eval = Evaluate(**eval_cfg)   
-    mAP = eval.compute_mAP()
 
 
     
