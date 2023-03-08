@@ -22,7 +22,7 @@ def recode(cfg : dict) :
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
 
-    if __name__=="recode.recode_op": 
+    if __name__=="component.recode.recode_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
         sys.path.append(f"{WORKSPACE['local_package']}")    
               
@@ -552,7 +552,7 @@ def recode(cfg : dict) :
          
      
 
-    if __name__=="recode.recode_op":    # TODO
+    if __name__=="component.recode.recode_op":    # TODO
         cfg = dict2Config(cfg)
         main(cfg)
         

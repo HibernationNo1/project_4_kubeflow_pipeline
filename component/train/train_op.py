@@ -19,7 +19,7 @@ def train(cfg : dict):
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
 
-    if __name__=="train.train_op": 
+    if __name__=="component.train.train_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
         sys.path.append(f"{WORKSPACE['local_package']}")    
               
@@ -292,7 +292,7 @@ def train(cfg : dict):
             
             
     
-    if __name__=="train.train_op":        
+    if __name__=="component.train.train_op":        
         cfg = dict2Config(cfg)
         main(cfg)
         

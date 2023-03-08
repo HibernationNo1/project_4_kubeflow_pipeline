@@ -7,13 +7,14 @@ def evaluate(cfg):
     import os, os.path as osp
     import sys
     import json
+    from git.repo import Repo
 
     WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
 
 
-    if __name__=="evaluate.evaluate_op": 
+    if __name__=="component.evaluate.evaluate_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
         sys.path.append(f"{WORKSPACE['local_package']}")    
               
@@ -83,16 +84,14 @@ def evaluate(cfg):
                         output_path = output_path,
                         cfg= cfg.eval_cfg,
                         dataloader= val_dataloader)
-        eval = Evaluate(**eval_cfg)   
-        summary = eval.compute_mAP()
-                
+        eval_ = Evaluate(**eval_cfg)   
+        summary = eval_.compute_mAP()
+         
         correct_inference_rate = eval.run_inference()
         if correct_inference_rate is None:
             json.dump(summary, open(osp.join(output_path, "summary.json"), "w"), indent=4)
         else: 
             summary['correct_inference_rate'] = correct_inference_rate
-            print(f"summary ; {summary}")
-            exit()
             json.dump(summary, open(osp.join(output_path, "summary.json"), "w"), indent=4)
             
 
@@ -105,7 +104,7 @@ def evaluate(cfg):
         return cfg
 
 
-    if __name__=="evaluate.evaluate_op":  
+    if __name__=="component.evaluate.evaluate_op":  
         cfg = dict2Config(cfg)
         main(cfg)
         
@@ -118,3 +117,6 @@ def evaluate(cfg):
         # upload_models(cfg)
 
    
+evaluate_op = create_component_from_func(func = evaluate,
+                                         base_image = base_image.evaluate,
+                                         output_component_file= base_image.evaluate_cp)

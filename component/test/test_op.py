@@ -16,7 +16,7 @@ def test(cfg):
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
 
-    if __name__=="test__.test_op": 
+    if __name__=="component.test.test_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
         sys.path.append(f"{WORKSPACE['local_package']}")    
               
@@ -113,10 +113,14 @@ def test(cfg):
         return cfg
 
 
-    if __name__=="test__.test_op":  
+    if __name__=="component.test.test_op":  
         cfg = dict2Config(cfg)
         main(cfg)
 
     if __name__=="__main__":  
         cfg = dict2Config(cfg)
         main(cfg, in_pipeline = True)
+
+test_op = create_component_from_func(func = test,
+                                     base_image = base_image.test,
+                                     output_component_file= base_image.test_cp)
