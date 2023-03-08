@@ -10,7 +10,7 @@ _base_ = [
 
 train_result = "result/train"
 
-dist_params = dict(backend='nccl')      # TODO: ?
+dist_params = dict(backend='nccl')     
 
 device = 'cuda:0'
 
@@ -20,17 +20,24 @@ model_path = models_dir + "/" + model_name
 
 
 
+
+
 hook_config = [
     dict(
         type='Validation_Hook',      
         priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-        interval = ['iter', 1000],     # epoch(or iter) unit to run validation ['epoch', 1]
+        interval = ['iter', 20],     # epoch(or iter) unit to run validation ['epoch', 1]
         val_cfg = dict(
-            run = False,  
+            run = True,  
             iou_thrs = [0.3, 0.9],          # range of iou threshold
             num_thrs_divi = 9,             # divide range of `iou_threshold` by number of `num_thrshd_divi` for compute mAP
             num_window = 3,
-            batch_size = 4)
+            batch_size = 4,
+            show_score_thr = 0.7,           # threshold of score to draw image
+            save_plot = True,
+            compare_board_info = True 
+            ),
+        run_infer = True
     ),
              
     dict(
