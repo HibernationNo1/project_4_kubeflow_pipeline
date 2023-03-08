@@ -1,4 +1,6 @@
-
+_base_ = [
+    "utils/utils.py"
+]
 
 
 img_scale = (3000, 2000)     # expected resizing image shape (1280, 720)  width, height
