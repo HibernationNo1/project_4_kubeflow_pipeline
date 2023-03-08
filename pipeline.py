@@ -4,12 +4,11 @@ import kfp.dsl as dsl
  
 import argparse
 
-from recode.recode_op import recode_op
-from train.train_op import train_op
+from component.recode.recode_op import recode_op
+from component.train.train_op import train_op
 # from record.record_dataset_op import record_op
 # from record.save_GS_op import save_dataset_op
 
-# from train.train_op import train_op
 
 from pipeline_config import set_config, CONFIGS
 from pipeline_utils import (connet_client, get_experiment, run_pipeline, upload_pipeline, set_intput_papams, 

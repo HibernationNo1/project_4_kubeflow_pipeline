@@ -19,16 +19,16 @@ if __name__=="__main__":
     
     for key, item in params.items():
         if key == 'cfg_recode' and isinstance(item, dict):   
-            from recode.recode_op import recode   
+            from component.recode.recode_op import recode   
             recode(params[key])
         elif key == 'cfg_train' and isinstance(item, dict):
-            from train.train_op import train
+            from component.train.train_op import train
             train(params[key])
         
         elif key == 'cfg_test' and isinstance(item, dict):
-            from inference import test
+            from component.test.test_op import test
             test(params[key])
 
         elif key == 'cfg_evaluate' and isinstance(item, dict):
-            from evaluate.evaluate_op import evaluate
+            from component.evaluate.evaluate_op import evaluate
             evaluate(params[key])
