@@ -185,8 +185,7 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
 
 4. validation component로 올리기
 
-   - validation에서 infernce진행하여 추론 및 board text예측 결과 나오게 하고 dataset이랑 비교하는 code추가하기
-   - 여러 model을 받은 단일 model을 하든 validation결과는 dict형태로 dashboard에 띄우기
+   - 여러 model을 받든 단일 model을 하든 validation결과는 dict형태로 dashboard에 띄우기
 
 5. test도 component올리기
 
@@ -203,6 +202,10 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
    google storage에서 image여러개 다운받고 각 model별로 test결과 따로 저장하도록
 
 6. recode - training - test 한 번에 하는거랑, 따로따로 하는걸 config하나로 가능하도록 하기
+
+7. pipeline에서 train할 떄 model 을 google storage로 올리는거 재구현
+
+8. README에 폴더 구조 설명, 학습중에 만들어지는 폴더 구조도 설명
 
    
 
