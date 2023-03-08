@@ -1,20 +1,26 @@
 
 BASE_IMG = dict(
     recode = "localhost:5000/pipeline:0.1",
-    train = "localhost:5000/pipeline:0.1"
+    train = "localhost:5000/pipeline:0.1",
+    evaluate = "localhost:5000/pipeline:0.1",
+    test = "localhost:5000/pipeline:0.1"
     )
 
 
 class Base_Image_cfg():
     recode = BASE_IMG['recode']
-    recode_cp = "recode/recode.component.yaml"     
+    recode_cp = "component/recode/recode.component.yaml"     
     
     train = BASE_IMG['train'] 
-    train_cp = "train/train.component.yaml"
+    train_cp = "component/train/train.component.yaml"
+
+    evaluate = BASE_IMG['evaluate']
+    evaluate_cp = "component/evaluate/evaluate.component.yaml"
     
-class Path_cfg():
-    volume = 'pvc-c5ecf260-b80c-4cf4-92ff-e5a7bf57aac1_pipeline_hibernation-project-pggtm-pipeline-pvc-2'  
-          
+    test = BASE_IMG['test']
+    test_cp = "component/test/test.component.yaml"
+    
+
 """
 docker build docker --no-cache -t localhost:5000/pipeline:0.1
 docker push localhost:5000/pipeline:0.1
