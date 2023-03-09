@@ -152,33 +152,33 @@ def train(cfg : dict):
     
     def set_dataset_cfg(cfg, database):
         def get_dataframe(table, version):
-            base_sql = f"SELECT * FROM {table} WHERE recode_version = '{version}'"
+            base_sql = f"SELECT * FROM {table} WHERE record_version = '{version}'"
             df = dict()
             for perpose in ["train", "val"]:
                 sql = base_sql + f" AND dataset_purpose = '{perpose}'"
                 df[perpose] = pd.read_sql(sql, database)
             return df
     
-        df_image = get_dataframe(cfg.db.table.image_data, cfg.dvc.recode.version)
-        # df_dataset = get_dataframe(cfg.db.table.dataset, cfg.dvc.recode.version)
+        df_image = get_dataframe(cfg.db.table.image_data, cfg.dvc.record.version)
+        # df_dataset = get_dataframe(cfg.db.table.dataset, cfg.dvc.record.version)
         
         val_data_cfg = cfg.data.val.copy()
         _ = val_data_cfg.pop("batch_size", None)       # TODO: check batch_size is not using 
         
         cfg.data.train.data_root = osp.join(os.getcwd(),
                                             df_image['train'].category[0], 
-                                            "recode", 
-                                            df_image['train'].recode_version[0])
+                                            "record", 
+                                            df_image['train'].record_version[0])
         cfg.data.train.ann_file = osp.join(cfg.data.train.data_root,
-                                        df_image['train'].recode_file[0])
+                                        df_image['train'].record_file[0])
         
         
         val_data_cfg.data_root = osp.join(os.getcwd(), 
                                         df_image['val'].category[0], 
-                                        "recode", 
-                                        df_image['val'].recode_version[0])
+                                        "record", 
+                                        df_image['val'].record_version[0])
         val_data_cfg.ann_file = osp.join(cfg.data.train.data_root, 
-                                        df_image['val'].recode_file[0])
+                                        df_image['val'].record_file[0])
     
         dataset_cfg = dict(dataset_api = cfg.data.api,
                         train_cfg = cfg.data.train,
@@ -188,11 +188,11 @@ def train(cfg : dict):
     
     def load_dataset_from_dvc_db(cfg):
         data_root = osp.join(os.getcwd(), cfg.dvc.category,
-                                            cfg.dvc.recode.name,
-                                            cfg.dvc.recode.version)
+                                            cfg.dvc.record.name,
+                                            cfg.dvc.record.version)
         
-        dvc_cfg = dict(remote = cfg.dvc.recode.remote,
-                       bucket_name = cfg.dvc.recode.gs_bucket,
+        dvc_cfg = dict(remote = cfg.dvc.record.remote,
+                       bucket_name = cfg.dvc.record.gs_bucket,
                        client_secrets = get_client_secrets(),
                        data_root = data_root)
         dvc_pull(**dvc_cfg)

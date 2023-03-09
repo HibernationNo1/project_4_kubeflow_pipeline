@@ -12,9 +12,9 @@ def test(cfg):
     import sys
     from git.repo import Repo
 
-    WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
-                     work =  cfg['path']['work_space'],     # path if workspace in docker container
-                     local_package = cfg['path']['local_volume'])    
+    WORKSPACE = dict(volume = cfg['path'].get('volume', None),        # pvc volume path. 
+                     work =  cfg['path'].get('work_space', None),     # path if workspace in docker container
+                     local_package = cfg['path'].get('local_volume', None)    
 
     if __name__=="component.test.test_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
@@ -61,8 +61,8 @@ def test(cfg):
                     classes = model.CLASSES)
         model = build_dp(**dp_cfg)
         
-        batch_size = cfg.data.batch_size
-        all_imgs_path = glob.glob(osp.join(cfg.data.data_root, "*.jpg"))
+        batch_size = cfg.test_data.batch_size
+        all_imgs_path = glob.glob(osp.join(cfg.test_data.data_root, "*.jpg"))
         batch_imgs_list = [all_imgs_path[x:x + batch_size] for x in range(0, len(all_imgs_path), batch_size)]
         
 

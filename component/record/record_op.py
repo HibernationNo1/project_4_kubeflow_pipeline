@@ -135,7 +135,7 @@ def record(cfg : dict) :
             """ Parsing the json list and record the train dataset and validation dataset
                 to one file json format each.
                 
-                save recordd images for training
+                save recode images for training
 
             Args:
                 cfg (Config): config 
@@ -212,7 +212,7 @@ def record(cfg : dict) :
                 print(f"\n Part_optional: apply pre-processing to dataset.")
                 self.run_pre_processing()
             
-            print(f"\n Part_6: save recordd dataset.")
+            print(f"\n Part_6: save recode dataset.")
             self.save_json()
             
             # if self.pre_processing, save pre-processed image in run_pre_processing()

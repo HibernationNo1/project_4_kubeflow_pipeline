@@ -1,32 +1,40 @@
-img_scale = (1800, 1200)     # expected resizing image shape (1280, 720)  width, height      1333, 800
 
-img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+
+
 train_pipeline = [
     dict(type='LoadImageFromFile'),                                     
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='Resize', img_scale=img_scale, keep_ratio=True),
+    dict(type='Resize', 
+         img_scale=(1800, 1200),        # expected resizing image shape (1280, 720)  width, height      1333, 800
+         keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),                # flip_ratio = [0.3, 0.5, 0.2], direction = ['horizontal', 'vertical', 'diagonal']
                                                             # apply horizontal flip to 0.3% of the total,
                                                             # apply vertical flip to 0.5% of the total
                                                             # apply diagonal flip to 0.2% of the total
                                                             # kept as original to 0.1% of the total
-    dict(type='Normalize', **img_norm_cfg),                
+    dict(type='Normalize', 
+         mean = [123.675, 116.28, 103.53],
+         std=[58.395, 57.12, 57.375],
+         to_rgb=True),                
     dict(type='Pad', size_divisor=32),      # padding up to size where width and height are multiples of `size_divisor`         
     dict(type='DefaultFormatBundle'),                      
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),   # 
 ]
 
-val_img_scale = (1333, 800)
+
 val_infer_pipeline = [              # infernce for during validation
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=val_img_scale,
+        img_scale=(1333, 800),
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
-            dict(type='Normalize', **img_norm_cfg),
+            dict(type='Normalize', 
+                 mean = [123.675, 116.28, 103.53],
+                 std=[58.395, 57.12, 57.375],
+                 to_rgb=True), 
             dict(type='Pad', size_divisor=32),
             dict(type='DefaultFormatBundle'),
             dict(type='Collect', keys=['img']),
