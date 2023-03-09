@@ -141,7 +141,7 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
 
      pipeline 이미지 첨부
 
-     - **recode** : labelme.exe를 통해 만들어진 annotations dataset을 training을 위한 `train_dataset.json`으로 통합합니다.
+     - **record** : labelme.exe를 통해 만들어진 annotations dataset을 training을 위한 `train_dataset.json`으로 통합합니다.
 
        통합 후 images는 google cloud에, 각 image및 dataset의 관련 정보는 DB에 commit합니다.
 
@@ -201,7 +201,7 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
 
    google storage에서 image여러개 다운받고 각 model별로 test결과 따로 저장하도록
 
-6. recode - training - test 한 번에 하는거랑, 따로따로 하는걸 config하나로 가능하도록 하기
+6. record - training - test 한 번에 하는거랑, 따로따로 하는걸 config하나로 가능하도록 하기
 
 7. pipeline에서 train할 떄 model 을 google storage로 올리는거 재구현
 

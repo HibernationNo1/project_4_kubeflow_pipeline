@@ -6,7 +6,7 @@ dir = dict(
         base = "base"
     ),
     components = dict(
-        recode = "recode",
+        record = "record",
         trina = "train"
     )
     

@@ -6,7 +6,7 @@ kbf = dict(
         pw = None
         ),
     pipeline = dict(
-        name = "recode",
+        name = "record",
         pac = "project.yaml",
         discription = "project",
         run_uploaded_pipeline = True,      

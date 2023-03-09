@@ -1,6 +1,6 @@
 
 BASE_IMG = dict(
-    recode = "localhost:5000/pipeline:0.1",
+    record = "localhost:5000/pipeline:0.1",
     train = "localhost:5000/pipeline:0.1",
     evaluate = "localhost:5000/pipeline:0.1",
     test = "localhost:5000/pipeline:0.1"
@@ -8,8 +8,8 @@ BASE_IMG = dict(
 
 
 class Base_Image_cfg():
-    recode = BASE_IMG['recode']
-    recode_cp = "component/recode/recode.component.yaml"     
+    record = BASE_IMG['record']
+    record_cp = "component/record/record.component.yaml"     
     
     train = BASE_IMG['train'] 
     train_cp = "component/train/train.component.yaml"
@@ -56,6 +56,50 @@ BASE_KEY = '_base_'
 DELETE_KEY = '_delete_'
 RESERVED_KEYS = ['filename', 'text', 'pretty_text']
 CONFIGDICT_NAME = 'class_config'
+
+
+def combine_config(input_cfg, result_cfg, path_key: str, init = True):
+    if init : 
+        if not (isinstance(input_cfg, dict) and isinstance(result_cfg, dict)):
+            raise TypeError(f"All input config type must be 'dict',\n"
+                            f"but got type(input_cfg): {type(input_cfg)}, type(result_cfg): {type(result_cfg)}")
+
+        input_cfg, result_cfg = dict(input_cfg), dict(result_cfg)
+    else:
+        if type(input_cfg) != type(result_cfg): 
+            raise TypeError(f"All input config type must be same"
+                            f"but got type(input_cfg): {type(input_cfg)}, type(result_cfg): {type(result_cfg)}")
+
+    if isinstance(input_cfg, dict):
+        for key_in, item_in in input_cfg.items():
+            if key_in not in (result_cfg.keys()):
+                result_cfg[key_in] = item_in
+            else:
+                if item_in == result_cfg[key_in]: continue
+                else:
+                 
+                    result_cfg[key_in] = combine_config(input_cfg[key_in], result_cfg[key_in], 
+                                                        init = False, 
+                                                        path_key = f"{path_key}//{key_in}")
+
+    else:
+        # if type of all input cfg is not dict, it must be same.
+        if input_cfg != result_cfg:
+            print(f"input_cfg : {input_cfg}")
+            print(f"result_cfg : {result_cfg}")
+            raise ValueError(f"Two config have same key, but value is not.\n  key path: {path_key}")
+
+  
+    return result_cfg
+            
+
+
+
+
+
+           
+
+
 
 
 class ConfigDict(Dict) :

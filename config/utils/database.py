@@ -14,8 +14,8 @@ db = dict(
         # image dataset: images for training or validation
         image_data = "image_data",      
         
-        # name of `recoded dataset` table
-        # recoded dataset: dataset that combines annotations data into a single file 
+        # name of `recordd dataset` table
+        # recordd dataset: dataset that combines annotations data into a single file 
         dataset = "dataset",        
     )
 

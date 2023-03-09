@@ -5,10 +5,10 @@ _base_ = [
 ]
 
 
-data_root = 'ann_dataset'
-result = "test_dataset"
+ann_data_root = 'ann_dataset'
+record_result = "test_dataset"
 
-recode = dict(
+record = dict(
     options = dict(
     proportion_val = 0.01
     # save_gt_image = False

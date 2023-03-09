@@ -2,7 +2,9 @@ from kfp.components import create_component_from_func
 from pipeline_base_config import Base_Image_cfg
 base_image = Base_Image_cfg()
 
-def recode(cfg : dict) :
+def record(cfg : dict) :
+    print(f"cfg : {cfg.keys()}")
+    exit()
     
     import git
     import os, os.path as osp
@@ -22,7 +24,7 @@ def recode(cfg : dict) :
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
 
-    if __name__=="component.recode.recode_op": 
+    if __name__=="component.record.record_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
         sys.path.append(f"{WORKSPACE['local_package']}")    
               
@@ -82,7 +84,7 @@ def recode(cfg : dict) :
         
             image_list, json_list = select_ann_data(cfg, cursor, database)
         else:
-            data_root = osp.join(os.getcwd(), cfg.data_root)
+            data_root = osp.join(os.getcwd(), cfg.ann_data_root)
             if not osp.isdir(data_root): raise OSError(f"The path dose not exist!  \n path: {data_root}")
             image_list = glob.glob(data_root +'/*.jpg')
             json_list = glob.glob(data_root +'/*.json')
@@ -95,23 +97,23 @@ def recode(cfg : dict) :
             data_root = data_root,
             in_pipeline = in_pipeline
         )
-        recode_dataset = Record_Dataset(**record_dataset_cfg)
+        record_dataset = Record_Dataset(**record_dataset_cfg)
         
-        result_dir = recode_dataset.recode_dataset_path
+        result_dir = record_dataset.record_dataset_path
         
         assert osp.isdir(result_dir), f"Path: {result_dir} is not exist!!"
         assert len(os.listdir(result_dir)) != 0, f"Images not saved!  \nPath: {result_dir}"
-        assert osp.isfile(recode_dataset.train_dataset_path),\
-            f"Paht: {recode_dataset.train_dataset_path}, is not exist!!"
+        assert osp.isfile(record_dataset.train_dataset_path),\
+            f"Paht: {record_dataset.train_dataset_path}, is not exist!!"
 
         if in_pipeline:
-            insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_train, "train")
-            insert_recode_data(cfg, cursor, recode_dataset.saved_image_list_val, "val")
+            insert_record_data(cfg, cursor, record_dataset.saved_image_list_train, "train")
+            insert_record_data(cfg, cursor, record_dataset.saved_image_list_val, "val")
             
-            dvc_add(target_dir = result_dir, dvc_name = cfg.dvc.recode.version)
+            dvc_add(target_dir = result_dir, dvc_name = cfg.dvc.record.version)
             git_push(cfg)
-            dvc_push(remote = cfg.dvc.recode.remote,
-                    bucket_name = cfg.dvc.recode.gs_bucket,
+            dvc_push(remote = cfg.dvc.record.remote,
+                    bucket_name = cfg.dvc.record.gs_bucket,
                     client_secrets = get_client_secrets())
             
             database.commit()
@@ -130,10 +132,10 @@ def recode(cfg : dict) :
                      json_list, 
                      data_root, 
                      pre_processing = False, in_pipeline = False):
-            """ Parsing the json list and recode the train dataset and validation dataset
+            """ Parsing the json list and record the train dataset and validation dataset
                 to one file json format each.
                 
-                save recoded images for training
+                save recordd images for training
 
             Args:
                 cfg (Config): config 
@@ -164,25 +166,25 @@ def recode(cfg : dict) :
             self.object_names = []
             
             if self.in_pipeline:
-                self.recode_dataset_path = osp.join(os.getcwd(), 
+                self.record_dataset_path = osp.join(os.getcwd(), 
                                                     cfg.dvc.category,
-                                                    cfg.dvc.recode.name,
-                                                    cfg.dvc.recode.version)
+                                                    cfg.dvc.record.name,
+                                                    cfg.dvc.record.version)
             else:
-                self.recode_dataset_path = osp.join(os.getcwd(),
-                                                    cfg.result)
+                self.record_dataset_path = osp.join(os.getcwd(),
+                                                    cfg.record_result)
         
-            os.makedirs(self.recode_dataset_path, exist_ok=True)
+            os.makedirs(self.record_dataset_path, exist_ok=True)
             
             print(f" Number of image: {len(image_list)}")
             self.data_transfer()
             
             
         def data_transfer(self):            
-            if self.cfg.recode.options.proportion_val == 0:        # TODO cfg.recode.options
+            if self.cfg.record.options.proportion_val == 0:        # TODO cfg.record.options
                 val_split_num = len(self.json_list) + 100000
             else:
-                val_image_num = len(self.json_list) * self.cfg.recode.options.proportion_val     
+                val_image_num = len(self.json_list) * self.cfg.record.options.proportion_val     
                 if val_image_num == 0 :
                     val_split_num = 1
                 else : val_split_num = int(len(self.json_list)/val_image_num)
@@ -210,7 +212,7 @@ def recode(cfg : dict) :
                 print(f"\n Part_optional: apply pre-processing to dataset.")
                 self.run_pre_processing()
             
-            print(f"\n Part_6: save recoded dataset.")
+            print(f"\n Part_6: save recordd dataset.")
             self.save_json()
             
             # if self.pre_processing, save pre-processed image in run_pre_processing()
@@ -222,30 +224,30 @@ def recode(cfg : dict) :
             
         def get_info(self, mode) : 
             if mode == "train":
-                self.train_dataset['info']['description'] = self.cfg.recode.info.description
-                self.train_dataset['info']['url']         =  self.cfg.recode.info.url
-                self.train_dataset['info']['version']     =  self.cfg.recode.info.version
+                self.train_dataset['info']['description'] = self.cfg.record.info.description
+                self.train_dataset['info']['url']         =  self.cfg.record.info.url
+                self.train_dataset['info']['version']     =  self.cfg.record.info.version
                 self.train_dataset['info']['year']        =  f"{TODAY.split('-')[0]}"
-                self.train_dataset['info']['contributor'] =  self.cfg.recode.info.contributor
+                self.train_dataset['info']['contributor'] =  self.cfg.record.info.contributor
                 self.train_dataset['info']['data_created']=  f"{TODAY.split('-')[0]}/{TODAY.split('-')[1]}/{TODAY.split('-')[2]}"
                 self.train_dataset['info']['for_what']= "train"
                 
                 
             elif mode == "val":
-                self.val_dataset['info']['description'] =  self.cfg.recode.info.description
-                self.val_dataset['info']['url']         =  self.cfg.recode.info.url
-                self.val_dataset['info']['version']     =  self.cfg.recode.info.version
+                self.val_dataset['info']['description'] =  self.cfg.record.info.description
+                self.val_dataset['info']['url']         =  self.cfg.record.info.url
+                self.val_dataset['info']['version']     =  self.cfg.record.info.version
                 self.val_dataset['info']['year']        =  f"{TODAY.split('-')[0]}"
-                self.val_dataset['info']['contributor'] =  self.cfg.recode.info.contributor
+                self.val_dataset['info']['contributor'] =  self.cfg.record.info.contributor
                 self.val_dataset['info']['data_created']=  f"{TODAY.split('-')[0]}/{TODAY.split('-')[1]}/{TODAY.split('-')[2]}"
                 self.val_dataset['info']['for_what']= "val"
             
             
         def get_licenses(self, mode):                  
-            if self.cfg.recode.info.licenses is not None:
-                tmp_dict = dict(url = self.cfg.recode.info.licenses.url,
-                                id = self.cfg.recode.info.licenses.id,
-                                name = self.cfg.recode.info.licenses.name)   
+            if self.cfg.record.info.licenses is not None:
+                tmp_dict = dict(url = self.cfg.record.info.licenses.url,
+                                id = self.cfg.record.info.licenses.id,
+                                name = self.cfg.record.info.licenses.name)   
                 if mode == "train":
                     # why list?: original coco dataset have several license 
                     self.train_dataset['licenses'].append(tmp_dict)  
@@ -292,7 +294,7 @@ def recode(cfg : dict) :
                     for shape in data['shapes']:    # shape == 1 thing object.   
                         object_name = shape['label'] 
                         if object_name not in self.object_names:
-                            if object_name in self.cfg.recode.valid_object:
+                            if object_name in self.cfg.record.valid_object:
                                 self.object_names.append(object_name)
                             else: 
                                 if object_name not in unvalid_object:
@@ -386,7 +388,7 @@ def recode(cfg : dict) :
         # TODO
         def run_pre_processing(self):       
             """
-                apply pre-processing to images and save to self.recode_dataset_path
+                apply pre-processing to images and save to self.record_dataset_path
             """
             
             print(f"\n Part_optional: save pre-processed images for taining")
@@ -397,8 +399,8 @@ def recode(cfg : dict) :
                 
         
         def save_json(self):             
-            self.train_dataset_path = osp.join(self.recode_dataset_path, self.cfg.recode.train_dataset)
-            self.val_dataset_path = osp.join(self.recode_dataset_path, self.cfg.recode.val_dataset)
+            self.train_dataset_path = osp.join(self.record_dataset_path, self.cfg.record.train_dataset)
+            self.val_dataset_path = osp.join(self.record_dataset_path, self.cfg.record.val_dataset)
             json.dump(self.train_dataset, open(self.train_dataset_path, "w"), indent=4, cls = NpEncoder)
             json.dump(self.val_dataset, open(self.val_dataset_path, "w"), indent=4, cls = NpEncoder)
 
@@ -417,7 +419,7 @@ def recode(cfg : dict) :
                     image_name = file_info["file_name"]
                     
             
-                    after_image_list.append(osp.join(self.recode_dataset_path, image_name))
+                    after_image_list.append(osp.join(self.record_dataset_path, image_name))
                     before_image_list.append(osp.join(self.data_root, image_name))
                     
                     if purpose == "train":
@@ -465,36 +467,36 @@ def recode(cfg : dict) :
     
     
     # insert dataset to database
-    def insert_recode_data(cfg, cursor, saved_image_list, purpose):
+    def insert_record_data(cfg, cursor, saved_image_list, purpose):
         if purpose == "train":
-            recode_file = cfg.recode.train_dataset
+            record_file = cfg.record.train_dataset
         elif purpose == "val":
-            recode_file = cfg.recode.val_dataset            
+            record_file = cfg.record.val_dataset            
         
         # TODO : add column named ann_name   
         for image_name in saved_image_list:
             insert_sql = f"INSERT INTO {cfg.db.table.image_data}"\
-                        f"(dataset_purpose, image_name, recode_file, category, recode_version)"\
-                        f"VALUES('{purpose}', '{image_name}', '{recode_file}',"\
-                        f"'{cfg.dvc.category}', '{cfg.dvc.recode.version}');" 
+                        f"(dataset_purpose, image_name, record_file, category, record_version)"\
+                        f"VALUES('{purpose}', '{image_name}', '{record_file}',"\
+                        f"'{cfg.dvc.category}', '{cfg.dvc.record.version}');" 
             
             cursor.execute(insert_sql)
             
-        # TODO : add column named recode_name 
+        # TODO : add column named record_name 
         select_sql = f"SELECT * FROM {cfg.db.table.image_data} "\
-                     f"WHERE recode_version = '{cfg.dvc.recode.version}' AND dataset_purpose = '{purpose}';"
+                     f"WHERE record_version = '{cfg.dvc.record.version}' AND dataset_purpose = '{purpose}';"
         num_results = cursor.execute(select_sql)
         assert num_results == len(saved_image_list),\
-            f" `{cfg.dvc.recode.version}` version of recode dataset is not being inserted into database"\
+            f" `{cfg.dvc.record.version}` version of record dataset is not being inserted into database"\
             f"\n     DB: {cfg.db.name},      table: {cfg.db.table.image_data},    purpose: {purpose}"\
             f"      num_results: {num_results}      len(saved_image_list): {len(saved_image_list)}"
 
-        # TODO : add column named recode_name 
+        # TODO : add column named record_name 
         # insert dataset (.json fomat)
         insert_sql = f"INSERT INTO {cfg.db.table.dataset}"\
-                         f"(dataset_purpose, category, recode_file, recode_version)"\
-                         f"VALUES('{purpose}', '{cfg.dvc.category}', '{recode_file}',"\
-                         f"'{cfg.dvc.recode.version}');" 
+                         f"(dataset_purpose, category, record_file, record_version)"\
+                         f"VALUES('{purpose}', '{cfg.dvc.category}', '{record_file}',"\
+                         f"'{cfg.dvc.record.version}');" 
         cursor.execute(insert_sql)
     
     
@@ -503,12 +505,12 @@ def recode(cfg : dict) :
     def git_push(cfg):
         repo = Repo(os.getcwd())
         # Path for git add must not include $(pwd) path.
-        print(f"\ngit add {cfg.dvc.category}/{cfg.dvc.recode.name}/")
-        repo.git.add(f"{cfg.dvc.category}/{cfg.dvc.recode.name}/")    
+        print(f"\ngit add {cfg.dvc.category}/{cfg.dvc.record.name}/")
+        repo.git.add(f"{cfg.dvc.category}/{cfg.dvc.record.name}/")    
         
         print(f"\ngit add .dvc/config")    
         repo.git.add(f".dvc/config")
-        repo.index.commit(f"{cfg.dvc.category}:: {cfg.dvc.recode.name}:: {cfg.dvc.recode.version}")
+        repo.index.commit(f"{cfg.dvc.category}:: {cfg.dvc.record.name}:: {cfg.dvc.record.version}")
         subprocess.call([f"git push {cfg.git.remote} {cfg.git.branch}"], shell=True)
         ##  repo.remote is not work in container
         # origin = repo.remote(name= 'origin')
@@ -552,13 +554,13 @@ def recode(cfg : dict) :
          
      
 
-    if __name__=="component.recode.recode_op":    # TODO
+    if __name__=="component.record.record_op":    # TODO
         cfg = dict2Config(cfg)
         main(cfg)
         
         
     if __name__=="__main__":
-                
+         
         
         cfg = dict2Config(cfg)
         git_clone_dataset(cfg)
@@ -566,7 +568,7 @@ def recode(cfg : dict) :
         main(cfg, in_pipeline = True)
             
 
-recode_op = create_component_from_func(func = recode,
-                                        base_image = base_image.recode,
-                                        output_component_file= base_image.recode_cp)
+record_op = create_component_from_func(func = record,
+                                        base_image = base_image.record,
+                                        output_component_file= base_image.record_cp)
 

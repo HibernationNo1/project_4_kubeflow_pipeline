@@ -18,9 +18,9 @@ if __name__=="__main__":
     params = set_intput_papams(pipeline = False)        
     
     for key, item in params.items():
-        if key == 'cfg_recode' and isinstance(item, dict):   
-            from component.recode.recode_op import recode   
-            recode(params[key])
+        if key == 'cfg_record' and isinstance(item, dict):   
+            from component.record.record_op import record   
+            record(params[key])
         elif key == 'cfg_train' and isinstance(item, dict):
             from component.train.train_op import train
             train(params[key])
