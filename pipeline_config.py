@@ -10,7 +10,7 @@ def set_cfg_pipeline(args, cfg):
     cfg.kbf.pipeline.version =  args.pipeline_v
     if args.experiment_n is not None: cfg.kbf.experiment.name = args.experiment_n
     if args.run_n is not None: cfg.kbf.run.name = args.run_n    
-    cfg.kbf.dashboard.pw =  args.pipeline_pw 
+    cfg.kbf.dashboard.pw =  args.dashboard_pw 
     
     if cfg.kbf.volume.get("pvc", None) is not None:
         import kfp.dsl as dsl
@@ -30,9 +30,9 @@ def comman_set(cfg):
             cfg.path.volume = CONFIGS['pipeline'].kbf.volume.pvc.mount_path
         
         
-def set_cfg_recode(args, cfg):
-    assert cfg.dvc.recode.train == cfg.recode.train_dataset
-    assert cfg.dvc.recode.val == cfg.recode.val_dataset
+def set_cfg_record(args, cfg):
+    assert cfg.dvc.record.train == cfg.record.train_dataset
+    assert cfg.dvc.record.val == cfg.record.val_dataset
     
     comman_set(cfg)
     
@@ -47,9 +47,11 @@ def set_cfg_train(args, cfg):
     map_cfg = Config.fromfile(MAP_CONFIG)
     models_cfg_path = osp.join(os.getcwd(), 
                                 map_cfg.dir.config.name, 
-                                map_cfg.dir.config.models)        
+                                map_cfg.dir.config.models)       
+                             
     
     model_cfg = Config.fromfile(osp.join(models_cfg_path, f"{args.model}.py")) 
+
     for key, item in cfg.model.get(args.model).items():
         sub_cfg = Config.fromfile(osp.join(models_cfg_path, key, f"{item}.py"))
         if key == 'backbone':
@@ -80,17 +82,19 @@ def set_cfg_train(args, cfg):
             cfg.model.backbone.mlp_ratio = int(args.swin_mlp_ratio)
             assert cfg.optimizer.mlp_ratio in [i for i in range(10)] 
          
-    
+
     # If get dataset with dvc, load the paths from the database.
     # And all paths were set by dvc config
     if cfg.get('dvc', None) is not None:
         if args.cfg_pipeline is not None:
             cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.dvc.category, 
-                                                                        cfg.dvc.recode.name, 
-                                                                        cfg.dvc.recode.version)
-            cfg.data.train.ann_file = cfg.dvc.recode.train
-            cfg.data.val.ann_file = cfg.dvc.recode.val    
-
+                                                                        cfg.dvc.record.name, 
+                                                                        cfg.dvc.record.version)
+            cfg.data.train.ann_file = cfg.dvc.record.train
+            cfg.data.val.ann_file = cfg.dvc.record.val    
+        else:
+            cfg.pop('dvc')
+  
     if args.pm_dilation is not None: cfg.model.backbone.pm_dilation = args.pm_dilation
     if args.drop_rate is not None: cfg.model.backbone.drop_rate = args.drop_rate
     if args.drop_path_rate is not None: cfg.model.backbone.drop_path_rate = args.drop_path_rate
@@ -119,10 +123,25 @@ def sef_cfg_evaluate(args, cfg):
     
     cfg.model_path = args.model_path
 
+    cfg.pop('train_pipeline')
+    cfg.data.pop('train')
+
+    # If get dataset with dvc, load the paths from the database.
+    # And all paths were set by dvc config
+    if cfg.get('dvc', None) is not None:
+        if args.cfg_pipeline is not None:
+            cfg.data.val.data_root = osp.join(cfg.dvc.category, 
+                                              cfg.dvc.record.name, 
+                                              cfg.dvc.record.version)
+            
+            cfg.data.val.ann_file = cfg.dvc.record.val    
+        else:
+            cfg.pop('dvc')
+
 
 CONFIG_SET_FUNCTION = dict(
     pipeline = set_cfg_pipeline,
-    recode = set_cfg_recode,
+    record = set_cfg_record,
     train = set_cfg_train,
     test = set_cfg_test,
     evaluate = sef_cfg_evaluate
@@ -133,25 +152,25 @@ def set_config(args):
     """ 
         cfg arguments determines which component be run.
         Components that matching cfg arguments which got `None` are excluded from the pipeline.
-        cfg arguments: is chooses in [args.cfg_train, args.cfg_recode]
+        cfg arguments: is chooses in [args.cfg_train, args.cfg_record]
     Args:
         args : argparse
     """
     
-    if (args.cfg_pipeline is not None) and (args.pipeline_v is not None) and (args.pipeline_pw is not None):
+    if (args.cfg_pipeline is not None) and (args.pipeline_v is not None) and (args.dashboard_pw is not None):
         print("Run with kubeflow pipeline")
         CONFIGS['pipeline'] = args.cfg_pipeline
         
-    elif (args.cfg_pipeline is None) and (args.pipeline_v is None) and (args.pipeline_pw is None):
+    elif (args.cfg_pipeline is None) and (args.pipeline_v is None) and (args.dashboard_pw is None):
         print(f"Run without kubeflow pipleine")
         CONFIGS['pipeline'] = None
     else:
         raise ValueError(f"To run in pipeline of kubeflow, config, version and password of pipeline must be set.\n"\
-                         f"add options --cfg_pipeline, --pipeline_v, --pipeline_pw")
+                         f"add options --cfg_pipeline, --pipeline_v, --dashboard_pw")
            
      
     CONFIGS['train'] = args.cfg_train
-    CONFIGS['recode'] = args.cfg_recode
+    CONFIGS['record'] = args.cfg_record
     CONFIGS['test'] = args.cfg_test
     CONFIGS['evaluate'] = args.cfg_eval
    
@@ -164,8 +183,8 @@ def set_config(args):
         # CONFIGS[key] = False or Config
         # if False, components matching the key will be excluded from the pipeline.
         # >>    example
-        # >>    CONFIGS[recode] = False
-        # >>    `recode_op` component will be excluded from the pipeline.
+        # >>    CONFIGS[record] = False
+        # >>    `record_op` component will be excluded from the pipeline.
         CONFIGS[key] = config
 
 
