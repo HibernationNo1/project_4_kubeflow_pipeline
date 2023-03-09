@@ -2,7 +2,7 @@ import kfp
 import os, os.path as osp
 import requests
 
-from pipeline_base_config import BASE_IMG, Config
+from pipeline_base_config import BASE_IMG, Config, combine_config
 from pipeline_config import CONFIGS
 
 
@@ -57,8 +57,8 @@ def upload_pipeline(client, cfg):
 
     
 
-def run_pipeline(client, cfg, experiment_id, pipeline_id, params):
-    
+def run_pipeline(client, cfg, experiment_id, pipeline_id, params):  
+
     if isinstance(pipeline_id, dict):      
         kfb_print(f"Run pipeline:: this version uploaded before | name: {cfg.pipeline.name}, version: {cfg.pipeline.version}")
         exec_run = client.run_pipeline(
@@ -136,40 +136,87 @@ def set_intput_papams(pipeline = True):
         And sets flags That determine which components be include in pipeline  
     """
     
-    params = dict()
-    def convert(flag):
-        for key, item in CONFIGS.items():
-            if key == "pipeline": continue
-            if item is None:                
-                if flag: params[f"{key}_using"] = False
-                else: params[f"cfg_{key}"] = False
-                continue
+    config_dict = dict()
+
+    for key, item in CONFIGS.items():
+        if key == "pipeline": continue      # config of 'pipeline' is not included in the input to pipeline.
+        if item is None:                
+            config_dict[f"{key}"] = None
+        else:
+            if pipeline:                    # print base_image name:tag
+                kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
             
-            if flag: 
+            if item.get('path', None) is not None:
                 if pipeline:
-                    kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
-                params[f"{key}_using"] = True
-            else:    
-                
-                if item.get('path', None) is not None:
-                    if pipeline:
-                        item.path.local_package = None
-                    else:
-                        item.path.volume = None
-                        item.path.work_space = None
-                        item.path.tensorboard = None
+                    item.path.pop('local_volume')  # path: 'local_package' is not used in pipeline 
+                else:
+                    item.path.pop('volume')         # path: 'volume' is not used in pipeline 
+                    item.path.pop('work_space')     # path: 'work_space' is not used in pipeline 
+
+            config_dict[f"{key}"] = dict(item)
+
                         
-                params[f"cfg_{key}"] = dict(item)
-                params[f"cfg_{key}"]['flag'] = get_tuple_key(item)
-    
-    convert(True)
-    convert(False)
-    
-    # params.keys(): 
-    # ['train_using', 'recode_using', 'cfg_train', 'cfg_recode']
-    # If 'recode' is not selected as a pipeline component, it has a value of `False`.
+                
+    params = dict(pipeline_run_flag = list())   
+
+    cfg_list, cfg_name = [], []
+    for key, item in config_dict.items():
+        cfg_list.append(item)
+        cfg_name.append(key.split("_")[-1])
+        if item is not None:
+            params['pipeline_run_flag'].append(key)
+
+    input_cfg = dict()
+    for cfg, name in zip(cfg_list, cfg_name):
+        input_cfg = combine_config(cfg, input_cfg, path_key = name)
+
+    params['input_cfg'] = input_cfg
+    params['input_cfg_flag'] = get_tuple_key(input_cfg)
+
     
     return params
+
+
+# def set_intput_papams(pipeline = True):
+#     """ Convert type from ConfigDict to Dict for input to pipeline.
+#         And sets flags That determine which components be include in pipeline  
+#     """
+    
+#     params = dict()
+#     def convert(flag):
+#         for key, item in CONFIGS.items():
+#             if key == "pipeline": continue
+#             if item is None:                
+#                 if flag: params[f"{key}_using"] = False
+#                 else: params[f"cfg_{key}"] = False
+#                 continue
+            
+#             if flag: 
+#                 if pipeline:
+#                     kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
+#                 params[f"{key}_using"] = True
+#             else:    
+                
+#                 if item.get('path', None) is not None:
+#                     if pipeline:
+#                         item.path.local_package = None
+#                     else:
+#                         item.path.volume = None
+#                         item.path.work_space = None
+#                         item.path.tensorboard = None
+                        
+#                 params[f"cfg_{key}"] = dict(item)
+#                 params[f"cfg_{key}"]['flag'] = get_tuple_key(item)
+    
+#     convert(True)
+#     convert(False)
+    
+#     # params.keys(): 
+#     # ['train_using', 'recode_using', 'cfg_train', 'cfg_recode']
+#     # If 'recode' is not selected as a pipeline component, it has a value of `False`.
+    
+#     return params
+
 
 
 def get_tuple_key(cfg):    
