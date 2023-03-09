@@ -9,18 +9,11 @@ _base_ = [
 
 
 train_result = "result/train"
-
+device = 'cuda:0'
 dist_params = dict(backend='nccl')     
 
-device = 'cuda:0'
-
-models_dir = "models"
-model_name = "last.pth"
-model_path = models_dir + "/" + model_name
-
-
-
-
+model_name = None
+ 
 
 hook_config = [
     dict(
