@@ -146,34 +146,57 @@ def set_intput_papams(pipeline = True):
             if pipeline:                    # print base_image name:tag
                 kfb_print(f"{key}_op base_image : {BASE_IMG[key]}", nn=False)
             
-            if item.get('path', None) is not None:
-                if pipeline:
-                    item.path.pop('local_volume')  # path: 'local_package' is not used in pipeline 
-                else:
-                    item.path.pop('volume')         # path: 'volume' is not used in pipeline 
-                    item.path.pop('work_space')     # path: 'work_space' is not used in pipeline 
-
             config_dict[f"{key}"] = dict(item)
 
-                        
-                
-    params = dict(pipeline_run_flag = list())   
-
+ 
+    pipeline_run_flag = []
     cfg_list, cfg_name = [], []
     for key, item in config_dict.items():
         cfg_list.append(item)
         cfg_name.append(key.split("_")[-1])
         if item is not None:
-            params['pipeline_run_flag'].append(key)
-
-    input_cfg = dict()
-    for cfg, name in zip(cfg_list, cfg_name):
-        input_cfg = combine_config(cfg, input_cfg, path_key = name)
-
-    params['input_cfg'] = input_cfg
-    params['input_cfg_flag'] = get_tuple_key(input_cfg)
-
+            pipeline_run_flag.append(key)     # Select component to run  
+            # ['train', 'record', 'test', 'evaluate']   
+            # Run the component with the names of the elements in the list. 
+            # The run order is according to the pipeline.
     
+
+    # run order of components
+    input_cfg, order_components = dict(), list()
+    for cfg, name in zip(cfg_list, cfg_name):
+        if name in pipeline_run_flag:
+            if pipeline:
+                input_cfg = combine_config(cfg, input_cfg, path_key = name)
+
+            # set order of component
+            if name == "record" :
+                order_components.append([1, name, cfg])
+            elif name == "train" :
+                order_components.append([2, name, cfg])
+            elif name == "evaluate" :
+                order_components.append([3, name, cfg])
+            elif name == "test" :
+                order_components.append([4, name, cfg])
+
+    order_components.sort(key = lambda x : x[0])
+    
+    if pipeline:
+        order_str = 'kubeflow>> Run order :'
+        params = dict(input_cfg = input_cfg,
+                    run_flag = dict(pipeline_run_flag = pipeline_run_flag))
+        params['input_cfg']['flag_list2tuple'] = get_tuple_key(input_cfg)
+    else:
+        order_str = 'Run order :'
+        params = order_components     
+
+    # print>> Run order:: record -> train -> evaluate -> test
+    for i, component in enumerate(order_components):
+        if i == len(order_components)-1:
+            order_str += f" {component[1]}"
+            print(order_str)
+        order_str += f" {component[1]} ->"
+        
+        
     return params
 
 
