@@ -17,18 +17,21 @@ if __name__=="__main__":
     
     params = set_intput_papams(pipeline = False)        
     
-    for key, item in params.items():
-        if key == 'cfg_record' and isinstance(item, dict):   
+    
+    for param in params:
+        _, name, cfg = param
+        if name == 'record':   
             from component.record.record_op import record   
-            record(params[key])
-        elif key == 'cfg_train' and isinstance(item, dict):
-            from component.train.train_op import train
-            train(params[key])
+            record(cfg, None, None)
         
-        elif key == 'cfg_test' and isinstance(item, dict):
+        elif name == 'train':
+            from component.train.train_op import train
+            train(cfg, None, None)
+        
+        elif name == 'test':
             from component.test.test_op import test
-            test(params[key])
+            test(cfg, None, None)
 
-        elif key == 'cfg_evaluate' and isinstance(item, dict):
+        elif name == 'evaluate':
             from component.evaluate.evaluate_op import evaluate
-            evaluate(params[key])
+            evaluate(cfg, None, None)
