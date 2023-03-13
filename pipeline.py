@@ -6,8 +6,8 @@ import argparse
 
 from component.record.record_op import record_op
 from component.train.train_op import train_op
-# from record.record_dataset_op import record_op
-# from record.save_GS_op import save_dataset_op
+from component.evaluate.evaluate_op import evaluate_op
+from component.test.test_op import test_op
 
 
 from pipeline_config import set_config, CONFIGS
@@ -21,9 +21,9 @@ from kubernetes.client import V1Volume, V1EmptyDirVolumeSource
 SECRETS = dict()
 
 @dsl.pipeline(name="hibernation_project")
-def project_pipeline(params: dict):           #input_cfg: dict,
-                                #input_cfg_flag : dict,
-                                #pipeline_run_flag : list ): 
+def project_pipeline(run_flag: dict, 
+                     input_cfg: dict):           
+
     # persistance volume
     pvc_cfg = CONFIGS['pipeline'].kbf.volume.pvc
     pvc_volume = dsl.VolumeOp(name= pvc_cfg.name,
@@ -48,41 +48,49 @@ def project_pipeline(params: dict):           #input_cfg: dict,
         for key in secrets_cfg:
             SECRETS[secrets_cate][key] = V1EnvVar(name=key, value_from=V1EnvVarSource(secret_key_ref=V1SecretKeySelector(name=client_sc_name, key=key)))
        
- 
-    _check_status_op = record_op(params)\
-        .add_env_variable(SECRETS['gs']["type"]) \
-        .add_env_variable(SECRETS['gs']["project_id"]) \
-        .add_env_variable(SECRETS['gs']["private_key_id"]) \
-        .add_env_variable(SECRETS['gs']["private_key"]) \
-        .add_env_variable(SECRETS['gs']["client_email"]) \
-        .add_env_variable(SECRETS['gs']["client_id"]) \
-        .add_env_variable(SECRETS['gs']["auth_uri"]) \
-        .add_env_variable(SECRETS['gs']["token_uri"]) \
-        .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
-        .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
-        .add_env_variable(SECRETS['db']["password"]) \
-        .add_env_variable(SECRETS['db']["host"]) \
-        .add_env_variable(SECRETS['db']["port"]) \
-        .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
+    _record_op = record_op(input_cfg, run_flag) \
+            .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
+    # _check_status_op = record_op(pipeline_run_flag, input_cfg)\
+    #     .add_env_variable(SECRETS['gs']["type"]) \
+    #     .add_env_variable(SECRETS['gs']["project_id"]) \
+    #     .add_env_variable(SECRETS['gs']["private_key_id"]) \
+    #     .add_env_variable(SECRETS['gs']["private_key"]) \
+    #     .add_env_variable(SECRETS['gs']["client_email"]) \
+    #     .add_env_variable(SECRETS['gs']["client_id"]) \
+    #     .add_env_variable(SECRETS['gs']["auth_uri"]) \
+    #     .add_env_variable(SECRETS['gs']["token_uri"]) \
+    #     .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
+    #     .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
+    #     .add_env_variable(SECRETS['db']["password"]) \
+    #     .add_env_variable(SECRETS['db']["host"]) \
+    #     .add_env_variable(SECRETS['db']["port"]) \
+    #     .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
     
-
-    _train_op = train_op(params)\
-        .add_env_variable(SECRETS['gs']["type"]) \
-        .add_env_variable(SECRETS['gs']["project_id"]) \
-        .add_env_variable(SECRETS['gs']["private_key_id"]) \
-        .add_env_variable(SECRETS['gs']["private_key"]) \
-        .add_env_variable(SECRETS['gs']["client_email"]) \
-        .add_env_variable(SECRETS['gs']["client_id"]) \
-        .add_env_variable(SECRETS['gs']["auth_uri"]) \
-        .add_env_variable(SECRETS['gs']["token_uri"]) \
-        .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
-        .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
-        .add_env_variable(SECRETS['db']["password"]) \
-        .add_env_variable(SECRETS['db']["host"]) \
-        .add_env_variable(SECRETS['db']["port"]) \
-        .add_pvolumes({shm_volume_cfg.path: shm_volume})\
+    _train_op = train_op(input_cfg, _record_op.outputs['run_flag'])\
         .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
-                
+
+    # _train_op = train_op(params)\
+    #     .add_env_variable(SECRETS['gs']["type"]) \
+    #     .add_env_variable(SECRETS['gs']["project_id"]) \
+    #     .add_env_variable(SECRETS['gs']["private_key_id"]) \
+    #     .add_env_variable(SECRETS['gs']["private_key"]) \
+    #     .add_env_variable(SECRETS['gs']["client_email"]) \
+    #     .add_env_variable(SECRETS['gs']["client_id"]) \
+    #     .add_env_variable(SECRETS['gs']["auth_uri"]) \
+    #     .add_env_variable(SECRETS['gs']["token_uri"]) \
+    #     .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
+    #     .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
+    #     .add_env_variable(SECRETS['db']["password"]) \
+    #     .add_env_variable(SECRETS['db']["host"]) \
+    #     .add_env_variable(SECRETS['db']["port"]) \
+    #     .add_pvolumes({shm_volume_cfg.path: shm_volume})\
+    #     .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
+
+    _evaluate_op = evaluate_op(input_cfg, _train_op.outputs['run_flag'])\
+        .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
+
+    _test_op = test_op(input_cfg, _evaluate_op.outputs['run_flag'])\
+        .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume}) 
 
 
 # @dsl.pipeline(name="hibernation_project")
@@ -231,7 +239,7 @@ if __name__=="__main__":
     pipeline_id = upload_pipeline(client, cfg_pipeline.kbf.pipeline)     
      
     params = set_intput_papams() 
-   
+
     run_pipeline(client, cfg_pipeline.kbf, experiment_id, pipeline_id, params)
     
     
