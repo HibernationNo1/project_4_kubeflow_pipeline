@@ -1,10 +1,13 @@
 
-from kfp.components import create_component_from_func, OutputPath
+from kfp.components import create_component_from_func, InputPath, OutputPath
 
 from pipeline_base_config import Base_Image_cfg
 base_image = Base_Image_cfg()
 
-def train(cfg : dict):    
+def train(cfg : dict, input_run_flag: InputPath("dict"),
+          run_flag_path: OutputPath('dict')):       # Error when using variable name 'run_flag_path'
+          
+    import json
     import torch
     import psutil
     import numpy as np
@@ -34,8 +37,7 @@ def train(cfg : dict):
         
         sys.path.append(f"{WORKSPACE['volume']}")    
         
- 
-    from hibernation_no1.configs.utils import change_to_tuple
+    from hibernation_no1.configs.pipeline import dict2Config 
     from hibernation_no1.configs.config import Config
     from hibernation_no1.database.mysql import check_table_exist
     from hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
@@ -53,6 +55,8 @@ def train(cfg : dict):
         
     def main(cfg, in_pipeline = False):    
         assert torch.cuda.is_available()
+        set_model_config(cfg)
+        
         train_result = osp.join(os.getcwd(), cfg.train_result)
         os.makedirs(train_result, exist_ok=True)
         
@@ -87,7 +91,7 @@ def train(cfg : dict):
             cfg.model.roi_head.mask_head.num_classes = len(train_dataset.CLASSES)
             
             model_cfg = cfg.model.copy()
-        
+            
             model_cfg.pop("type")
             from hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
             model = MaskRCNN(**model_cfg)
@@ -147,7 +151,51 @@ def train(cfg : dict):
         
 
              
+    def set_model_config(cfg):
+        """
+            Get the model configuration to run training with `Config.fromfile` 
+            
+            Why bring configuration with `Config.fromfile` rather then pass parameters in pipeline?
+            >> The pipeline cannot run if the input parameter size exceeds 10,000.
+            >> And the configuration of model occupies a lot of the input parameter size, rasing `size exceeds 10,000` Error.
+        """
+        local_package_dir = WORKSPACE.get('local_package', None)    
+        volume_dir = WORKSPACE.get('volume', None)                  
+        package_name = cfg['git_repo'].get('package', 'hibernation_no1')
+        if osp.isdir(local_package_dir):        # If run without pipeline(local)
+            package_dir = osp.join(local_package_dir, package_name)
+        elif osp.isdir(volume_dir):             # If run with pipeline
+            package_dir = osp.join(volume_dir, package_name)    
+        model_cfg_dir = osp.join(package_dir, 'mmdet', 'modules', 'configs')
         
+        assert osp.isdir(model_cfg_dir), f"Path of model config files dose not exist!! \n   Path: {model_cfg_dir}"
+        
+        main_module_cfg = f"{cfg.model.get('type', 'MaskRCNN')}.py"
+        backbone_module_cfg =  f"{cfg.model.backbone.get('type', 'SwinTransformer')}.py"
+        neck_module_cfg =  f"{cfg.model.neck.get('type', 'FPN')}.py"
+
+        main_cfg_file = osp.join(model_cfg_dir, main_module_cfg)
+        backbone_cfg_file = osp.join(model_cfg_dir, 'backbone', backbone_module_cfg)
+        neck_cfg_file = osp.join(model_cfg_dir, 'neck', neck_module_cfg)
+
+        if osp.isfile(main_cfg_file) and\
+            osp.isfile(backbone_cfg_file) and\
+            osp.isfile(neck_cfg_file):
+
+
+            model_cfg = Config.fromfile(main_cfg_file).model
+            model_cfg.backbone = dict(Config.fromfile(backbone_cfg_file).backbone)
+            model_cfg.neck = dict(Config.fromfile(neck_cfg_file).neck)
+        else:
+            assert osp.isfile(main_cfg_file), f"Path of model config file dose not exist!! \n   Path: {main_cfg_file}"
+            assert osp.isfile(backbone_cfg_file), f"Path of model config file dose not exist!! \n   Path: {backbone_cfg_file}"
+            assert osp.isfile(neck_cfg_file), f"Path of model config file dose not exist!! \n   Path: {neck_cfg_file}"
+        
+        
+    
+        cfg.model = model_cfg
+     
+      
         
     
     def set_dataset_cfg(cfg, database):
@@ -221,15 +269,7 @@ def train(cfg : dict):
         get_logger(cfg.log.train, log_level = cfg.log.level,
                     log_file = osp.join(train_result, f"{cfg.log.train}.log"))      # TODO: save log file
             
-            
-    
-    def dict2Config(cfg):
-        cfg_flag = cfg.get('flag', None)
-        if cfg_flag is not None:
-            cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-        return cfg
-    
+                
     
     def upload_models(cfg):
         set_gs_credentials(get_client_secrets())
@@ -292,17 +332,42 @@ def train(cfg : dict):
             
             
     
-    if __name__=="component.train.train_op":        
-        cfg = dict2Config(cfg)
+    if __name__=="component.train.train_op":   
+        print(f"    Run train")    
+        cfg = Config(cfg)
+
+        
+        
+
+
         main(cfg)
+
         
         
-    if __name__=="__main__":       
-        cfg = dict2Config(cfg)       
+        
+    if __name__=="__main__": 
+        with open(input_run_flag, "r", encoding='utf-8') as f:
+            input_run_flag = json.load(f) 
+
+        if 'train' in input_run_flag['pipeline_run_flag']:
+            print("Run component: train")
+            cfg = dict2Config(cfg, key_name ='flag_list2tuple')       
          
-        git_clone_dataset(cfg)              
-        main(cfg, in_pipeline = True)        
-        upload_models(cfg)
+            # git_clone_dataset(cfg)              
+            # main(cfg, in_pipeline = True)        
+            # upload_models(cfg)
+        else:
+            print(f"Pass component: train")
+        
+        print(f"input_run_flag : {input_run_flag}")
+        return json.dump(input_run_flag, open(run_flag_path, "w"), indent=4)
+        
+
+
+        
+
+
+        
         
       
      
