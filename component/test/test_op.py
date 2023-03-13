@@ -1,10 +1,13 @@
-from kfp.components import create_component_from_func, OutputPath
+from kfp.components import create_component_from_func, InputPath, OutputPath
 
 from pipeline_base_config import Base_Image_cfg
 base_image = Base_Image_cfg()
 
 
-def test(cfg):
+def test(cfg : dict, input_run_flag: InputPath("dict"),
+         run_flag_path: OutputPath('dict')):       # Error when using variable name 'run_flag_path'
+
+    import json
     import os, os.path as osp
     import glob
     import torch
@@ -12,9 +15,9 @@ def test(cfg):
     import sys
     from git.repo import Repo
 
-    WORKSPACE = dict(volume = cfg['path'].get('volume', None),        # pvc volume path. 
-                     work =  cfg['path'].get('work_space', None),     # path if workspace in docker container
-                     local_package = cfg['path'].get('local_volume', None)    
+    WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
+                     work =  cfg['path']['work_space'],     # path if workspace in docker container
+                     local_package = cfg['path']['local_volume'])     
 
     if __name__=="component.test.test_op": 
         assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
@@ -31,7 +34,7 @@ def test(cfg):
         
         sys.path.append(f"{WORKSPACE['volume']}")  
 
-    from hibernation_no1.configs.utils import change_to_tuple
+    from hibernation_no1.configs.pipeline import dict2Config
     from hibernation_no1.configs.config import Config
     from hibernation_no1.mmdet.inference import build_detector, inference_detector, parse_inference_result
     from hibernation_no1.mmdet.modules.dataparallel import build_dp
@@ -105,21 +108,25 @@ def test(cfg):
 
 
 
-    def dict2Config(cfg):
-        cfg_flag = cfg.get('flag', None)
-        if cfg_flag is not None:
-            cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-        return cfg
-
 
     if __name__=="component.test.test_op":  
-        cfg = dict2Config(cfg)
+        cfg = Config(cfg)
         main(cfg)
 
-    if __name__=="__main__":  
-        cfg = dict2Config(cfg)
-        main(cfg, in_pipeline = True)
+    if __name__=="__main__":    
+        with open(input_run_flag, "r", encoding='utf-8') as f:
+            input_run_flag = json.load(f) 
+
+        if 'test' in input_run_flag['pipeline_run_flag']:
+            print("Run component: test")
+            cfg = dict2Config(cfg, key_name ='flag_list2tuple')    
+            # git_clone_dataset(cfg)
+            
+            # main(cfg, in_pipeline = True)
+        else:
+            print(f"Pass component: test")
+        
+        return json.dump(input_run_flag, open(run_flag_path, "w"), indent=4)
 
 test_op = create_component_from_func(func = test,
                                      base_image = base_image.test,

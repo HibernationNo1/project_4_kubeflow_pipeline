@@ -1,11 +1,10 @@
-from kfp.components import create_component_from_func
+from kfp.components import create_component_from_func, OutputPath
 from pipeline_base_config import Base_Image_cfg
 base_image = Base_Image_cfg()
 
-def record(cfg : dict) :
-    print(f"cfg : {cfg.keys()}")
-    exit()
-    
+def record(cfg : dict, input_run_flag: dict, 
+           run_flag_path: OutputPath("dict")):   # Error when using variable name 'run_flag_path'
+ 
     import git
     import os, os.path as osp
     import numpy as np
@@ -19,7 +18,7 @@ def record(cfg : dict) :
     import warnings
     import glob
     import sys
-    
+ 
     WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
                      work =  cfg['path']['work_space'],     # path if workspace in docker container
                      local_package = cfg['path']['local_volume'])    
@@ -46,7 +45,8 @@ def record(cfg : dict) :
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
     
-    from hibernation_no1.configs.utils import change_to_tuple, NpEncoder
+    from hibernation_no1.configs.pipeline import dict2Config 
+    from hibernation_no1.configs.utils import NpEncoder
     from hibernation_no1.configs.config import Config
     from hibernation_no1.utils.utils import get_environ
     from hibernation_no1.cloud.google.storage import get_client_secrets
@@ -55,12 +55,7 @@ def record(cfg : dict) :
     
     TODAY = str(datetime.date.today())
     
-    def main(cfg, in_pipeline = False):   
-        cfg_flag = cfg.pop('flag')
-        cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-
-        
+    def main(cfg, in_pipeline = False):           
         if in_pipeline:
             target_dataset = osp.join(os.getcwd(), cfg.dvc.category,
                                                 cfg.dvc.ann.name,
@@ -516,14 +511,7 @@ def record(cfg : dict) :
         # origin = repo.remote(name= 'origin')
         # origin.push()
             
-    
-    def dict2Config(cfg):
-        cfg_flag = cfg.get('flag', None)
-        if cfg_flag is not None:
-            cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-        return cfg
-    
+        
     
     def git_clone_dataset(cfg):
         repo_path = osp.join(WORKSPACE['work'], cfg.git_repo.dataset)
@@ -554,18 +542,24 @@ def record(cfg : dict) :
          
      
 
-    if __name__=="component.record.record_op":    # TODO
-        cfg = dict2Config(cfg)
+    if __name__=="component.record.record_op":    
+        print(f"    Run record")
+        cfg = Config(cfg)
         main(cfg)
         
         
     if __name__=="__main__":
-         
+        if 'record' in input_run_flag['pipeline_run_flag']:
+            print("Run component: record")
+            cfg = dict2Config(cfg, key_name ='flag_list2tuple')    
+            # git_clone_dataset(cfg)
+            
+            # main(cfg, in_pipeline = True)
+        else:
+            print(f"Pass component: record")
         
-        cfg = dict2Config(cfg)
-        git_clone_dataset(cfg)
+        return json.dump(input_run_flag, open(run_flag_path, "w"), indent=4)
         
-        main(cfg, in_pipeline = True)
             
 
 record_op = create_component_from_func(func = record,

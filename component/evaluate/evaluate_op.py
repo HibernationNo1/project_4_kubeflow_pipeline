@@ -1,9 +1,10 @@
-from kfp.components import create_component_from_func, OutputPath
+from kfp.components import create_component_from_func, InputPath, OutputPath
 
 from pipeline_base_config import Base_Image_cfg
 base_image = Base_Image_cfg()
 
-def evaluate(cfg):
+def evaluate(cfg : dict, input_run_flag: InputPath("dict"),
+             run_flag_path: OutputPath('dict')):       # Error when using variable name 'run_flag_path'
     import os, os.path as osp
     import sys
     import json
@@ -29,7 +30,7 @@ def evaluate(cfg):
         
         sys.path.append(f"{WORKSPACE['volume']}")    
 
-    from hibernation_no1.configs.utils import change_to_tuple
+    from hibernation_no1.configs.pipeline import dict2Config
     from hibernation_no1.configs.config import Config
     from hibernation_no1.mmdet.inference import build_detector
     from hibernation_no1.mmdet.modules.dataparallel import build_dp
@@ -95,26 +96,24 @@ def evaluate(cfg):
             json.dump(summary, open(osp.join(output_path, "summary.json"), "w"), indent=4)
             
 
-
-    def dict2Config(cfg):
-        cfg_flag = cfg.get('flag', None)
-        if cfg_flag is not None:
-            cfg = change_to_tuple(cfg, cfg_flag)
-        cfg = Config(cfg)
-        return cfg
-
-
     if __name__=="component.evaluate.evaluate_op":  
-        cfg = dict2Config(cfg)
+        cfg = Config(cfg)
         main(cfg)
         
         
-    if __name__=="__main__":       
-        cfg = dict2Config(cfg)       
-         
-        # git_clone_dataset(cfg)              
-        # main(cfg, in_pipeline = True)        
-        # upload_models(cfg)
+    if __name__=="__main__":    
+        with open(input_run_flag, "r", encoding='utf-8') as f:
+            input_run_flag = json.load(f) 
+
+        if 'evaluate' in input_run_flag['pipeline_run_flag']:
+            print("Run component: evaluate")
+            cfg = dict2Config(cfg, key_name ='flag_list2tuple')    
+            
+            # main(cfg, in_pipeline = True)
+        else:
+            print(f"Pass component: evaluate")
+        
+        return json.dump(input_run_flag, open(run_flag_path, "w"), indent=4)
 
    
 evaluate_op = create_component_from_func(func = evaluate,
