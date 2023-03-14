@@ -19,5 +19,7 @@ dvc = dict(
 
 git = dict(
     remote = "origin",
-    branch = "master"
+    branch = "master",
+    dataset_repo = "pipeline_dataset",
+    package_repo = "hibernation_no1"
 )

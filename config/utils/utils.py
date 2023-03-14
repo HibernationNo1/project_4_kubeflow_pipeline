@@ -8,12 +8,8 @@ gs = dict(
 )
 
 path = dict(
-    volume = "/pvc",                # pvc volume path
-    work_space = '/workspace',      # path if workspace in docker container
-    local_volume = '/opt/local-path-provisioner'\
-                   '/pvc-c5ecf260-b80c-4cf4-92ff-e5a7bf57aac1_pipeline_hibernation-project-pggtm-pipeline-pvc-2' 
+    component_volume = "/pvc",                # pvc volume path
+    work_space = '/workspace',              # path of workspace in docker container
+    local_volume = 'pvc-c5ecf260-b80c-4cf4-92ff-e5a7bf57aac1_pipeline_hibernation-project-pggtm-pipeline-pvc-2',
+    katib_volume = 'katib_volume' 
 )
-
-
-git_repo = dict(dataset = "pipeline_dataset",
-                package = "hibernation_no1")
