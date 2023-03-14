@@ -1,11 +1,9 @@
-
 BASE_IMG = dict(
     record = "localhost:5000/pipeline:0.1",
     train = "localhost:5000/pipeline:0.1",
     evaluate = "localhost:5000/pipeline:0.1",
     test = "localhost:5000/pipeline:0.1"
     )
-
 
 class Base_Image_cfg():
     record = BASE_IMG['record']

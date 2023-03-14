@@ -156,7 +156,7 @@ def set_config(args):
     Args:
         args : argparse
     """
-    
+ 
     if (args.cfg_pipeline is not None) and (args.pipeline_v is not None) and (args.dashboard_pw is not None):
         print("Run with kubeflow pipeline")
         CONFIGS['pipeline'] = args.cfg_pipeline
@@ -168,13 +168,12 @@ def set_config(args):
         raise ValueError(f"To run in pipeline of kubeflow, config, version and password of pipeline must be set.\n"\
                          f"add options --cfg_pipeline, --pipeline_v, --dashboard_pw")
            
-     
     CONFIGS['train'] = args.cfg_train
     CONFIGS['record'] = args.cfg_record
     CONFIGS['test'] = args.cfg_test
-    CONFIGS['evaluate'] = args.cfg_eval
-   
-    for key, func in CONFIG_SET_FUNCTION.items():        
+    CONFIGS['evaluate'] = args.cfg_eval 
+
+    for key, func in CONFIG_SET_FUNCTION.items(): 
         if CONFIGS[key] is not None:
             # Assign config only included in args 
             config =  Config.fromfile(CONFIGS[key])
