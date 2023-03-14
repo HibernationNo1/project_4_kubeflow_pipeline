@@ -10,25 +10,40 @@ def evaluate(cfg : dict, input_run_flag: InputPath("dict"),
     import json
     from git.repo import Repo
 
-    WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
-                     work =  cfg['path']['work_space'],     # path if workspace in docker container
-                     local_package = cfg['path']['local_volume'])    
+    WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
+                     local_volume = cfg['path']['local_volume'],     # pvc volume path on local
+                     katib_volume = cfg['path']['katib_volume'],     # volume path on katib container
+                     work = cfg['path']['work_space']
+                     )    
 
+    # set package path to 'import {custom_package}'
+    if __name__=="component.evaluate.evaluate_op":
+        local_volume = osp.join('/opt/local-path-provisioner', WORKSPACE['local_volume']) 
+        katib_volume = f"/{WORKSPACE['katib_volume']}"
+        if osp.isdir(local_volume):
+            PACKAGE_PATH = local_volume
+            print(f"    Run `evaluate` locally")
+            
+        elif osp.isdir(katib_volume):
+            PACKAGE_PATH = katib_volume
+            print(f"    Run `evaluate` in container for katib")
+            
+        else:
+            raise OSError(f"Paths '{katib_volume}' and '{local_volume}' do not exist!")
 
-    if __name__=="component.evaluate.evaluate_op": 
-        assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
-        sys.path.append(f"{WORKSPACE['local_package']}")    
-              
     if __name__=="__main__":    
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
-        assert osp.isdir(WORKSPACE['volume']), f"The path '{WORKSPACE['volume']}' is not exist!"
+        assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
+        print(f"    Run `evaluate` in component for pipeline")
+        PACKAGE_PATH = WORKSPACE['component_volume']
         # for import hibernation_no1
-        package_path = osp.join(WORKSPACE['volume'], cfg['git_repo']['package'])
-        if not osp.isdir(package_path):
-            print(f" git clone 'hibernation_no1' to {package_path}")
-            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git_repo']['package']}.git", package_path)
-        
-        sys.path.append(f"{WORKSPACE['volume']}")    
+        package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])
+        if not osp.isdir(package_repo_path):
+            print(f" git clone 'hibernation_no1' to {package_repo_path}")
+            
+            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git']['package_repo']}.git", package_repo_path)
+     
+    sys.path.append(PACKAGE_PATH)   
 
     from hibernation_no1.configs.pipeline import dict2Config
     from hibernation_no1.configs.config import Config

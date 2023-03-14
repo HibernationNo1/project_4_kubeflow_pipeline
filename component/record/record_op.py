@@ -18,32 +18,46 @@ def record(cfg : dict, input_run_flag: dict,
     import warnings
     import glob
     import sys
- 
-    WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
-                     work =  cfg['path']['work_space'],     # path if workspace in docker container
-                     local_package = cfg['path']['local_volume'])    
-
-    if __name__=="component.record.record_op": 
-        assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
-        sys.path.append(f"{WORKSPACE['local_package']}")    
-              
-    if __name__=="__main__":    
-        assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
-        assert osp.isdir(WORKSPACE['volume']), f"The path '{WORKSPACE['volume']}' is not exist!"
-        # for import hibernation_no1
-        package_path = osp.join(WORKSPACE['volume'], cfg['git_repo']['package'])
-        if not osp.isdir(package_path):
-            print(f" git clone 'hibernation_no1' to {package_path}")
-            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git_repo']['package']}.git", package_path)
-        
-        sys.path.append(f"{WORKSPACE['volume']}")    
-        
-    
-    
-    
     from PIL.Image import fromarray as fromarray
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
+
+ 
+    WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
+                     local_volume = cfg['path']['local_volume'],     # pvc volume path on local
+                     katib_volume = cfg['path']['katib_volume'],     # volume path on katib container
+                     work = cfg['path']['work_space']
+                     )    
+
+    # set package path to 'import {custom_package}'
+    if __name__=="component.record.record_op":
+        local_volume = osp.join('/opt/local-path-provisioner', WORKSPACE['local_volume']) 
+        katib_volume = f"/{WORKSPACE['katib_volume']}"
+        if osp.isdir(local_volume):
+            PACKAGE_PATH = local_volume
+            print(f"    Run `record` locally")
+            
+        elif osp.isdir(katib_volume):
+            PACKAGE_PATH = katib_volume
+            print(f"    Run `record` in container for katib")
+            
+        else:
+            raise OSError(f"Paths '{katib_volume}' and '{local_volume}' do not exist!")
+
+    if __name__=="__main__":    
+        assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
+        assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
+        print(f"    Run `record` in component for pipeline")
+        PACKAGE_PATH = WORKSPACE['component_volume']
+        # for import hibernation_no1
+        package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])
+        if not osp.isdir(package_repo_path):
+            print(f" git clone 'hibernation_no1' to {package_repo_path}")
+            
+            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git']['package_repo']}.git", package_repo_path)
+     
+    sys.path.append(PACKAGE_PATH) 
+    
     
     from hibernation_no1.configs.pipeline import dict2Config 
     from hibernation_no1.configs.utils import NpEncoder
@@ -514,11 +528,11 @@ def record(cfg : dict, input_run_flag: dict,
         
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo.dataset)
+        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset_repo)
         if osp.isdir(repo_path):
             if len(os.listdir(repo_path)) != 0:
                 # ----
-                # repo = Repo(osp.join(WORKSPACE['work'], cfg.git_repo))
+                # repo = Repo(osp.join(WORKSPACE['work'], cfg.git.dataset_repo))
                 # origin = repo.remotes.origin  
                 # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
                 # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
@@ -537,7 +551,7 @@ def record(cfg : dict, input_run_flag: dict,
                 shutil.rmtree(repo_path, ignore_errors=True)
                 os.makedirs(repo_path, exist_ok=True)
 
-        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo.dataset}.git', os.getcwd())  
+        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset_repo}.git', os.getcwd())  
         
          
      

@@ -18,24 +18,40 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     from git.repo import Repo
     import sys
     
-    WORKSPACE = dict(volume = cfg['path']['volume'],       # pvc volume path
-                     work =  cfg['path']['work_space'],     # path if workspace in docker container
-                     local_package = cfg['path']['local_volume'])    
+    WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
+                     local_volume = cfg['path']['local_volume'],     # pvc volume path on local
+                     katib_volume = cfg['path']['katib_volume'],     # volume path on katib container
+                     work = cfg['path']['work_space']
+                     )    
 
-    if __name__=="component.train.train_op": 
-        assert osp.isdir(WORKSPACE['local_package']), f"The path '{WORKSPACE['local_package']}' is not exist!"
-        sys.path.append(f"{WORKSPACE['local_package']}")    
-              
+    # set package path to 'import {custom_package}'
+    if __name__=="component.train.train_op":
+        local_volume = osp.join('/opt/local-path-provisioner', WORKSPACE['local_volume']) 
+        katib_volume = f"/{WORKSPACE['katib_volume']}"
+        if osp.isdir(local_volume):
+            PACKAGE_PATH = local_volume
+            print(f"    Run `train` locally")
+            
+        elif osp.isdir(katib_volume):
+            PACKAGE_PATH = katib_volume
+            print(f"    Run `train` in container for katib")
+            
+        else:
+            raise OSError(f"Paths '{katib_volume}' and '{local_volume}' do not exist!")
+
     if __name__=="__main__":    
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
-        assert osp.isdir(WORKSPACE['volume']), f"The path '{WORKSPACE['volume']}' is not exist!"
+        assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
+        print(f"    Run `train` in component for pipeline")
+        PACKAGE_PATH = WORKSPACE['component_volume']
         # for import hibernation_no1
-        package_path = osp.join(WORKSPACE['volume'], cfg['git_repo']['package'])
-        if not osp.isdir(package_path):
-            print(f" git clone 'hibernation_no1' to {package_path}")
-            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git_repo']['package']}.git", package_path)
-        
-        sys.path.append(f"{WORKSPACE['volume']}")    
+        package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])
+        if not osp.isdir(package_repo_path):
+            print(f" git clone 'hibernation_no1' to {package_repo_path}")
+            
+            Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git']['package_repo']}.git", package_repo_path)
+     
+    sys.path.append(PACKAGE_PATH) 
         
     from hibernation_no1.configs.pipeline import dict2Config 
     from hibernation_no1.configs.config import Config
@@ -159,13 +175,9 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             >> The pipeline cannot run if the input parameter size exceeds 10,000.
             >> And the configuration of model occupies a lot of the input parameter size, rasing `size exceeds 10,000` Error.
         """
-        local_package_dir = WORKSPACE.get('local_package', None)    
-        volume_dir = WORKSPACE.get('volume', None)                  
-        package_name = cfg['git_repo'].get('package', 'hibernation_no1')
-        if osp.isdir(local_package_dir):        # If run without pipeline(local)
-            package_dir = osp.join(local_package_dir, package_name)
-        elif osp.isdir(volume_dir):             # If run with pipeline
-            package_dir = osp.join(volume_dir, package_name)    
+            
+        package_name = cfg.git.get('package_repo', 'hibernation_no1')
+        package_dir = osp.join(PACKAGE_PATH, package_name)    
         model_cfg_dir = osp.join(package_dir, 'mmdet', 'modules', 'configs')
         
         assert osp.isdir(model_cfg_dir), f"Path of model config files dose not exist!! \n   Path: {model_cfg_dir}"
@@ -306,10 +318,10 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE['work'], cfg.git_repo.dataset)
+        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset_repo)
         if len(os.listdir(repo_path)) != 0:
             # ----
-            # repo = Repo(osp.join(WORKSPACE['work'], cfg.git_repo.dataset))
+            # repo = Repo(osp.join(WORKSPACE['work'], cfg.git.dataset_repo))
             # origin = repo.remotes.origin  
             # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
             # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
@@ -328,18 +340,12 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             shutil.rmtree(repo_path, ignore_errors=True)
             os.makedirs(repo_path, exist_ok=True)
 
-        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git_repo.dataset}.git', os.getcwd())  
+        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset_repo}.git', os.getcwd())  
             
             
     
     if __name__=="component.train.train_op":   
-        print(f"    Run train")    
         cfg = Config(cfg)
-
-        
-        
-
-
         main(cfg)
 
         
@@ -350,7 +356,6 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             input_run_flag = json.load(f) 
 
         if 'train' in input_run_flag['pipeline_run_flag']:
-            print("Run component: train")
             cfg = dict2Config(cfg, key_name ='flag_list2tuple')       
          
             # git_clone_dataset(cfg)              
@@ -359,7 +364,6 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         else:
             print(f"Pass component: train")
         
-        print(f"input_run_flag : {input_run_flag}")
         return json.dump(input_run_flag, open(run_flag_path, "w"), indent=4)
         
 
