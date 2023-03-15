@@ -22,10 +22,11 @@ COPY ./ ./
 RUN pip install -r requirements.txt
 
 # install MMCV
-RUN pip install mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch${PYTORCH}/index.html
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools
+RUN MMCV_WITH_OPS=1 FORCE_CUDA=1 pip install mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch${PYTORCH}/index.html
 RUN pip install mmdet
 
 RUN apt-get install -y git
 
   
-# docker build . --no-cache -t localhost:5000/katib:0.2
+# docker build . --no-cache -t localhost:5000/katib:0.5
