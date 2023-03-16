@@ -64,23 +64,21 @@ def set_cfg_train(args, cfg):
     if args.name_db is not None: cfg.db.db = args.name_db 
     if args.user_db is not None: cfg.db.user = args.user_db 
     
-    
+    if args.epoch is not None: cfg.max_epochs = args.epoch
+
     # for katib
     if args.lr is not None: cfg.optimizer.lr = float(args.lr)
-    if args.wd is not None: 
-        cfg.optimizer.weight_decay = float(args.wd)
-        assert 0.<cfg.optimizer.weight_decay and cfg.optimizer.weight_decay < 0.999
-
+   
     if cfg.model.backbone.type == "SwinTransformer":
         if args.swin_drop_rate is not None : 
             cfg.model.backbone.drop_rate = float(args.swin_drop_rate)
-            assert 0.<cfg.optimizer.weight_decay and cfg.optimizer.weight_decay < 0.999
+            assert 0.<cfg.model.backbone.drop_rate and cfg.model.backbone.drop_rate < 0.999
         if args.swin_window_size is not None : 
             cfg.model.backbone.window_size = int(args.swin_window_size)
-            assert cfg.optimizer.window_size in [1, 3, 5, 7, 9, 11, 13, 15]
+            assert cfg.model.backbone.window_size in [1, 3, 5, 7, 9, 11, 13, 15]
         if args.swin_mlp_ratio is not None : 
             cfg.model.backbone.mlp_ratio = int(args.swin_mlp_ratio)
-            assert cfg.optimizer.mlp_ratio in [i for i in range(10)] 
+            assert cfg.model.backbone.mlp_ratio in [i for i in range(10)] 
          
 
     # If get dataset with dvc, load the paths from the database.

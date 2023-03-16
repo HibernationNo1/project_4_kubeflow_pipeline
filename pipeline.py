@@ -186,11 +186,15 @@ def _parse_args():
     train_parser = parser.add_argument_group('train')
     train_parser.add_argument("--model", type = str, choices = ['MaskRCNN'],
                               help="Name of the model to be trained") 
-    train_parser.add_argument("--lr", type = str, help="Regular learning rate")             # why str?: To get linear value with katib.
-    train_parser.add_argument("--wd", type = str, help="Weight_decay of optimizar")         # why str?: To get linear value with katib.
-    train_parser.add_argument("--swin_drop_rate", type = str, help="drop_rate of swin transformar")         # why str?: To get linear value with katib.
-    train_parser.add_argument("--swin_window_size", type = str, help="window_size of swin transformar")     # why str?: To get linear value with katib.
-    train_parser.add_argument("--swin_mlp_ratio", type = str, help="mlp_ratio of swin transformar")         # why str?: To get linear value with katib.
+    train_parser.add_argument("--epoch", type = int, help="epoch for training") 
+    train_parser.add_argument("--lr", type = str, choices = ['0.0001', '0.0005', '0.001', '0.00005', '0.00001'],
+                              help="Regular learning rate")             # why str?: To get linear value with katib.
+    train_parser.add_argument("--swin_drop_rate", type = str, choices = ['0.0', '0.1', '0.2', '0.3', '0.4'],
+                               help="drop_rate of swin transformar")         # why str?: To get linear value with katib.
+    train_parser.add_argument("--swin_window_size", type = str, choices = ['3', '5', '7', '9', '11'],
+                              help="window_size of swin transformar")     # why str?: To get linear value with katib.
+    train_parser.add_argument("--swin_mlp_ratio", type = str, choices = ['3', '4', '5'],
+                              help="mlp_ratio of swin transformar")         # why str?: To get linear value with katib.
     
     
     
