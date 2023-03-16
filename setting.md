@@ -740,7 +740,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >
    >   ```
    >   $ kubectl get nodes
-   >   
+   >       
    >   NAME          STATUS     ROLES                  AGE     VERSION
    >   hibernation   Ready      control-plane,master   9m14s   v1.25.4
    >   ```
@@ -773,7 +773,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >
    >   ```
    >   $ kubectl describe node hibernation  | grep Taints
-   >   
+   >       
    >   Taints:             <none>
    >   ```
    >
@@ -793,7 +793,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >
    >   ```
    >   $ kubectl get nodes
-   >   
+   >       
    >   NAME          STATUS     ROLES                  AGE   VERSION
    >   hibernation   NotReady   control-plane,master   17m   v1.25.4
    >   ```
@@ -1351,39 +1351,6 @@ dashboard에 user를 추가하기 위해서는 cm dex를 수정해야 한다.
    
       
 
-
-
-### add secret
-
-```
-$ vi client_secrets.txt
-```
-
-```
-type=service_account
-project_id=adroit-xxxxx-xxxx
-private_key_id=0b55dxxxxxxx30211daf249b0xxxxxxxx
-private_key=
-client_email=xxxxxxx8@adroit-xxxxxxx-xxxxxx.iam.xxxxxxxx.com
-client_id=xxxxxxxxxxxxxxxxxxxx4
-auth_uri=https://accounts.google.com/o/xxxx/xxxx
-token_uri=https://xxxx.googleapis.com/xxxxx
-auth_provider_x509_cert_url=https://www.googleapis.com/xxxxx/v1/xxxxx
-client_x509_cert_url=https://www.googleapis.com/robot/v1/metadata/xxxx/xxxxxxxxx-xxxxxxxxxxr-xxxxx.iam.gserviceaccount.com
-```
-
-위와 같은 형식으로 작성
-
-
-
-create secret
-
-```
-$ kubectl -n project-pipeline create secret generic client-secrets --from-env-file client-secrets.txt
-```
-
-
-
 ### docker
 
 #### registry
@@ -1874,4 +1841,224 @@ $ docker rm -f $(docker ps -aq)
 $ docker rmi $(docker images -q)
 $ sudo apt-get remove docker-ce docker-ce-cli containerd.io 
 ```
+
+
+
+
+
+## else
+
+
+
+
+
+### secret
+
+```
+$ vi client_secrets.txt
+```
+
+```
+type=service_account
+project_id=adroit-xxxxx-xxxx
+private_key_id=0b55dxxxxxxx30211daf249b0xxxxxxxx
+private_key=
+client_email=xxxxxxx8@adroit-xxxxxxx-xxxxxx.iam.xxxxxxxx.com
+client_id=xxxxxxxxxxxxxxxxxxxx4
+auth_uri=https://accounts.google.com/o/xxxx/xxxx
+token_uri=https://xxxx.googleapis.com/xxxxx
+auth_provider_x509_cert_url=https://www.googleapis.com/xxxxx/v1/xxxxx
+client_x509_cert_url=https://www.googleapis.com/robot/v1/metadata/xxxx/xxxxxxxxx-xxxxxxxxxxr-xxxxx.iam.gserviceaccount.com
+```
+
+위와 같은 형식으로 작성
+
+
+
+**create secret**
+
+```
+$ kubectl -n project-pipeline create secret generic client-secrets --from-env-file client-secrets.txt
+```
+
+> if you want modify
+>
+> ```
+> $ kubectl edit secret/SECRET_NAME -n kubeflow
+> ```
+
+
+
+### katib
+
+#### dockerfile
+
+```
+ARG PYTORCH="1.11.0"
+ARG CUDA="11.3"
+ARG CUDNN="8"  
+
+FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel	
+
+ENV TORCH_CUDA_ARCH_LIST="7.5"
+ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
+ENV CMAKE_PREFIX_PATH="$(dirname $(which conda))/../"	
+
+# To fix GPG key error when running apt-get update
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu2004/x86_64/7fa2af80.pub
+RUN apt-get update
+
+# for isntall opencv
+RUN apt-get -y install libgl1-mesa-glx
+RUN apt-get -y install libglib2.0-0
+RUN pip install opencv-python-headless
+
+COPY ./ ./
+RUN pip install -r requirements.txt
+
+# Install MMCV
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools
+RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
+# RUN pip install mmdet     # if run this line, get 'MMCV CUDA Compiler: not available'
+
+RUN apt-get install -y git
+
+  
+# docker build . --no-cache -t localhost:5000/katib:0.1
+# docker push localhost:5000/katib:0.1
+```
+
+
+
+#### Experiment
+
+```
+$ vi katib.yaml
+```
+
+```
+apiVersion: kubeflow.org/v1beta1
+kind: Experiment
+metadata:
+  namespace: pipeline
+  name: katib
+spec:
+  objective:
+    type: maximize
+    goal: 0.8
+    objectiveMetricName: mAP
+    metricStrategies:
+    - name: mAP
+      value: latest		# max 
+  algorithm:
+    algorithmName: random				
+  parallelTrialCount: 2
+  maxTrialCount: 12
+  maxFailedTrialCount: 5
+  parameters:
+    - name: lr
+      parameterType: categorical
+      feasibleSpace:
+        list:
+          - 0.0001
+          - 0.0005
+          - 0.001
+          - 0.00005
+          - 0.00001
+    - name: swin_drop_rate
+      parameterType: categorical
+      feasibleSpace:
+        list:
+          - 0.0
+          - 0.1
+          - 0.2
+          - 0.3
+          - 0.4
+    - name: swin_window_size
+      parameterType: categorical
+      feasibleSpace:
+        list:
+          - 3
+          - 5
+          - 7
+          - 9
+          - 11
+    - name: swin_mlp_ratio
+      parameterType: categorical
+      feasibleSpace:
+        list:
+          - 3
+          - 4
+          - 5
+  metricsCollectorSpec:
+    collector:
+      kind: StdOut
+    source:
+      filter:
+        metricsFormat:
+        - "([\\w|-]+)\\s*=\\s*((-?\\d+)(\\.\\d+)?)"  
+  trialTemplate:
+    primaryContainerName: training-container
+    trialParameters:
+      - name: lr
+        description: learning rate
+        reference: lr
+      - name: swin_drop_rate
+        description: drop_rate of SwinTransformer
+        reference: swin_drop_rate
+      - name: swin_window_size
+        description: window_size of SwinTransformer
+        reference: swin_window_size 
+      - name: swin_mlp_ratio
+        description: mlp_ratio of SwinTransformer
+        reference: swin_mlp_ratio 
+    trialSpec:
+      apiVersion: batch/v1
+      kind: Job
+      spec:
+        template:
+          metadata:
+            annotations:
+              sidecar.istio.io/inject: "false"
+          spec:
+            containers:
+              - name: training-container
+                image: localhost:5000/katib:0.1
+                command:
+                  - "python3"
+                  - "main.py"
+                  - "--cfg=configs/swin_maskrcnn.py"
+                  - "--model MaskRCNN"
+                  - "--epoch 100"
+                  - "--lr=${trialParameters.lr}"
+                  - "--swin_drop_rate=${trialParameters.swin_drop_rate}"
+                  - "--swin_window_size=${trialParameters.swin_window_size}"
+                  - "--swin_mlp_ratio=${trialParameters.swin_mlp_ratio}"                  
+            restartPolicy: Never
+```
+
+
+
+
+
+### Tensorboard
+
+kubeflow dashboard에서 `+ New TensorBoard`
+
+- PVC
+
+  - PVC Name: 기존에 만들어둔 persistent volume중에서 선택
+
+  - Mount Path: PVC의 경로를 기준으로 event file이 save될 path
+
+    > PVC의 경로가 `/pvc`일 때, 
+    >
+    > Mount Path: `tensorboard/` 라면
+    >
+    > event file은 `/pvc/tensorboard/` 에 저장되어야 한다.
+
+
+
+
 
