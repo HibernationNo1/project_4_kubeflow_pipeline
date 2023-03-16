@@ -53,7 +53,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
      
     sys.path.append(PACKAGE_PATH) 
         
-    from hibernation_no1.configs.pipeline import dict2Config 
+    from hibernation_no1.configs.pipeline import dict2Config, replace_config
     from hibernation_no1.configs.config import Config
     from hibernation_no1.database.mysql import check_table_exist
     from hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
@@ -203,11 +203,13 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             assert osp.isfile(backbone_cfg_file), f"Path of model config file dose not exist!! \n   Path: {backbone_cfg_file}"
             assert osp.isfile(neck_cfg_file), f"Path of model config file dose not exist!! \n   Path: {neck_cfg_file}"
         
-        
-    
-        cfg.model = model_cfg
-     
-      
+
+        replaced_cfg = replace_config(from_cfg = model_cfg, to_cfg = cfg.model, init=True)
+        if replaced_cfg is None:
+            raise KeyError(f"cfg.model.type is not same as model_cfg.type!! check configuration."
+                           f"\n cfg.model.type: {cfg.model.type},  model_cfg.type: {model_cfg.type}")
+
+        cfg.model = replaced_cfg     
         
     
     def set_dataset_cfg(cfg, database):

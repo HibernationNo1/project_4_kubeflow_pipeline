@@ -20,7 +20,7 @@ class Base_Image_cfg():
     
 
 """
-docker build docker --no-cache -t localhost:5000/pipeline:0.2
+docker build docker --no-cache -t localhost:5000/pipeline:0.1
 docker push localhost:5000/pipeline:0.1
 docker run --rm -it localhost:5000/pipeline:0.1
 

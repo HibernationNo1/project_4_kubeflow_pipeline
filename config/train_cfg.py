@@ -19,7 +19,7 @@ hook_config = [
     dict(
         type='Validation_Hook',      
         priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-        interval = ['iter', 20],     # epoch(or iter) unit to run validation ['epoch', 1]
+        interval = ['iter', 40],     # epoch(or iter) unit to run validation ['epoch', 1]
         val_cfg = dict(
             run = True,  
             iou_thrs = [0.3, 0.9],          # range of iou threshold
