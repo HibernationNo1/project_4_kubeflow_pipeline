@@ -1,47 +1,3 @@
-
-
-- [Install kubeflow at Kubernetes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-kubeflow-at-kubernetes:~:text=Install%20kubeflow%20at%20Kubernetes)
-  * [Kubernetes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-kubeflow-at-kubernetes:~:text=kubernetes%20%3A%201.25.4-,Kubernetes,-check%20before%20installationttoelzhdpqkf)
-    + [check before installation]()
-    + [install docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%EB%AA%A8%EB%A5%B4%EB%8B%88%20%EB%B0%A9%ED%99%94%EB%B2%BD%EB%8F%84%20%EB%81%84%EA%B8%B0-,install%20docker,-%EA%B3%B5%EC%8B%9D%20%EB%AC%B8%EC%84%9C)
-      - [Install cri-dockerd](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%24%20docker%20ps-,Install%20cri%2Ddockerd,-nvidia%20dirver%2C%20cuda)
-      - [NVIDIA DOCKER](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=for%20the%20API.-,NVIDIA%20DOCKER,-docker%20contianer%EC%95%88%EC%97%90%EC%84%9C)
-    + [install kubelet, kubeadm, kubectl](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=systemctl%20restart%20docker-,install%20kubelet%2C%20kubeadm%2C%20kubectl,-Add%20required%20packages)
-    + [Initialize master node](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Initialize%20master%20node)
-    + [nvidia-device-plugin](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Running%EC%9E%84%EC%9D%84%20%ED%99%95%EC%9D%B8-,nvidia%2Ddevice%2Dplugin,-graphic%20driver%20%EC%A1%B4%EC%9E%AC)
-    + [dynamic volume provisioner](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=ID%20%20%20ID%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20Usage%20%20%20%20%20%20%7C%0A%7C%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%7C%0A%2B%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2B-,dynamic%20volume%20provisioner,-kubernetes%EC%97%90%EC%84%9C%20kubeflow)
-  * [kubeflow](#kubeflow)
-    + [**kustomize**](#--kustomize--)
-    + [**kubeflow**](#--kubeflow--)
-      - [install](#install)
-      - [connect from external](#connect-from-external)
-    + [add user](#add-user)
-    + [docker](#docker)
-      - [registry](#registry)
-      - [git shh key](#git-shh-key)
-      - [dockerfile](#dockerfile)
-  * [KServe](#kserve)
-    + [KServe](#kserve-1)
-    + [Built-in ClusterServingRuntimes](#built-in-clusterservingruntimes)
-    + [exam](#exam)
-      - [indirection](#indirection)
-  * [uninstall](#uninstall)
-      - [kubeadm reset](#kubeadm-reset)
-      - [uninstall kubeadm kubectl kubelet](#uninstall-kubeadm-kubectl-kubelet)
-      - [uninstall docker](#uninstall-docker)
-  * [else](#else)
-    + [secret](#secret)
-    + [katib](#katib)
-      - [dockerfile](#dockerfile-1)
-      - [Experiment](#experiment)
-    + [Tensorboard](#tensorboard)
-
-
-
-
-
-
-
 # Install kubeflow at Kubernetes
 
 - ubuntu: `20.04`
@@ -49,6 +5,44 @@
 - cri-dockerd: `0.3.1`
 
 - kubernetes : `1.25.4`
+
+
+
+## Table of Contents
+
+* [Kubernetes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-kubeflow-at-kubernetes:~:text=kubernetes%20%3A%201.25.4-,Kubernetes,-check%20before%20installationttoelzhdpqkf)
+  + [check before installation](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Kubernetes-,check%20before%20installation,-%24%20sudo%20apt%20update)
+  + [install docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%EB%AA%A8%EB%A5%B4%EB%8B%88%20%EB%B0%A9%ED%99%94%EB%B2%BD%EB%8F%84%20%EB%81%84%EA%B8%B0-,install%20docker,-%EA%B3%B5%EC%8B%9D%20%EB%AC%B8%EC%84%9C)
+    - [Install cri-dockerd](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%24%20docker%20ps-,Install%20cri%2Ddockerd,-nvidia%20dirver%2C%20cuda)
+    - [NVIDIA DOCKER](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=for%20the%20API.-,NVIDIA%20DOCKER,-docker%20contianer%EC%95%88%EC%97%90%EC%84%9C)
+  + [install kubelet, kubeadm, kubectl](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=systemctl%20restart%20docker-,install%20kubelet%2C%20kubeadm%2C%20kubectl,-Add%20required%20packages)
+  + [Initialize master node](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Initialize%20master%20node)
+  + [nvidia-device-plugin](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Running%EC%9E%84%EC%9D%84%20%ED%99%95%EC%9D%B8-,nvidia%2Ddevice%2Dplugin,-graphic%20driver%20%EC%A1%B4%EC%9E%AC)
+  + [dynamic volume provisioner](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=ID%20%20%20ID%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20Usage%20%20%20%20%20%20%7C%0A%7C%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%7C%0A%2B%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2B-,dynamic%20volume%20provisioner,-kubernetes%EC%97%90%EC%84%9C%20kubeflow)
+* [kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=WaitForFirstConsumer%20%20%20false%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2012s-,kubeflow,-kustomize)
+  + [kustomize](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kubeflow-,kustomize,-%EA%B3%B5%EC%8B%9D)
+  + [kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kustomize%0A%24%20kustomize%20version-,kubeflow,-install)
+    - [install](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kubeflow-,install,-git%20clone%20kubeflow)
+    - [connect from external](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%ED%95%98%EB%82%98%ED%95%98%EB%82%98%20%EB%B3%B5%EC%82%AC%ED%95%B4%EA%B0%80%EB%A9%B0%20%EC%A7%84%ED%96%89%ED%95%98%EC%9E%90.-,connect%20from%20external,-%24%20kubectl%20get%20svc)
+  + [add user](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=localhost8080%EC%97%90%20%EC%A0%91%EC%86%8D%ED%95%B4%EB%B3%B8%EB%8B%A4.-,add%20user,-dashboard%EC%97%90%20user)
+  + [docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=edit%20profile%20%3Cnamespace_name%3E-,docker,-registry)
+    - registry
+    - [git shh key](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=docker%20images%EC%9D%B4%EB%A6%84-,git%20shh%20key,-check%20if%20already)
+    - [dockerfile](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=key%EB%B3%B5%EB%B6%99-,dockerfile,-ARG%20PYTORCH%3D%221.11.0)
+* [KServe](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=49**/train%3A0.1-,KServe,-doc_kserve0.9)
+  + [KServe](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%EC%9E%88%EB%8A%94%20%EA%B1%B4%20%EB%AD%90%EB%83%90%3F-,KServe,-%24%20kubectl%20apply%20%2Df)
+  + [Built-in ClusterServingRuntimes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Running%20%20%200%20%20%20%20%20%20%20%20%20%203m58s-,Built%2Din%20ClusterServingRuntimes,-%24%20kubectl%20apply%20%2Df)
+  + [exam](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=v0.8.0%20or%20higher.-,exam,-preparations)
+* [uninstall](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=TODO%3A%20%EC%8B%A4%ED%8C%A8-,uninstall,-kubeadm%20reset)
+    - [kubeadm reset](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=uninstall-,kubeadm%20reset,-sudo%20systemctl%20restart)
+    - [uninstall kubeadm kubectl kubelet](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=home/hibernation/.kube-,uninstall%20kubeadm%20kubectl%20kubelet,-%24%20sudo%20apt%2Dget)
+    - [uninstall docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kubeadm%20kubectl%20kubelet-,uninstall%20docker,-%24%20docker%20rm%20%2Df)
+* [else](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=cli%20containerd.io-,else,-secret)
+  + [secret](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=else-,secret,-%24%20vi%20client_secrets.txt)
+  + [katib](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=SECRET_NAME%20%2Dn%20kubeflow-,katib,-dockerfile)
+    - [dockerfile](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=katib-,dockerfile,-ARG%20PYTORCH%3D%221.11.0)
+    - [Experiment](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=5000/katib%3A0.1-,Experiment,-%24%20vi%20katib.yaml)
+  + [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=swin_mlp_ratio%7D%22%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%20%20%20%20restartPolicy%3A%20Never-,Tensorboard,-kubeflow%20dashboard%EC%97%90%EC%84%9C)
 
 
 
