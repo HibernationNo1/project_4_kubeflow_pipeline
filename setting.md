@@ -661,7 +661,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    $ sudo kubeadm init \
      --pod-network-cidr=10.244.0.0/16 \
      --apiserver-advertise-address 192.168.219.100\
-     --cri-socket /run/cri-dockerd.sock
+     --cri-socket unix:///run/cri-dockerd.sock
    ```
 
    - `--pod-network-cidr` : 포드 네트워크의 IP 주소 범위를 지정 설정
@@ -679,12 +679,16 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    - `--cri-socket` : runtime적용
 
      ```
-     --cri-socket /run/cri-dockerd.sock
+     --cri-socket unix:///run/cri-dockerd.sock
      ```
 
      **Mirantis cri-dockerd** 를 설치했다면 반드시 option에 추가
 
-     > installed `cri-dockerd`
+     > ````
+     > --cri-socket /run/cri-dockerd.sock
+     > ````
+     >
+     > 를 입력하면 kubelet에서 오류가 발생할 수 있다는 warnning이 출력된다.
 
    - `--apiserver-advertise-address`: master node의 API Server주소를 설정할 때 사용
 
@@ -755,114 +759,130 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    hibernation  		 Ready   	control-plane,master   30s   v1.22.13
    ```
 
+   
+   
+   1. check pods
+   
+      ```
+      $ kubectl get pod -n kube-system
+      ```
+   
+      ```
+      NAME                                  READY   STATUS    RESTARTS   AGE
+      coredns-565d847f94-mt6sx              1/1     Running   0          26s
+      coredns-565d847f94-x6khg              1/1     Running   0          26s
+      etcd-hibernation                      1/1     Running   11         39s
+      kube-apiserver-hibernation            1/1     Running   3          40s
+      kube-controller-manager-hibernation   1/1     Running   4          39s
+      kube-proxy-49nvl                      1/1     Running   0          26s
+      kube-scheduler-hibernation            1/1     Running   3          40s
+      ```
+   
+      전부 Running임을 확인
+   
+      
+   
+   2. check Taints 
+   
+      ```
+      $ kubectl describe node hibernation  | grep Taints
+      ```
+   
+      ```
+      Taints:             node-role.kubernetes.io/control-plane:NoSchedule
+      ```
+   
+      node의 `ROLES`가 control-plane이고, `NoSchedule` 상태임을 알 수 있다.
+   
+      `NoSchedule`인 경우 해당 node에서는 Pod를 Schedule할 수 없다(STATUS가 Running이 되지 못하고 계속 pending이 된다.)
+   
+      이를 없애기 위해 아래 명령어
+   
+      ```
+      $ kubectl taint node hibernation node-role.kubernetes.io/control-plane-
+      ```
+   
+      다시 확인
+   
+      ```
+      $ kubectl describe node hibernation  | grep Taints
+      
+      Taints:             <none>
+      ```
+   
+      - 만일 아래와 같은 출력이 나온다면
+   
+        ```
+        $ kubectl describe node hibernation  | grep Taints
+        Taints:             node.kubernetes.io/disk-pressure:NoSchedule
+        ```
+   
+        node의 disk공간이 부족하단 뜻이다.
+   
+        다시 한 번 확인해보자
+   
+        ```
+        $ kubectl describe node hibernation
+        ```
+   
+        Conditions에 아래 문구가 있을 것이다.
+   
+        ```
+          Type                 Status  LastHeartbeatTime                 LastTransitionTime                Reason                       Message
+        DiskPressure         True    Fri, 17 Mar 2023 12:03:58 +0900   Fri, 17 Mar 2023 11:22:47 +0900   KubeletHasDiskPressure       kubelet has disk pressure
+        ```
+   
+        status가 True이면 해당 노드는 디스크 공간이 부족하거나 가용한 디스크 공간이 낮아져서 새로운 파드를 스케줄링하지 못할 수 있다는 것을 의미한다.
+   
+        > `control-plane`이 아니라 `master` 로 명시되어 있어도 같은 방법 사용
+        >
+        > kubernetes는 1.6부터 Daemonset이 기본적으로 master node에서 schedule되지 않는다.
+        >
+        > > 정확히는, taint에 의해 master node에서 pod구동이 안되도록 되어 있다.
+        >
+        > 만일 master node에서 pod작업을 이어가고자 한다면 taint를 해제
+        >
+        > ```
+        > $ kubectl taint nodes hibernation node-role.kubernetes.io/master-
+        > ```
+   
+        
+   
+   
+   
    > - kubeadm init을 안하면 아래 출력이 나옴
    >
    >   ```
    >   The connection to the server 192.168.0.107:6443 was refused - did you specify the right host or port?
    >   ```
    >
-   >   
+   > 
    >
-   > - `ROLES`에 `master` 가 포함되지 않은 경우 master node가 아닌 것이다.
+   > - STATUS: `NotReady` 인 경우
    >
-   >   ```
-   >   NAME                 STATUS     ROLES                  AGE   VERSION
-   >   hibernation  		 Ready   	control-plane          30s   v1.25.4
-   >   ```
+   >   1. ```
+   >      $ kubectl get pod -n kube-system
+   >      ```
    >
-   >   `ROLES`에 `master`를 포함하고자 한다면 label을 붙이자(master가 안붙어도 master처럼 사용됨)
+   >      ```
+   >      NAME                                     READY   STATUS    RESTARTS   AGE
+   >      coredns-78fcd69978-cdf4d                 1/1     padding   0          49s
+   >      coredns-78fcd69978-snxdp                 1/1     padding   0          49s
+   >      ```
    >
-   >   ```
-   >   $ kubectl label nodes hibernation node-role.kubernetes.io/master=
-   >   ```
+   >      위 pods의 STATUS: `padding` 인 경우에는 **`install CNI(flannel)`**
    >
-   >   ```
-   >   $ kubectl get nodes
-   >         
-   >   NAME          STATUS     ROLES                  AGE     VERSION
-   >   hibernation   Ready      control-plane,master   9m14s   v1.25.4
-   >   ```
+   >      해당 CNI를 설치하지 않으면 nodes의 STATUS가 계속해서 `NotReady`이다.
    >
-   >   이후 해당 node의 Taints가 `node-role.kubernetes.io/master`인지 확인 할 것.
+   >      ```
+   >      $ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+   >      ```
    >
-   >   
+   >      ```
+   >      $ kubectl get pod -n kube-system
+   >      ```
    >
-   > - node의 Taints 확인
-   >
-   >   ```
-   >   $ kubectl describe node hibernation  | grep Taints
-   >   ```
-   >
-   >   ```
-   >   Taints:             node-role.kubernetes.io/control-plane:NoSchedule
-   >   ```
-   >
-   >   node의 `ROLES`가 control-plane이고, `NoSchedule` 상태임을 알 수 있다.
-   >
-   >   `NoSchedule`인 경우 해당 node에서는 Pod를 Schedule할 수 없다(STATUS가 Running이 되지 못하고 계속 pending이 된다.)
-   >
-   >   이를 없애기 위해 아래 명령어
-   >
-   >   ```
-   >   $ kubectl taint node hibernation node-role.kubernetes.io/control-plane-
-   >   ```
-   >
-   >   다시 확인
-   >
-   >   ```
-   >   $ kubectl describe node hibernation  | grep Taints
-   >         
-   >   Taints:             <none>
-   >   ```
-   >
-   >   > `control-plane`이 아니라 `master` 로 명시되어 있어도 같은 방법 사용
-   >   >
-   >   > kubernetes는 1.6부터 Daemonset이 기본적으로 master node에서 schedule되지 않는다.
-   >   >
-   >   > > 정확히는, taint에 의해 master node에서 pod구동이 안되도록 되어 있다.
-   >   >
-   >   > 만일 master node에서 pod작업을 이어가고자 한다면 taint를 해제
-   >   >
-   >   > ```
-   >   > $ kubectl taint nodes hibernation node-role.kubernetes.io/master-
-   >   > ```
-   >
-   >   이후 nodes `STATUS` 가 NotReady가 된다
-   >
-   >   ```
-   >   $ kubectl get nodes
-   >         
-   >   NAME          STATUS     ROLES                  AGE   VERSION
-   >   hibernation   NotReady   control-plane,master   17m   v1.25.4
-   >   ```
-   >
-   >   이후 아래 내용 순서대로 진행
-   
-   - STATUS: `NotReady` 인 경우
-   
-     1. ```
-        $ kubectl get pod -n kube-system
-        ```
-   
-        ```
-        NAME                                     READY   STATUS    RESTARTS   AGE
-        coredns-78fcd69978-cdf4d                 1/1     padding   0          49s
-        coredns-78fcd69978-snxdp                 1/1     padding   0          49s
-        ```
-   
-        위 pods의 STATUS: `padding` 인 경우에는 **`install CNI(flannel)`**
-   
-        해당 CNI를 설치하지 않으면 nodes의 STATUS가 계속해서 `NotReady`이다.
-   
-        ```
-        $ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-        ```
-   
-        ```
-        $ kubectl get pod -n kube-system
-        ```
-   
-        모든 STAUS가 `Running`임을 확인
+   >      모든 STAUS가 `Running`임을 확인
 
 
 
@@ -909,8 +929,14 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >      $ kubectl get pod -A | grep nvidia
    >      ```
    >
-   >   3. `nvidia driver`와 `cuda toolkit`확인
+   >      - 여기서 아무것도 출력되지 않는다면 Taint확인
    >
+   >        ```
+   >        $ kubectl describe node hibernation  | grep Taints
+   >        ```
+   >   
+   >   3. `nvidia driver`와 `cuda toolkit`확인
+   >   
    >      ```
    >      $ nvidia-smi
    >      $ nvcc -V
@@ -921,7 +947,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >      ```
    >      $ sudo docker run --rm --gpus all nvidia/cuda:11.3.1-base-ubuntu20.04 nvidia-smi
    >      ```
-   >
+   >   
    >   5. 위 1, 2, 3, 4번 모두 확인했음에도 이상이 없다면 
    >
    >      nvidia pod이름 확인
@@ -931,11 +957,11 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >      ```
    >
    >      해당 pod의 log확인
-   >
+   >   
    >      ```
    >      $ kubectl logs nvidia-device-plugin-daemonset-sksnl -n kube-system
    >      ```
-   >
+   >   
    >      ```
    >      2023/02/23 05:31:16 Retreiving plugins.
    >      2023/02/23 05:31:16 Detected non-NVML platform: could not load NVML: libnvidia-ml.so.1: cannot open shared object file: No such file or directory
@@ -947,9 +973,9 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >      2023/02/23 05:31:16 If this is not a GPU node, you should set up a toleration or nodeSelector to only deploy this plugin on GPU nodes
    >      2023/02/23 05:31:16 No devices found. Waiting indefinitely.
    >      ```
-   >
+   >   
    >      log의 맨 하단 내용이 위와 같다면 GPU를 못잡고 있는 것임. `nvidia-docker2` 설치가 제대로 되어 있는지 확인하자.
-   >
+   >   
    >      > 정상적이라면 아래처럼 나와야 함
    >      >
    >      > ```
@@ -1835,8 +1861,6 @@ $ kubectl rollout restart deployment/istiod -n istio-system
 
 
 
-TODO: 실패
-
 
 
 ## uninstall
@@ -1972,7 +1996,7 @@ RUN apt-get install -y git
 #### Experiment
 
 ```
-$ vi katib.yaml
+$ vi katib-exam.yaml
 ```
 
 ```
@@ -1980,7 +2004,7 @@ apiVersion: kubeflow.org/v1beta1
 kind: Experiment
 metadata:
   namespace: pipeline
-  name: katib
+  name: katib-exam
 spec:
   objective:
     type: maximize
@@ -1999,36 +2023,36 @@ spec:
       parameterType: categorical
       feasibleSpace:
         list:
-          - 0.0001
-          - 0.0005
-          - 0.001
-          - 0.00005
-          - 0.00001
+          - "0.0001"
+          - "0.0005"
+          - "0.001"
+          - "0.00005"
+          - "0.00001"
     - name: swin_drop_rate
       parameterType: categorical
       feasibleSpace:
         list:
-          - 0.0
-          - 0.1
-          - 0.2
-          - 0.3
-          - 0.4
+          - "0.0"
+          - "0.1"
+          - "0.2"
+          - "0.3"
+          - "0.4"
     - name: swin_window_size
       parameterType: categorical
       feasibleSpace:
         list:
-          - 3
-          - 5
-          - 7
-          - 9
-          - 11
+          - "3"
+          - "5"
+          - "7"
+          - "9"
+          - "11"
     - name: swin_mlp_ratio
       parameterType: categorical
       feasibleSpace:
         list:
-          - 3
-          - 4
-          - 5
+          - "3"
+          - "4"
+          - "5"
   metricsCollectorSpec:
     collector:
       kind: StdOut
@@ -2062,9 +2086,9 @@ spec:
           spec:
             containers:
               - name: training-container
-                image: localhost:5000/katib:0.1
+                image: localhost:5000/katib:0.3
                 command:
-                  - "python3"
+                  - "python"
                   - "main.py"
                   - "--cfg=configs/swin_maskrcnn.py"
                   - "--model MaskRCNN"
@@ -2076,7 +2100,93 @@ spec:
             restartPolicy: Never
 ```
 
+```
+$ kubectl apply -f katib-exam.yaml
+```
 
+
+
+- check status
+
+  ```
+  $ kubectl -n pipeline get experiment katib-exam -o yaml
+  ```
+
+- check katib-controller
+
+  ```
+  $ kubectl get pod -n kubeflow|grep katib-controller
+  ```
+
+  ```
+  katib-controller-86cd58bc95-4c4gv                        1/1     Running   0             48m
+  ```
+
+- check pod
+
+  ```
+  $ kubectl get pods -n pipeline | grep katib
+  ```
+
+  > trials가 실행되는 pod까지 다 나온다.
+  >
+  > error상태의 pod만 삭제하고자 한다면 
+  >
+  > ```
+  > $ kubectl delete pod --field-selector=status.phase==Failed -n pipeline
+  > ```
+
+  ```
+  katib-random-bc8bdfddc-8gdw7                      1/1     Running     0          5m13s
+  ```
+
+  
+
+  
+
+  
+
+  check log
+
+  ```
+  $ kubectl logs  katib-exam-random-fbb44c8d4-n4fb7 -n pipeline
+  ```
+
+  아래 error발생
+
+  ```
+  INFO:hyperopt.utils:Failed to load cloudpickle, try installing cloudpickle via "pip install cloudpickle" for enhanced pickling support.
+  INFO:hyperopt.fmin:Failed to load cloudpickle, try installing cloudpickle via "pip install cloudpickle" for enhanced pickling support.
+  INFO:pkg.suggestion.v1beta1.hyperopt.base_service:GetSuggestions returns 2 new Trial
+  ```
+
+  
+
+  
+
+  -  `container` log 확인
+
+    ```
+    kubectl logs  katib-exam-random-fbb44c8d4-n4fb7 -n pipeline training-container
+    ```
+
+  - `metrics-logger-and-collector` log 확인
+
+    ```
+    kubectl logs -katib-random-bc8bdfddc-8gdw7 -n pipeline metrics-logger-and-collector
+    ```
+
+    
+
+  
+
+> delete
+>
+> ```
+> $ kubectl -n pipeline delete experiment katib-exam
+> ```
+>
+> 관련 pod는 알아서 삭제됨
 
 
 
