@@ -1,3 +1,47 @@
+
+
+- [Install kubeflow at Kubernetes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-kubeflow-at-kubernetes:~:text=Install%20kubeflow%20at%20Kubernetes)
+  * [Kubernetes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-kubeflow-at-kubernetes:~:text=kubernetes%20%3A%201.25.4-,Kubernetes,-check%20before%20installationttoelzhdpqkf)
+    + [check before installation]()
+    + [install docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%EB%AA%A8%EB%A5%B4%EB%8B%88%20%EB%B0%A9%ED%99%94%EB%B2%BD%EB%8F%84%20%EB%81%84%EA%B8%B0-,install%20docker,-%EA%B3%B5%EC%8B%9D%20%EB%AC%B8%EC%84%9C)
+      - [Install cri-dockerd](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%24%20docker%20ps-,Install%20cri%2Ddockerd,-nvidia%20dirver%2C%20cuda)
+      - [NVIDIA DOCKER](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=for%20the%20API.-,NVIDIA%20DOCKER,-docker%20contianer%EC%95%88%EC%97%90%EC%84%9C)
+    + [install kubelet, kubeadm, kubectl](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=systemctl%20restart%20docker-,install%20kubelet%2C%20kubeadm%2C%20kubectl,-Add%20required%20packages)
+    + [Initialize master node](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Initialize%20master%20node)
+    + [nvidia-device-plugin](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Running%EC%9E%84%EC%9D%84%20%ED%99%95%EC%9D%B8-,nvidia%2Ddevice%2Dplugin,-graphic%20driver%20%EC%A1%B4%EC%9E%AC)
+    + [dynamic volume provisioner](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=ID%20%20%20ID%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20Usage%20%20%20%20%20%20%7C%0A%7C%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%7C%0A%2B%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2B-,dynamic%20volume%20provisioner,-kubernetes%EC%97%90%EC%84%9C%20kubeflow)
+  * [kubeflow](#kubeflow)
+    + [**kustomize**](#--kustomize--)
+    + [**kubeflow**](#--kubeflow--)
+      - [install](#install)
+      - [connect from external](#connect-from-external)
+    + [add user](#add-user)
+    + [docker](#docker)
+      - [registry](#registry)
+      - [git shh key](#git-shh-key)
+      - [dockerfile](#dockerfile)
+  * [KServe](#kserve)
+    + [KServe](#kserve-1)
+    + [Built-in ClusterServingRuntimes](#built-in-clusterservingruntimes)
+    + [exam](#exam)
+      - [indirection](#indirection)
+  * [uninstall](#uninstall)
+      - [kubeadm reset](#kubeadm-reset)
+      - [uninstall kubeadm kubectl kubelet](#uninstall-kubeadm-kubectl-kubelet)
+      - [uninstall docker](#uninstall-docker)
+  * [else](#else)
+    + [secret](#secret)
+    + [katib](#katib)
+      - [dockerfile](#dockerfile-1)
+      - [Experiment](#experiment)
+    + [Tensorboard](#tensorboard)
+
+
+
+
+
+
+
 # Install kubeflow at Kubernetes
 
 - ubuntu: `20.04`
@@ -10,7 +54,7 @@
 
 ## Kubernetes
 
-### check before installationttoelzhdpqkf
+### check before installation
 
 1. ```
    $ sudo apt update
@@ -740,7 +784,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >
    >   ```
    >   $ kubectl get nodes
-   >       
+   >         
    >   NAME          STATUS     ROLES                  AGE     VERSION
    >   hibernation   Ready      control-plane,master   9m14s   v1.25.4
    >   ```
@@ -773,7 +817,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >
    >   ```
    >   $ kubectl describe node hibernation  | grep Taints
-   >       
+   >         
    >   Taints:             <none>
    >   ```
    >
@@ -793,7 +837,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    >
    >   ```
    >   $ kubectl get nodes
-   >       
+   >         
    >   NAME          STATUS     ROLES                  AGE   VERSION
    >   hibernation   NotReady   control-plane,master   17m   v1.25.4
    >   ```
