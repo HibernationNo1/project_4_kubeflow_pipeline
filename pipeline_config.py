@@ -72,7 +72,7 @@ def set_cfg_train(args, cfg):
     if cfg.model.backbone.type == "SwinTransformer":
         if args.swin_drop_rate is not None : 
             cfg.model.backbone.drop_rate = float(args.swin_drop_rate)
-            assert 0.<cfg.model.backbone.drop_rate and cfg.model.backbone.drop_rate < 0.999
+            assert 0.<=cfg.model.backbone.drop_rate and cfg.model.backbone.drop_rate < 0.999
         if args.swin_window_size is not None : 
             cfg.model.backbone.window_size = int(args.swin_window_size)
             assert cfg.model.backbone.window_size in [1, 3, 5, 7, 9, 11, 13, 15]
