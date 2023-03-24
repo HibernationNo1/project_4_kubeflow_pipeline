@@ -154,6 +154,13 @@ def set_config(args):
     Args:
         args : argparse
     """
+
+    if args.katib:
+        if args.model is None:
+            args.model = 'MaskRCNN' 
+        if args.cfg_train is None:
+            args.cfg_train = 'config/train_cfg.py'
+            
  
     if (args.cfg_pipeline is not None) and (args.pipeline_v is not None) and (args.dashboard_pw is not None):
         print("Run with kubeflow pipeline")
