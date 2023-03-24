@@ -174,10 +174,11 @@ def _parse_args():
     kbf_parser.add_argument("--pipeline_n", type = str, help="name of pipeline")    
     kbf_parser.add_argument("--experiment_n", type = str, help="name of experiment") 
     kbf_parser.add_argument("--run_n", type = str, help="name of run") 
-    
+
+    kbf_parser.add_argument("--katib", action = 'store_true',  help="If run for experiment") 
     # gs_parser = parser.add_argument_group('google_storage')
 
-    
+
     db_parser = parser.add_argument_group('database')
     db_parser.add_argument('--name_db', type = str, help = 'Database name to connect to database')
     db_parser.add_argument('--user_db', type = str, help = 'User name to connect to database')
