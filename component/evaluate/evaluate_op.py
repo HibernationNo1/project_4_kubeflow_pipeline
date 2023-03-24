@@ -12,24 +12,24 @@ def evaluate(cfg : dict, input_run_flag: InputPath("dict"),
 
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
                      local_volume = cfg['path']['local_volume'],     # pvc volume path on local
-                     katib_volume = cfg['path']['katib_volume'],     # volume path on katib container
+                     docker_volume = cfg['path']['docker_volume'],     # volume path on katib container
                      work = cfg['path']['work_space']
                      )    
 
     # set package path to 'import {custom_package}'
     if __name__=="component.evaluate.evaluate_op":
         local_volume = osp.join('/opt/local-path-provisioner', WORKSPACE['local_volume']) 
-        katib_volume = f"/{WORKSPACE['katib_volume']}"
+        docker_volume = f"/{WORKSPACE['docker_volume']}"
         if osp.isdir(local_volume):
             PACKAGE_PATH = local_volume
             print(f"    Run `evaluate` locally")
             
-        elif osp.isdir(katib_volume):
-            PACKAGE_PATH = katib_volume
+        elif osp.isdir(docker_volume):
+            PACKAGE_PATH = docker_volume
             print(f"    Run `evaluate` in container for katib")
             
         else:
-            raise OSError(f"Paths '{katib_volume}' and '{local_volume}' do not exist!")
+            raise OSError(f"Paths '{docker_volume}' and '{local_volume}' do not exist!")
 
     if __name__=="__main__":    
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"

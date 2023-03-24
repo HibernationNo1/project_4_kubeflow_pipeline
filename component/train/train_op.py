@@ -19,25 +19,35 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     import sys
     
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
-                     local_volume = cfg['path']['local_volume'],     # pvc volume path on local
-                     katib_volume = cfg['path']['katib_volume'],     # volume path on katib container
+                     local_volume = cfg['path']['local_volume'],               # pvc volume path on local
+                     docker_volume = cfg['path'].get('docker_volume', None),   # volume 
+					 package_dir = cfg['git'].get('package_repo', None),
                      work = cfg['path']['work_space']
                      )    
 
     # set package path to 'import {custom_package}'
     if __name__=="component.train.train_op":
         local_volume = osp.join('/opt/local-path-provisioner', WORKSPACE['local_volume']) 
-        katib_volume = f"/{WORKSPACE['katib_volume']}"
+        docker_volume = f"/{WORKSPACE['docker_volume']}"
+        package_dir = osp.join(os.getcwd(), WORKSPACE['package_dir']) 
+
         if osp.isdir(local_volume):
             PACKAGE_PATH = local_volume
             print(f"    Run `train` locally")
             
-        elif osp.isdir(katib_volume):
-            PACKAGE_PATH = katib_volume
-            print(f"    Run `train` in container for katib")
+        elif osp.isdir(docker_volume):
+            PACKAGE_PATH = docker_volume
+            print(f"    Run `train` in docker container with volume")
+
+        elif osp.isdir(package_dir):
+            PACKAGE_PATH = os.getcwd()      # got packages with git clone
+            print(f"    Run `train` in docker container")
             
         else:
-            raise OSError(f"Paths '{katib_volume}' and '{local_volume}' do not exist!")
+            raise OSError(f"All paths to import packages do not exist!"
+                          f"\n docker_volume: {docker_volume}"
+                          f"\n package_dir: {package_dir}"
+                          f"\n local_volume:'{local_volume}'")
 
     if __name__=="__main__":    
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
