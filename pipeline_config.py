@@ -42,6 +42,9 @@ def set_cfg_train(args, cfg):
     assert args.model, f"Model to be trained must be specified!!\n"\
         f"add `--model` option when entering the command."  
     
+    if args.katib:
+        cfg.katib = True
+
     comman_set(cfg)
     
     map_cfg = Config.fromfile(MAP_CONFIG)
@@ -66,7 +69,6 @@ def set_cfg_train(args, cfg):
     
     if args.epoch is not None: cfg.max_epochs = args.epoch
 
-    # for katib
     if args.lr is not None: cfg.optimizer.lr = float(args.lr)
    
     if cfg.model.backbone.type == "SwinTransformer":
@@ -98,13 +100,12 @@ def set_cfg_train(args, cfg):
     if args.drop_path_rate is not None: cfg.model.backbone.drop_path_rate = args.drop_path_rate
     if args.attn_drop_rate is not None: cfg.model.backbone.attn_drop_rate = args.attn_drop_rate    
     
-    
     if CONFIGS['pipeline'] is not None:     # when run only by kubeflow pipeline
         if CONFIGS['pipeline'].kbf.volume.get('pvc', None) is not None:
-            for i, hook_cfg in enumerate(cfg.hook_config):
+            for i, hook_cfg in enumerate(cfg.hook_configs):
                 if hook_cfg.type == "TensorBoard_Hook":
-                    cfg.hook_config[i].pvc_dir = osp.join(CONFIGS['pipeline'].kbf.volume.pvc.mount_path,
-                                                          cfg.hook_config[i].pvc_dir)
+                    cfg.hook_configs[i].pvc_dir = osp.join(CONFIGS['pipeline'].kbf.volume.pvc.mount_path,
+                                                          cfg.hook_configs[i].pvc_dir)
                     break
             
 
@@ -160,7 +161,7 @@ def set_config(args):
             args.model = 'MaskRCNN' 
         if args.cfg_train is None:
             args.cfg_train = 'config/train_cfg.py'
-            
+
  
     if (args.cfg_pipeline is not None) and (args.pipeline_v is not None) and (args.dashboard_pw is not None):
         print("Run with kubeflow pipeline")

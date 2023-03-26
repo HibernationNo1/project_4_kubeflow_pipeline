@@ -140,11 +140,12 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                                 batch_size = cfg.data.samples_per_gpu,
                                 max_epochs = cfg.max_epochs,
                                 iterd_per_epochs = len(train_dataloader),
-                                in_pipeline = in_pipeline)
+                                in_pipeline = in_pipeline,
+                                katib = cfg.get("katib", False))
         train_runner = build_runner(runner_build_cfg)
         
         # get config about each hooks
-        for hook_cfg in cfg.hook_config:     
+        for hook_cfg in cfg.hook_configs:     
             if hook_cfg.type == 'CheckpointHook': 
                 hook_cfg.model_cfg = cfg.model
                 
@@ -157,7 +158,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             if hook_cfg.type == 'TensorBoard_Hook' and in_pipeline: 
                 hook_cfg.pvc_dir = osp.join(WORKSPACE['volume'], hook_cfg.pvc_dir) 
                                     
-        train_runner.register_training_hooks(cfg.hook_config)  
+        train_runner.register_training_hooks(cfg.hook_configs)  
 
         
         resume_from = cfg.get('resume_from', None)
@@ -282,19 +283,25 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             
             
     def set_logs(cfg, train_result):
+        # get logger for environment
         env_logger = get_logger(cfg.log.env, log_level = cfg.log.level,
-                                log_file = osp.join(train_result, f"{cfg.log.env}.log"))       # TODO: save log file
+                                log_file = osp.join(train_result, f"{cfg.log.env}.log"))   
+        
+     
         env_info_dict = collect_env_cuda()
         env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
         dash_line = '-' * 60 + '\n'
         # env_logger.info('Environment info:\n' + dash_line + env_info + '\n' + dash_line)           
         # env_logger.info(f'Config:\n{cfg.pretty_text}')
         
+        # get logger for training
         get_logger(cfg.log.train, log_level = cfg.log.level,
-                    log_file = osp.join(train_result, f"{cfg.log.train}.log"))      # TODO: save log file
+                    log_file = osp.join(train_result, f"{cfg.log.train}.log"))      
             
-                
-    
+
+
+
+
     def upload_models(cfg):
         set_gs_credentials(get_client_secrets())
         storage_client = storage.Client()
