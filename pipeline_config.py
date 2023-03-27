@@ -45,6 +45,9 @@ def set_cfg_train(args, cfg):
     if args.katib:
         cfg.katib = True
 
+        # set 0 when running for katib or in pod (not have enough shared memory) 
+        cfg.data.workers_per_gpu = 0
+
     comman_set(cfg)
     
     map_cfg = Config.fromfile(MAP_CONFIG)
