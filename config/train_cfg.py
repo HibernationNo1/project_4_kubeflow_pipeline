@@ -15,11 +15,12 @@ dist_params = dict(backend='nccl')
 model_name = None
  
 
-hook_config = [
+hook_configs = [
     dict(
         type='Validation_Hook',      
-        priority = 'VERY_HIGH',     # be higher than loghook to log validation information.
-        interval = ['iter', 40],     # epoch(or iter) unit to run validation ['epoch', 1]
+        priority = 'LOW',     		 # Be higher than LoggerHook to log validation information 
+                                     # and be lower than OptimizerHook to got sufficient GPU memory for run validation.
+        interval = ['iter', 100],     # epoch(or iter) unit to run validation ['epoch', 1]
         val_cfg = dict(
             run = True,  
             iou_thrs = [0.3, 0.9],          # range of iou threshold
@@ -62,6 +63,7 @@ hook_config = [
         interval=20,                # unit: iter
         out_dir = train_result,
         out_suffix = '.log',        #  if '.json', can write max 21889 lines
+        priority='BELOW_NORMAL'		# 
     ),         
     dict(
         type = "IterTimerHook",  
