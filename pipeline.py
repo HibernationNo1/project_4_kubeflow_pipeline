@@ -167,7 +167,6 @@ def _parse_args():
     parser.add_argument("--cfg_test", help="name of config file which for test")  
     parser.add_argument("--cfg_eval", help="name of config file which for evaluate") 
     
-    
     kbf_parser = parser.add_argument_group('kubeflow')
     kbf_parser.add_argument("--dashboard_pw", type = str , help="password of kubeflow dashboard")        
     kbf_parser.add_argument("--pipeline_v", type = str, help="version of pipeline")                    
@@ -188,11 +187,11 @@ def _parse_args():
     train_parser.add_argument("--model", type = str, choices = ['MaskRCNN'],
                               help="Name of the model to be trained") 
     train_parser.add_argument("--epoch", type = int, help="epoch for training") 
-    train_parser.add_argument("--lr", type = str, choices = ['0.0001', '0.0005', '0.001', '0.00005', '0.00001'],
+    train_parser.add_argument("--lr", type = str, choices = ['0.0001', '0.0005', '0.001', '0.00005', '0.00001', '0.000005'],
                               help="Regular learning rate")             # why str?: To get linear value with katib.
     train_parser.add_argument("--swin_drop_rate", type = str, choices = ['0.0', '0.1', '0.2', '0.3', '0.4'],
                                help="drop_rate of swin transformar")         # why str?: To get linear value with katib.
-    train_parser.add_argument("--swin_window_size", type = str, choices = ['3', '5', '7', '9', '11'],
+    train_parser.add_argument("--swin_window_size", type = str, choices = ['5', '7', '9', '11', '13'],
                               help="window_size of swin transformar")     # why str?: To get linear value with katib.
     train_parser.add_argument("--swin_mlp_ratio", type = str, choices = ['3', '4', '5'],
                               help="mlp_ratio of swin transformar")         # why str?: To get linear value with katib.

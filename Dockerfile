@@ -31,9 +31,9 @@ RUN git clone https://github.com/HibernationNo1/hibernation_no1.git
 
 ENTRYPOINT ["python", "main.py", "--katib"]
   
-# docker build . --no-cache -t localhost:5000/katib:0.1
-# docker push localhost:5000/katib:0.1
-
+# docker build . --no-cache -t localhost:5000/katib:0.3
+# docker push localhost:5000/katib:0.2
+# docker run --rm -it localhost:5000/katib:0.7
 
 # docker build . --no-cache -t hibernation4958/katib:0.3
 # docker push hibernation4958/katib:0.3

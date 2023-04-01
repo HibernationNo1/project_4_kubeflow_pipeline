@@ -10,7 +10,7 @@ record_result = "test_dataset"
 
 record = dict(
     options = dict(
-    proportion_val = 0.01
+    proportion_val = 0.1
     # save_gt_image = False
     ),
     

@@ -5,7 +5,7 @@ train_pipeline = [
     dict(type='LoadImageFromFile'),                                     
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
     dict(type='Resize', 
-         img_scale=(1280, 800),        # expected resizing image shape (1280, 720)  width, height      1333, 800
+         img_scale=(1500, 1000),        # expected resizing image shape (1280, 720)  width, height      1333, 800
          keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),                # flip_ratio = [0.3, 0.5, 0.2], direction = ['horizontal', 'vertical', 'diagonal']
                                                             # apply horizontal flip to 0.3% of the total,
@@ -55,7 +55,7 @@ data_root = "test_dataset"
 data = dict(
     api = "COCO",
     samples_per_gpu=1,  # batch_size
-    workers_per_gpu=0,  # set 0 when running by katib or in pod (not have enough shared memory) 
+    workers_per_gpu=1,  
     train=dict(
         data_root = data_root,
         ann_file= 'train_dataset.json',
