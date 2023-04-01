@@ -6,28 +6,22 @@ def with_kfp_client():
     dashboard_cfg = {'user_n': 'winter4958@gmail.com', 'name_space': 'pipeline', 'host': 'http://localhost:8080', 'pw': '4958'}
     dashboard_cfg = Config(dashboard_cfg)
     client, session = connet_client(dashboard_cfg, return_session = True) 
-        
+
     session_cookie = session.cookies.get_dict()
     sklear_iris_input = dict(instances = [
     [6.8, 2.8, 4.8, 1.4],
     [6.0, 3.4, 4.5, 1.6]
     ])
 
-    HOST = "http://127.0.0.1:8080"
+    HOST = "http://127.0.0.1:8081"
 
-    headers = {'Host': "sklearn-iris.pipeline.svc.cluster.local"}
-    res = session.post(f"{HOST}/v1/models/v1/models/sklearn-iris:predict", 
-                        headers = headers, 
-                        cookies = session_cookie,
-                        data = json.dumps(sklear_iris_input))
+    headers = {'Host': "sklearn-iris-python2-predictor-default.pipeline.svc.cluster.local"}
+    res = session.post(f"{HOST}/v1/models/sklearn-iris-python2:predict", 
+                        headers=headers, 
+                        cookies=session_cookie,
+                        data=json.dumps(sklear_iris_input))
 
-    # res = session.post("http://sklearn-iris-python2.pipeline.svc.cluster.local/v1/models/sklearn-iris-python2:predict", 
-    #                     headers=headers, 
-    #                     cookies=session_cookie, 
-    #                     data=json.dumps(sklear_iris_input))
-    
-
-    print(f"res.json : {res.json}")
+    print(f"res.json : {res.json()}")
 
 
 
@@ -136,6 +130,6 @@ def tmp():
     ### 경우 2.  네트워크 연결이 안 된 경우 >> 아님
 
 
-# with_kfp_client()
+with_kfp_client()
 # with_kserve_client()
-tmp()
+# tmp()
