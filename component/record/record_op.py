@@ -50,7 +50,7 @@ def record(cfg : dict, input_run_flag: dict,
         print(f"    Run `record` in component for pipeline")
         PACKAGE_PATH = WORKSPACE['component_volume']
         # for import hibernation_no1
-        package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])
+        package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])        
         if not osp.isdir(package_repo_path):
             print(f" git clone 'hibernation_no1' to {package_repo_path}")
             
@@ -71,14 +71,14 @@ def record(cfg : dict, input_run_flag: dict,
     
     def main(cfg, in_pipeline = False):           
         if in_pipeline:
-            target_dataset = osp.join(os.getcwd(), cfg.dvc.category,
-                                                cfg.dvc.ann.name,
-                                                cfg.dvc.ann.version)
+            target_dataset = osp.join(os.getcwd(), 
+                                      cfg.dvc.ann.dir,
+                                      cfg.dvc.category)
             
             dvc_cfg = dict(remote = cfg.dvc.ann.remote,
-                        bucket_name = cfg.dvc.ann.gs_bucket,
-                        client_secrets = get_client_secrets(),
-                        data_root = target_dataset)
+                           bucket_name = cfg.dvc.ann.gs_bucket,
+                           client_secrets = get_client_secrets(),
+                           data_root = target_dataset)
             data_root = dvc_pull(**dvc_cfg)
             
             database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
@@ -92,6 +92,9 @@ def record(cfg : dict, input_run_flag: dict,
             check_table_exist(cursor, cfg.db.table)
         
             image_list, json_list = select_ann_data(cfg, cursor, database)
+            print(f"len(image_list): {len(image_list)}")
+            print(f"len(json_list): {len(json_list)}")
+            exit()
         else:
             data_root = osp.join(os.getcwd(), cfg.ann_data_root)
             if not osp.isdir(data_root): raise OSError(f"The path dose not exist!  \n path: {data_root}")
@@ -457,19 +460,16 @@ def record(cfg : dict, input_run_flag: dict,
 
         json_list = []
         image_list = []
-        for category, ann_version, json_name, image_name in zip(ann_version_df.category,
-                                                                ann_version_df.ann_version,
-                                                                ann_version_df.json_name,
-                                                                ann_version_df.image_name):
+        for category, json_name, image_name in zip(ann_version_df.category,
+											       ann_version_df.json_name,
+												   ann_version_df.image_name):
             json_list.append(osp.join(os.getcwd(), 
+                                      cfg.dvc.ann.dir,
                                       category, 
-                                      cfg.dvc.ann.name, # TODO : using from column 
-                                      ann_version,
                                       json_name))
             image_list.append(osp.join(os.getcwd(), 
-                                      category, 
-                                      cfg.dvc.ann.name, # TODO : using from column 
-                                      ann_version,
+                                      cfg.dvc.ann.dir,
+                                      category,
                                       image_name))
         
         return image_list, json_list
@@ -552,7 +552,6 @@ def record(cfg : dict, input_run_flag: dict,
                 os.makedirs(repo_path, exist_ok=True)
 
         Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset_repo}.git', os.getcwd())  
-        
          
      
 
@@ -564,11 +563,10 @@ def record(cfg : dict, input_run_flag: dict,
         
     if __name__=="__main__":
         if 'record' in input_run_flag['pipeline_run_flag']:
-            print("Run component: record")
             cfg = dict2Config(cfg, key_name ='flag_list2tuple')    
-            # git_clone_dataset(cfg)
+            git_clone_dataset(cfg)
             
-            # main(cfg, in_pipeline = True)
+            main(cfg, in_pipeline = True)
         else:
             print(f"Pass component: record")
         

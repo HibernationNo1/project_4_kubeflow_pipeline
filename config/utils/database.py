@@ -1,8 +1,8 @@
 db = dict(
     host=None, 
     port=None, 
-    user='project-pipeline', 
-    name='dataset',        
+    user='hibernation', 
+    name='pipeline_database',        
     charset='utf8',   
 
     table = dict(
@@ -16,7 +16,7 @@ db = dict(
         
         # name of `recordd dataset` table
         # recordd dataset: dataset that combines annotations data into a single file 
-        dataset = "dataset",        
+        dataset = "train_data",        
     )
 
     
