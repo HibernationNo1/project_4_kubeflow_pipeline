@@ -49,22 +49,20 @@ def project_pipeline(run_flag: dict,
             SECRETS[secrets_cate][key] = V1EnvVar(name=key, value_from=V1EnvVarSource(secret_key_ref=V1SecretKeySelector(name=client_sc_name, key=key)))
        
     _record_op = record_op(input_cfg, run_flag) \
-            .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
-    # _check_status_op = record_op(pipeline_run_flag, input_cfg)\
-    #     .add_env_variable(SECRETS['gs']["type"]) \
-    #     .add_env_variable(SECRETS['gs']["project_id"]) \
-    #     .add_env_variable(SECRETS['gs']["private_key_id"]) \
-    #     .add_env_variable(SECRETS['gs']["private_key"]) \
-    #     .add_env_variable(SECRETS['gs']["client_email"]) \
-    #     .add_env_variable(SECRETS['gs']["client_id"]) \
-    #     .add_env_variable(SECRETS['gs']["auth_uri"]) \
-    #     .add_env_variable(SECRETS['gs']["token_uri"]) \
-    #     .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
-    #     .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
-    #     .add_env_variable(SECRETS['db']["password"]) \
-    #     .add_env_variable(SECRETS['db']["host"]) \
-    #     .add_env_variable(SECRETS['db']["port"]) \
-    #     .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
+        .add_env_variable(SECRETS['gs']["type"]) \
+        .add_env_variable(SECRETS['gs']["project_id"]) \
+        .add_env_variable(SECRETS['gs']["private_key_id"]) \
+        .add_env_variable(SECRETS['gs']["private_key"]) \
+        .add_env_variable(SECRETS['gs']["client_email"]) \
+        .add_env_variable(SECRETS['gs']["client_id"]) \
+        .add_env_variable(SECRETS['gs']["auth_uri"]) \
+        .add_env_variable(SECRETS['gs']["token_uri"]) \
+        .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
+        .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
+        .add_env_variable(SECRETS['db']["password"]) \
+        .add_env_variable(SECRETS['db']["host"]) \
+        .add_env_variable(SECRETS['db']["port"]) \
+        .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
     
     _train_op = train_op(input_cfg, _record_op.outputs['run_flag'])\
         .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
@@ -92,71 +90,6 @@ def project_pipeline(run_flag: dict,
     _test_op = test_op(input_cfg, _evaluate_op.outputs['run_flag'])\
         .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume}) 
 
-
-# @dsl.pipeline(name="hibernation_project")
-# def project_pipeline(cfg_recode : dict, recode_using,
-#                      cfg_train : dict, train_using, 
-#                      cfg_validation : dict, validation_using,
-#                      pvc: dict
-#                      ): 
-#     # persistance volume
-#     pvc_cfg = CONFIGS['pipeline'].kbf.volume.pvc
-#     pvc_volume = dsl.VolumeOp(name= pvc_cfg.name,
-#                        resource_name= pvc_cfg.resource_name,
-#                        modes= pvc_cfg.mode,
-#                        storage_class = pvc_cfg.storage_class,
-#                        size= pvc_cfg.size)
-    
-    
-#     # for allocate shared memory
-#     shm_volume_cfg = CONFIGS['pipeline'].kbf.volume.share_memory
-#     shm_volume = dsl.PipelineVolume(
-#         volume=V1Volume(
-#             name= shm_volume_cfg.name,
-#             empty_dir=V1EmptyDirVolumeSource(medium=shm_volume_cfg.medium))
-#         )  
-
-    
-#     # set secrets
-#     client_sc_name = "client-secrets"
-#     for secrets_cate, secrets_cfg in SECRETS.items():
-#         for key in secrets_cfg:
-#             SECRETS[secrets_cate][key] = V1EnvVar(name=key, value_from=V1EnvVarSource(secret_key_ref=V1SecretKeySelector(name=client_sc_name, key=key)))
-       
-#     with dsl.Condition(recode_using == True) :   
-#         _check_status_op = recode_op(cfg_recode)\
-#             .add_env_variable(SECRETS['gs']["type"]) \
-#             .add_env_variable(SECRETS['gs']["project_id"]) \
-#             .add_env_variable(SECRETS['gs']["private_key_id"]) \
-#             .add_env_variable(SECRETS['gs']["private_key"]) \
-#             .add_env_variable(SECRETS['gs']["client_email"]) \
-#             .add_env_variable(SECRETS['gs']["client_id"]) \
-#             .add_env_variable(SECRETS['gs']["auth_uri"]) \
-#             .add_env_variable(SECRETS['gs']["token_uri"]) \
-#             .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
-#             .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
-#             .add_env_variable(SECRETS['db']["password"]) \
-#             .add_env_variable(SECRETS['db']["host"]) \
-#             .add_env_variable(SECRETS['db']["port"]) \
-#             .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
-    
-#     with dsl.Condition(train_using == True) :
-#         _train_op = train_op(cfg_train)\
-#             .add_env_variable(SECRETS['gs']["type"]) \
-#             .add_env_variable(SECRETS['gs']["project_id"]) \
-#             .add_env_variable(SECRETS['gs']["private_key_id"]) \
-#             .add_env_variable(SECRETS['gs']["private_key"]) \
-#             .add_env_variable(SECRETS['gs']["client_email"]) \
-#             .add_env_variable(SECRETS['gs']["client_id"]) \
-#             .add_env_variable(SECRETS['gs']["auth_uri"]) \
-#             .add_env_variable(SECRETS['gs']["token_uri"]) \
-#             .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
-#             .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
-#             .add_env_variable(SECRETS['db']["password"]) \
-#             .add_env_variable(SECRETS['db']["host"]) \
-#             .add_env_variable(SECRETS['db']["port"]) \
-#             .add_pvolumes({shm_volume_cfg.path: shm_volume})\
-#             .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
 
 def _parse_args():
     
