@@ -189,10 +189,10 @@ def set_config(args):
             func(args, config)
         else: config = None
         # CONFIGS[key] = False or Config
-        # if False, components matching the key will be excluded from the pipeline.
+        # if False, components matching the key will be passed from the pipeline.
         # >>    example
         # >>    CONFIGS[record] = False
-        # >>    `record_op` component will be excluded from the pipeline.
+        # >>    `record_op` component will be passed from the pipeline.
         CONFIGS[key] = config
 
 
