@@ -39,12 +39,12 @@ def record(cfg : dict, input_run_flag: dict,
             local_module_path = osp.join(os.getcwd(), cfg['git']['package_repo'])       
         
         if osp.isdir(local_module_path):
-            PACKAGE_PATH = local_module_path
+            PACKAGE_PATH = os.getcwd()
             print(f"    Run `record` locally")
             
         elif osp.isdir(docker_volume):
             PACKAGE_PATH = docker_volume
-            print(f"    Run `record` in container for katib")
+            print(f"    Run `record` in docker container")
             
         else:
             raise OSError(f"Paths '{docker_volume}' and '{local_module_path}' do not exist!")
