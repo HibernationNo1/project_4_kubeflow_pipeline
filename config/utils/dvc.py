@@ -17,10 +17,3 @@ dvc = dict(
         val = 'val_dataset.json'           # name of recordd file(.json format) for validation 
     )
 )
-
-git = dict(
-    remote = "origin",
-    branch = "master",
-    dataset_repo = "pipeline_dataset",
-    package_repo = "sub_module"
-)
