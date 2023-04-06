@@ -22,5 +22,5 @@ git = dict(
     remote = "origin",
     branch = "master",
     dataset_repo = "pipeline_dataset",
-    package_repo = "hibernation_no1"
+    package_repo = "sub_module"
 )

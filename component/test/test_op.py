@@ -41,22 +41,22 @@ def test(cfg : dict, input_run_flag: InputPath("dict"),
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `test` in component for pipeline")
         PACKAGE_PATH = WORKSPACE['component_volume']
-        # for import hibernation_no1
+        # for import sub_module
         package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])
         if not osp.isdir(package_repo_path):
-            print(f" git clone 'hibernation_no1' to {package_repo_path}")
+            print(f" git clone 'sub_module' to {package_repo_path}")
             
             Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git']['package_repo']}.git", package_repo_path)
      
     sys.path.append(PACKAGE_PATH)   
 
-    from hibernation_no1.configs.pipeline import dict2Config
-    from hibernation_no1.configs.config import Config
-    from hibernation_no1.mmdet.inference import build_detector, inference_detector, parse_inference_result
-    from hibernation_no1.mmdet.modules.dataparallel import build_dp
-    from hibernation_no1.mmdet.visualization import draw_to_img
+    from sub_module.configs.pipeline import dict2Config
+    from sub_module.configs.config import Config
+    from sub_module.mmdet.inference import build_detector, inference_detector, parse_inference_result
+    from sub_module.mmdet.modules.dataparallel import build_dp
+    from sub_module.mmdet.visualization import draw_to_img
 
-    from hibernation_no1.mmdet.get_info_algorithm import Get_info
+    from sub_module.mmdet.get_info_algorithm import Get_info
 
     import numpy as np
 

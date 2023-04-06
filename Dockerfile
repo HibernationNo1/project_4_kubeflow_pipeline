@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.co
 # RUN pip install mmdet     # if run this line, get 'MMCV CUDA Compiler: not available'
 
 RUN apt-get install -y git
-RUN git clone https://github.com/HibernationNo1/hibernation_no1.git
+RUN git clone https://github.com/HibernationNo1/sub_module.git
 
 ENTRYPOINT ["python", "main.py", "--katib"]
   

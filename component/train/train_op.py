@@ -54,29 +54,29 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `train` in component for pipeline")
         PACKAGE_PATH = WORKSPACE['component_volume']
-        # for import hibernation_no1
+        # for import sub_module
         package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])
         if not osp.isdir(package_repo_path):
-            print(f" git clone 'hibernation_no1' to {package_repo_path}")
+            print(f" git clone 'sub_module' to {package_repo_path}")
             
             Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git']['package_repo']}.git", package_repo_path)
      
     sys.path.append(PACKAGE_PATH) 
         
-    from hibernation_no1.configs.pipeline import dict2Config, replace_config
-    from hibernation_no1.configs.config import Config
-    from hibernation_no1.database.mysql import check_table_exist
-    from hibernation_no1.cloud.google.storage import set_gs_credentials, get_client_secrets
-    from hibernation_no1.cloud.google.dvc import dvc_pull
+    from sub_module.configs.pipeline import dict2Config, replace_config
+    from sub_module.configs.config import Config
+    from sub_module.database.mysql import check_table_exist
+    from sub_module.cloud.google.storage import set_gs_credentials, get_client_secrets
+    from sub_module.cloud.google.dvc import dvc_pull
     
-    from hibernation_no1.utils.utils import get_environ
+    from sub_module.utils.utils import get_environ
     
-    from hibernation_no1.utils.log import LOGGERS, get_logger, collect_env_cuda
-    from hibernation_no1.mmdet.data.dataset import build_dataset
-    from hibernation_no1.mmdet.data.dataloader import build_dataloader
-    from hibernation_no1.mmdet.modules.dataparallel import build_dp
-    from hibernation_no1.mmdet.optimizer import build_optimizer
-    from hibernation_no1.mmdet.runner import build_runner
+    from sub_module.utils.log import LOGGERS, get_logger, collect_env_cuda
+    from sub_module.mmdet.data.dataset import build_dataset
+    from sub_module.mmdet.data.dataloader import build_dataloader
+    from sub_module.mmdet.modules.dataparallel import build_dp
+    from sub_module.mmdet.optimizer import build_optimizer
+    from sub_module.mmdet.runner import build_runner
             
         
     def main(cfg, in_pipeline = False):    
@@ -119,7 +119,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             model_cfg = cfg.model.copy()
             
             model_cfg.pop("type")
-            from hibernation_no1.mmdet.modules.detector.maskrcnn import MaskRCNN
+            from sub_module.mmdet.modules.detector.maskrcnn import MaskRCNN
             model = MaskRCNN(**model_cfg)
         
         
@@ -187,7 +187,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             >> And the configuration of model occupies a lot of the input parameter size, rasing `size exceeds 10,000` Error.
         """
             
-        package_name = cfg.git.get('package_repo', 'hibernation_no1')
+        package_name = cfg.git.get('package_repo', 'sub_module')
         package_dir = osp.join(PACKAGE_PATH, package_name)    
         model_cfg_dir = osp.join(package_dir, 'mmdet', 'modules', 'configs')
         

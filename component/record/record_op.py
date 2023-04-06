@@ -49,23 +49,23 @@ def record(cfg : dict, input_run_flag: dict,
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `record` in component for pipeline")
         PACKAGE_PATH = WORKSPACE['component_volume']
-        # for import hibernation_no1
+        # for import sub_module
         package_repo_path = osp.join(WORKSPACE['component_volume'], cfg['git']['package_repo'])        
         if not osp.isdir(package_repo_path):
-            print(f" git clone 'hibernation_no1' to {package_repo_path}")
+            print(f" git clone 'sub_module' to {package_repo_path}")
             
             Repo.clone_from(f"git@github.com:HibernationNo1/{cfg['git']['package_repo']}.git", package_repo_path)
      
     sys.path.append(PACKAGE_PATH) 
     
     
-    from hibernation_no1.configs.pipeline import dict2Config 
-    from hibernation_no1.configs.utils import NpEncoder
-    from hibernation_no1.configs.config import Config
-    from hibernation_no1.utils.utils import get_environ
-    from hibernation_no1.cloud.google.storage import get_client_secrets
-    from hibernation_no1.cloud.google.dvc import dvc_pull, dvc_add, dvc_push
-    from hibernation_no1.database.mysql import check_table_exist
+    from sub_module.configs.pipeline import dict2Config 
+    from sub_module.configs.utils import NpEncoder
+    from sub_module.configs.config import Config
+    from sub_module.utils.utils import get_environ
+    from sub_module.cloud.google.storage import get_client_secrets
+    from sub_module.cloud.google.dvc import dvc_pull, dvc_add, dvc_push
+    from sub_module.database.mysql import check_table_exist
     
     TODAY = str(datetime.date.today())
     

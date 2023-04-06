@@ -10,6 +10,6 @@ gs = dict(
 path = dict(
     component_volume = "/pvc",                # pvc volume path
     work_space = '/workspace',              # path of workspace in docker container
-    local_volume = 'pvc-85cd63fa-f50d-48b3-927d-7549207eb2da_pipeline_hibernation-project-l7hfg-pipeline-pvc-2',
+    local_volume = 'pvc-529780dc-9c00-447c-a8f3-003c3f69d1af_pipeline_hibernation-project-r2m2s-pipeline-pvc-2',
     docker_volume = 'docker_volume' 
 )
