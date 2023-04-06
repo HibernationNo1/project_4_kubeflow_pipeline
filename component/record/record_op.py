@@ -24,17 +24,22 @@ def record(cfg : dict, input_run_flag: dict,
 
  
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
-                     local_volume = cfg['path']['local_volume'],     # pvc volume path on local
+                     local_volume = cfg['path'].get('local_volume', None),     # pvc volume path on local
                      docker_volume = cfg['path']['docker_volume'],     # volume path on katib container
                      work = cfg['path']['work_space']
                      )    
 
     # set package path to 'import {custom_package}'
     if __name__=="component.record.record_op":
-        local_volume = osp.join('/opt/local-path-provisioner', WORKSPACE['local_volume']) 
         docker_volume = f"/{WORKSPACE['docker_volume']}"
-        if osp.isdir(local_volume):
-            PACKAGE_PATH = local_volume
+        
+        if WORKSPACE['local_volume'] is not None:
+            local_module_path = osp.join('/opt/local-path-provisioner', WORKSPACE['local_volume']) 
+        else:
+            local_module_path = osp.join(os.getcwd(), cfg['git']['package_repo'])       
+        
+        if osp.isdir(local_module_path):
+            PACKAGE_PATH = local_module_path
             print(f"    Run `record` locally")
             
         elif osp.isdir(docker_volume):
@@ -42,7 +47,7 @@ def record(cfg : dict, input_run_flag: dict,
             print(f"    Run `record` in container for katib")
             
         else:
-            raise OSError(f"Paths '{docker_volume}' and '{local_volume}' do not exist!")
+            raise OSError(f"Paths '{docker_volume}' and '{local_module_path}' do not exist!")
 
     if __name__=="__main__":    
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
@@ -461,8 +466,8 @@ def record(cfg : dict, input_run_flag: dict,
         json_list = []
         image_list = []
         for category, json_name, image_name in zip(ann_version_df.category,
-											       ann_version_df.json_name,
-												   ann_version_df.image_name):
+                                                   ann_version_df.json_name,
+                                                   ann_version_df.image_name):
             json_list.append(osp.join(os.getcwd(), 
                                       cfg.dvc.ann.dir,
                                       category, 
