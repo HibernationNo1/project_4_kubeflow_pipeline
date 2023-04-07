@@ -14,9 +14,17 @@ path = dict(
     docker_volume = 'docker_volume' 
 )
 
+
 git = dict(
     remote = "origin",
-    branch = "master",
+    branch = dict(dataset_repo = 'develop'),		# for run `git commit`.
+    dataset = dict(
+        repo = "pipeline_dataset",
+        key = "ann_dataset",
+        category = "board_dataset",
+        tag = "board_dataset_v0.0.5",
+        db_ann_version = "0.0.5"
+    ),
     dataset_repo = "pipeline_dataset",
-    package_repo = "sub_module"
+    package_repo = "sub_module",
 )
