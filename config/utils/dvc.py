@@ -5,7 +5,7 @@ dvc = dict(
         dir = "ann_dataset",
         remote = "ann_dataset",
         gs_bucket = "ann_dataset_hibernation",
-        version = "0.0.1",
+        version = "0.0.5"
     ),
     
     record = dict(
