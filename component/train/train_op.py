@@ -55,7 +55,12 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                           f"\n package_dir: {package_dir}"
                           f"\n local_module_path:'{local_module_path}'")
 
-    if __name__=="__main__":    
+    if __name__=="__main__":           
+        if os.getcwd() != WORKSPACE['work']:
+            workspace = WORKSPACE['work']
+            os.makedirs(workspace, exist_ok = True)
+            os.chdir(workspace)
+         
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `train` in component for pipeline")
