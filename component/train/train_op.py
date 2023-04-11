@@ -90,11 +90,10 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     from sub_module.mmdet.runner import build_runner
             
         
-    def main(cfg, in_pipeline = False):    
+    def main(cfg, train_result, in_pipeline = False):    
         assert torch.cuda.is_available()
         set_model_config(cfg)
-        
-        train_result = osp.join(os.getcwd(), cfg.train_result)
+    
         os.makedirs(train_result, exist_ok=True)
         
         set_logs(cfg, train_result)
@@ -102,6 +101,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         cfg.device = "cuda"
         
         if in_pipeline:
+            git_clone_dataset(cfg) 
             train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, load_dataset_from_dvc_db(cfg)))
         else:
             val_cfg = cfg.data.val.copy()
@@ -186,6 +186,8 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                        # val_dataloader = val_dataloader
 
         train_runner.run(**run_cfg)
+        
+        return train_result
         
 
              
@@ -455,13 +457,13 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     if __name__=="__main__": 
         with open(input_run_flag, "r", encoding='utf-8') as f:
             input_run_flag = json.load(f) 
-
         if 'train' in input_run_flag['pipeline_run_flag']:
-            cfg = dict2Config(cfg, key_name ='flag_list2tuple')       
-         
-            # git_clone_dataset(cfg)              
-            # main(cfg, in_pipeline = True)        
-            # upload_models(cfg)
+            cfg = dict2Config(cfg, key_name ='flag_list2tuple')          
+            
+            train_result = main(cfg, 
+                                osp.join(WORKSPACE['component_volume'], cfg.train_result),
+                                in_pipeline = True)        
+            upload_models(cfg, train_result)
         else:
             print(f"Pass component: train")
         
