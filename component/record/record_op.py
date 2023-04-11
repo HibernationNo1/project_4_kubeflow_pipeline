@@ -22,7 +22,8 @@ def record(cfg : dict, input_run_flag: dict,
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
 
- 
+	
+	
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
                      local_volume = cfg['path'].get('local_volume', None),     # pvc volume path on local
                      docker_volume = cfg['path']['docker_volume'],     # volume path on katib container
@@ -30,7 +31,7 @@ def record(cfg : dict, input_run_flag: dict,
                      )    
 
     # set package path to 'import {custom_package}'
-    if __name__=="component.record.record_op":
+    if __name__=="component.record.record_op":        
         docker_volume = f"/{WORKSPACE['docker_volume']}"
         
         if WORKSPACE['local_volume'] is not None:
@@ -50,6 +51,10 @@ def record(cfg : dict, input_run_flag: dict,
             raise OSError(f"Paths '{docker_volume}' and '{local_module_path}' do not exist!")
 
     if __name__=="__main__":    
+        workspace = osp.join(os.getcwd(), cfg['git']['dataset']['repo'])
+        os.makedirs(workspace, exist_ok = True)
+        os.chdir(osp.join(os.getcwd(), cfg['git']['dataset']['repo']))
+
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `record` in component for pipeline")
@@ -76,6 +81,8 @@ def record(cfg : dict, input_run_flag: dict,
     
     def main(cfg, in_pipeline = False):           
         if in_pipeline:
+            git_repo = git_clone_dataset(cfg)
+                        
             target_dataset = osp.join(os.getcwd(), 
                                       cfg.dvc.ann.dir,
                                       cfg.dvc.category)
@@ -83,7 +90,8 @@ def record(cfg : dict, input_run_flag: dict,
             dvc_cfg = dict(remote = cfg.dvc.ann.remote,
                            bucket_name = cfg.dvc.ann.gs_bucket,
                            client_secrets = get_client_secrets(),
-                           data_root = target_dataset)
+                           data_root = target_dataset,
+                           dvc_path = osp.join(os.getcwd(), ".dvc"))
             data_root = dvc_pull(**dvc_cfg)
             
             database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
@@ -97,9 +105,6 @@ def record(cfg : dict, input_run_flag: dict,
             check_table_exist(cursor, cfg.db.table)
         
             image_list, json_list = select_ann_data(cfg, cursor, database)
-            print(f"len(image_list): {len(image_list)}")
-            print(f"len(json_list): {len(json_list)}")
-            exit()
         else:
             data_root = osp.join(os.getcwd(), cfg.ann_data_root)
             if not osp.isdir(data_root): raise OSError(f"The path dose not exist!  \n path: {data_root}")
@@ -122,17 +127,19 @@ def record(cfg : dict, input_run_flag: dict,
         assert len(os.listdir(result_dir)) != 0, f"Images not saved!  \nPath: {result_dir}"
         assert osp.isfile(record_dataset.train_dataset_path),\
             f"Paht: {record_dataset.train_dataset_path}, is not exist!!"
-
+       
         if in_pipeline:
             insert_record_data(cfg, cursor, record_dataset.saved_image_list_train, "train")
             insert_record_data(cfg, cursor, record_dataset.saved_image_list_val, "val")
             
-            dvc_add(target_dir = result_dir, dvc_name = cfg.dvc.record.version)
-            git_push(cfg)
+            dvc_add(target_dir = result_dir)
+            git_push(cfg, git_repo)
             dvc_push(remote = cfg.dvc.record.remote,
-                    bucket_name = cfg.dvc.record.gs_bucket,
-                    client_secrets = get_client_secrets())
+                     bucket_name = cfg.dvc.record.gs_bucket,
+                     client_secrets = get_client_secrets(),
+                     dvc_path = osp.join(os.getcwd(), ".dvc"))
             
+            print(f"Run DataBase commit")
             database.commit()
             database.close()
         print(f"completed.")
@@ -152,7 +159,7 @@ def record(cfg : dict, input_run_flag: dict,
             """ Parsing the json list and record the train dataset and validation dataset
                 to one file json format each.
                 
-                save recode images for training
+                save record images for training
 
             Args:
                 cfg (Config): config 
@@ -167,6 +174,9 @@ def record(cfg : dict, input_run_flag: dict,
             self.cfg = cfg
             self.image_list = image_list   
             self.json_list = json_list   
+            if len(self.image_list)!=len(self.json_list):
+                raise ValueError(f"Number of images and json files is not the same!"
+                                 f"\n images:{len(self.image_list)}, json files: {len(self.json_list)}")
             self.data_root = data_root
             self.pre_processing = pre_processing
             self.in_pipeline = in_pipeline
@@ -184,15 +194,14 @@ def record(cfg : dict, input_run_flag: dict,
             
             if self.in_pipeline:
                 self.record_dataset_path = osp.join(os.getcwd(), 
-                                                    cfg.dvc.category,
-                                                    cfg.dvc.record.name,
-                                                    cfg.dvc.record.version)
+                                                    cfg.dvc.record.dir,
+                                                    cfg.dvc.category)
             else:
                 self.record_dataset_path = osp.join(os.getcwd(),
                                                     cfg.record_result)
         
             os.makedirs(self.record_dataset_path, exist_ok=True)
-            
+            print(f" category: {cfg.dvc.category}")
             print(f" Number of image: {len(image_list)}")
             self.data_transfer()
             
@@ -229,7 +238,7 @@ def record(cfg : dict, input_run_flag: dict,
                 print(f"\n Part_optional: apply pre-processing to dataset.")
                 self.run_pre_processing()
             
-            print(f"\n Part_6: save recode dataset.")
+            print(f"\n Part_6: save record dataset.")
             self.save_json()
             
             # if self.pre_processing, save pre-processed image in run_pre_processing()
@@ -455,6 +464,10 @@ def record(cfg : dict, input_run_flag: dict,
                
     
     def select_ann_data(cfg, cursor, database):
+        assert cfg.dvc.ann.version == cfg.git.dataset.ann.version, \
+            f"The config `cfg.dvc.ann.version` and `cfg.git.dataset.ann.version` must be same."\
+            f"\b cfg.dvc.ann.version: {cfg.dvc.ann.version}"\
+            f"cfg.git.dataset.ann.version: {cfg.git.dataset.ann.version}"
         # select ann data
         select_sql = f"SELECT * FROM {cfg.db.table.anns} WHERE ann_version = '{cfg.dvc.ann.version}';"
         num_results = cursor.execute(select_sql)
@@ -482,33 +495,35 @@ def record(cfg : dict, input_run_flag: dict,
     
     # insert dataset to database
     def insert_record_data(cfg, cursor, saved_image_list, purpose):
+        
         if purpose == "train":
             record_file = cfg.record.train_dataset
         elif purpose == "val":
             record_file = cfg.record.val_dataset            
         
-        # TODO : add column named ann_name   
+        print(f"\nInserte data to DB.  Name of table: {cfg.db.table.image_data}, for {purpose}")
+        print(f"    Columns: `dataset_purpose`, `image_name`, `record_file`, `category`, `train_version`")
         for image_name in saved_image_list:
             insert_sql = f"INSERT INTO {cfg.db.table.image_data}"\
-                        f"(dataset_purpose, image_name, record_file, category, record_version)"\
+                        f"(dataset_purpose, image_name, record_file, category, train_version)"\
                         f"VALUES('{purpose}', '{image_name}', '{record_file}',"\
                         f"'{cfg.dvc.category}', '{cfg.dvc.record.version}');" 
             
             cursor.execute(insert_sql)
-            
-        # TODO : add column named record_name 
+                    
         select_sql = f"SELECT * FROM {cfg.db.table.image_data} "\
-                     f"WHERE record_version = '{cfg.dvc.record.version}' AND dataset_purpose = '{purpose}';"
+                     f"WHERE train_version = '{cfg.dvc.record.version}' AND dataset_purpose = '{purpose}';"
         num_results = cursor.execute(select_sql)
         assert num_results == len(saved_image_list),\
             f" `{cfg.dvc.record.version}` version of record dataset is not being inserted into database"\
             f"\n     DB: {cfg.db.name},      table: {cfg.db.table.image_data},    purpose: {purpose}"\
             f"      num_results: {num_results}      len(saved_image_list): {len(saved_image_list)}"
 
-        # TODO : add column named record_name 
+        print(f"Inserte data to DB.  Name of table: {cfg.db.table.dataset}")
+        print(f"    Columns: `dataset_purpose`, `category`, `record_file`, `train_version`")
         # insert dataset (.json fomat)
         insert_sql = f"INSERT INTO {cfg.db.table.dataset}"\
-                         f"(dataset_purpose, category, record_file, record_version)"\
+                         f"(dataset_purpose, category, record_file, train_version)"\
                          f"VALUES('{purpose}', '{cfg.dvc.category}', '{record_file}',"\
                          f"'{cfg.dvc.record.version}');" 
         cursor.execute(insert_sql)
@@ -516,60 +531,83 @@ def record(cfg : dict, input_run_flag: dict,
     
     
     
-    def git_push(cfg):
-        repo = Repo(os.getcwd())
-        # Path for git add must not include $(pwd) path.
-        print(f"\ngit add {cfg.dvc.category}/{cfg.dvc.record.name}/")
-        repo.git.add(f"{cfg.dvc.category}/{cfg.dvc.record.name}/")    
+    def git_push(cfg, repo):
+        repo.git.checkout(f"{cfg.git.branch.dataset.repo}")
         
-        print(f"\ngit add .dvc/config")    
-        repo.git.add(f".dvc/config")
-        repo.index.commit(f"{cfg.dvc.category}:: {cfg.dvc.record.name}:: {cfg.dvc.record.version}")
-        subprocess.call([f"git push {cfg.git.remote} {cfg.git.branch}"], shell=True)
-        ##  repo.remote is not work in container
-        # origin = repo.remote(name= 'origin')
-        # origin.push()
-            
+        # Check where HEAD is located
+        print(f"Run `$ git branch`")
+        for branch in repo.branches:
+            if str(branch)==cfg.git.branch.dataset.repo:
+                print(f"  * {branch}(activate)")
+            else:
+                print(f"    {branch}")
+
+        assert cfg.git.branch.dataset.repo == str(repo.active_branch), \
+            f"The branch of the set HEAD and active branch is different.\n"\
+            f"Set branch HEAD: {cfg.git.branch.dataset.repo}, active branch: {repo.active_branch} "
+
+        # Check working directory status
+        untracked_files = repo.untracked_files
+        for file_ in untracked_files:
+            file_path = osp.join(os.getcwd(), str(file_))
+            if not osp.isfile(file_path):
+                raise OSError(f"file_path: {file_path} is not exist!")
+            print(f"Run `$ git add {file_path}`")      
+            repo.git.add(f"{file_path}") 
         
+        # Check staging status
+        staged_files = [item.a_path for item in repo.index.diff("HEAD")]
+        assert len(staged_files)!=0, f"There are no staged file.  check command: `git add`"
+        
+        # Run git commit with massage
+        commit_msg = f"docs: tag: {cfg.dvc.category}_{cfg.dvc.record.dir}_{cfg.dvc.record.version}"
+        print(f"Run `$ git commit -m '{commit_msg}'`")
+        repo.index.commit(f"{commit_msg}")
+        
+        # Run git push
+        git_remote_name = cfg.git.get("remote", "origin")
+        print(f"Run `$ git push {git_remote_name} {cfg.git.branch.dataset.repo}`")
+        origin = repo.remote(git_remote_name)
+        origin.push(cfg.git.branch.dataset.repo)        
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset_repo)
+        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset.repo)
         if osp.isdir(repo_path):
-            if len(os.listdir(repo_path)) != 0:
-                # ----
-                # repo = Repo(osp.join(WORKSPACE['work'], cfg.git.dataset_repo))
-                # origin = repo.remotes.origin  
-                # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
-                # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
-                
-                # import subprocess       # this command working only shell, not gitpython.
-                # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
-                # subprocess.call([safe_directory_str], shell=True)      
-
-                # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
-                # origin.pull()   
-                # ----
-                
+            if len(os.listdir(repo_path)) != 0: 
                 # ssh key not working when trying git pull with gitpython
                 # delete all file cloned before and git clone again  
                 import shutil
                 shutil.rmtree(repo_path, ignore_errors=True)
                 os.makedirs(repo_path, exist_ok=True)
 
-        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset_repo}.git', os.getcwd())  
-         
-     
+        try:
+            print(f"Run `$ git clone git@github.com:HibernationNo1/{cfg.git.dataset.repo}.git`")
+            repo = Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset.repo}.git', os.getcwd())  
+        except:
+            print(f"Can't git clone with ssh!")
+            print(f"Run `$ git clone https://github.com/HibernationNo1/{cfg.git.dataset.repo}.git`")
+            repo = Repo.clone_from(f"https://github.com/HibernationNo1/{cfg.git.dataset.repo}.git", os.getcwd())
+
+        remote_tags = repo.git.ls_remote("--tags").split("\n")
+        tag_names = [tag.split('/')[-1] for tag in remote_tags if tag]
+        if cfg.git.dataset.ann.tag not in tag_names:
+            raise KeyError(f"The `{cfg.git.dataset.ann.tag}` is not exist in tags of repository `Hibernation/{cfg.git.dataset.repo}`")
+
+        # checkout HEAD to tag
+        repo.git.checkout(cfg.git.dataset.ann.tag)
+        
+        return repo
+
 
     if __name__=="component.record.record_op":    
         print(f"    Run record")
         cfg = Config(cfg)
         main(cfg)
-        
-        
+    
+    
     if __name__=="__main__":
         if 'record' in input_run_flag['pipeline_run_flag']:
             cfg = dict2Config(cfg, key_name ='flag_list2tuple')    
-            git_clone_dataset(cfg)
             
             main(cfg, in_pipeline = True)
         else:

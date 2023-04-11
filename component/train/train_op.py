@@ -55,7 +55,12 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                           f"\n package_dir: {package_dir}"
                           f"\n local_module_path:'{local_module_path}'")
 
-    if __name__=="__main__":    
+    if __name__=="__main__":           
+        if os.getcwd() != WORKSPACE['work']:
+            workspace = WORKSPACE['work']
+            os.makedirs(workspace, exist_ok = True)
+            os.chdir(workspace)
+         
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `train` in component for pipeline")
@@ -85,11 +90,10 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     from sub_module.mmdet.runner import build_runner
             
         
-    def main(cfg, in_pipeline = False):    
+    def main(cfg, train_result, in_pipeline = False):    
         assert torch.cuda.is_available()
         set_model_config(cfg)
-        
-        train_result = osp.join(os.getcwd(), cfg.train_result)
+    
         os.makedirs(train_result, exist_ok=True)
         
         set_logs(cfg, train_result)
@@ -97,6 +101,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         cfg.device = "cuda"
         
         if in_pipeline:
+            git_clone_dataset(cfg) 
             train_dataset, val_dataset = build_dataset(**set_dataset_cfg(cfg, load_dataset_from_dvc_db(cfg)))
         else:
             val_cfg = cfg.data.val.copy()
@@ -154,15 +159,15 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         for hook_cfg in cfg.hook_configs:     
             if hook_cfg.type == 'CheckpointHook': 
                 hook_cfg.model_cfg = cfg.model
+                hook_cfg.out_dir = train_result
                 
             if hook_cfg.type == 'Validation_Hook': 
                 hook_cfg.val_dataloader = val_dataloader
                 hook_cfg.logger = get_logger("validation")
-                hook_cfg.result_dir = train_result
                 
                  
             if hook_cfg.type == 'TensorBoard_Hook' and in_pipeline: 
-                hook_cfg.pvc_dir = osp.join(WORKSPACE['volume'], hook_cfg.pvc_dir) 
+                hook_cfg.pvc_dir = osp.join(WORKSPACE['component_volume'], hook_cfg.pvc_dir) 
                                     
         train_runner.register_training_hooks(cfg.hook_configs)  
 
@@ -181,6 +186,8 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                        # val_dataloader = val_dataloader
 
         train_runner.run(**run_cfg)
+        
+        return train_result
         
 
              
@@ -231,7 +238,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     
     def set_dataset_cfg(cfg, database):
         def get_dataframe(table, version):
-            base_sql = f"SELECT * FROM {table} WHERE record_version = '{version}'"
+            base_sql = f"SELECT * FROM {table} WHERE train_version = '{version}'"
             df = dict()
             for perpose in ["train", "val"]:
                 sql = base_sql + f" AND dataset_purpose = '{perpose}'"
@@ -242,38 +249,43 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         # df_dataset = get_dataframe(cfg.db.table.dataset, cfg.dvc.record.version)
         
         val_data_cfg = cfg.data.val.copy()
-        _ = val_data_cfg.pop("batch_size", None)       # TODO: check batch_size is not using 
+        _ = val_data_cfg.pop("batch_size", None)       
         
-        cfg.data.train.data_root = osp.join(os.getcwd(),
-                                            df_image['train'].category[0], 
-                                            "record", 
-                                            df_image['train'].record_version[0])
+        if not osp.isdir(cfg.data.train.data_root): 
+            cfg.data.train.data_root = osp.join(os.getcwd(),
+                                                cfg.git.dataset.repo,
+                                                cfg.dvc.record.dir,
+                                                df_image['train'].category[0])
+        
+        assert osp.isdir(cfg.data.train.data_root), f"Path of train dataset dir is not exist! \npath: {cfg.data.train.data_root}"
         cfg.data.train.ann_file = osp.join(cfg.data.train.data_root,
                                         df_image['train'].record_file[0])
+        assert osp.isfile(cfg.data.train.ann_file), f"Path of train dataset is not exist! \npath: {cfg.data.train.ann_file}"
+      
         
-        
-        val_data_cfg.data_root = osp.join(os.getcwd(), 
-                                        df_image['val'].category[0], 
-                                        "record", 
-                                        df_image['val'].record_version[0])
-        val_data_cfg.ann_file = osp.join(cfg.data.train.data_root, 
+        val_data_cfg.data_root = cfg.data.train.data_root
+        val_data_cfg.ann_file = osp.join(val_data_cfg.data_root, 
                                         df_image['val'].record_file[0])
-    
+        assert osp.isfile(val_data_cfg.ann_file), f"Path of validaiton dataset is not exist! \npath: {val_data_cfg.ann_file}"
         dataset_cfg = dict(dataset_api = cfg.data.api,
-                        train_cfg = cfg.data.train,
-                        val_cfg = val_data_cfg)
+                           train_cfg = cfg.data.train,
+                           val_cfg = val_data_cfg)
         return dataset_cfg
         
     
     def load_dataset_from_dvc_db(cfg):
-        data_root = osp.join(os.getcwd(), cfg.dvc.category,
-                                            cfg.dvc.record.name,
-                                            cfg.dvc.record.version)
+        dataset_dir = osp.join(os.getcwd(),
+                               cfg.git.dataset.repo)
+        
+        data_root = osp.join(dataset_dir,
+                             cfg.dvc.record.dir,
+                             cfg.dvc.category)
         
         dvc_cfg = dict(remote = cfg.dvc.record.remote,
                        bucket_name = cfg.dvc.record.gs_bucket,
                        client_secrets = get_client_secrets(),
-                       data_root = data_root)
+                       data_root = data_root,
+                       dvc_path = osp.join(dataset_dir, ".dvc"))
         dvc_pull(**dvc_cfg)
 
         database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
@@ -308,7 +320,11 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
 
 
 
-    def upload_models(cfg):
+    def upload_models(cfg, train_result_path):
+        if not osp.isdir(train_result_path):
+            raise OSError(f"Result of training path is not exist! \nPath: {train_result_path}")
+        
+        
         set_gs_credentials(get_client_secrets())
         storage_client = storage.Client()
         bucket = storage_client.get_bucket(cfg.gs.models_bucket)
@@ -316,62 +332,124 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         dir_bucket = cfg.gs.get('path', None)  
         if dir_bucket is None:
             import time 
-            # yyyy_mm_dd_hh_mm
-            dir_bucket = time.strftime('%Y-%m-%d', time.localtime(time.time())) \
-                        + " "+ str(time.localtime(time.time()).tm_hour) \
-                        + ":" + str(time.localtime(time.time()).tm_min)     
+            # yyyy_mm_dd_hh_mm_ss
+            dir_bucket = time.strftime('%Y_%m_%d_%H_%M_%S')  
+    
         
-        # sort file to upload non-models first
-        result_list = os.listdir(osp.join(os.getcwd(), cfg.train_result))
-        upload_list = []
-        model_list = list()
-        for i, result in enumerate(result_list):
-            if result.split("_")[0] == 'model':
-                continue        ###
-                model_list.append(result)
-            else:
-                upload_list.append(result)
-            
-            if i == len(result_list)-1:
-                for model in model_list:
-                    upload_list.append(model)
+
+        models_dict, others_list = dict(accepted = [], important = []), []
+        def set_upload_list(upload_path_list, path):
+            # Accept only the pattern named model_{epoch}.pth 
+            # or in `cfg.gs.upload.model.important`
+            for upload_path in upload_path_list:
+                current_path = osp.join(path, upload_path)
+                
+                if osp.isdir(current_path):
+                    set_upload_list(os.listdir(current_path), path = current_path)
+                else:
+                    formmat = osp.splitext(osp.basename(current_path))[1]
+                    if formmat in cfg.gs.upload.accept_formmat:
+                        if formmat == '.pth':
+                            try: 
+                                _ = int(osp.basename(current_path).split('.')[0].split('_')[-1])      # for only `try`
+                                models_dict['accepted'].append(current_path)
+                            except:
+                                if osp.basename(current_path) in cfg.gs.upload.model.important:
+                                    models_dict['important'].append(current_path)
+                                else:
+                                    print(f"\nUpload to GS: `{current_path}` is not accepted path!")
+                                
+                        else:
+                            others_list.append(current_path)
                             
-        for file_name in upload_list:
-            print(f"upload {file_name} to google storage...")
-            blob = bucket.blob(os.path.join(dir_bucket, file_name))
-            blob.upload_from_filename(osp.join(cfg.train_result, file_name))
+        set_upload_list(os.listdir(train_result_path), train_result_path)
+
+        # Filter models to upload 
+        sorted_models_list = sorted(models_dict['accepted'], 
+                                    key=lambda x: int(osp.basename(x).split('.')[0].split('_')[-1]), 
+                                    reverse=True)
+        
+        accept_model_list = list()
+        for i, model_name in enumerate(sorted_models_list):
+            if cfg.gs.upload.model.min_epoch > int(osp.basename(model_name).split('.')[0].split('_')[-1]):
+                break
+            
+            if i >= cfg.gs.upload.model.count:
+                break
+            
+            accept_model_list.append(model_name)
+        
+        
+            
+        accept_model_list += models_dict['important']
+
+        # Upload models
+        for accept_model in accept_model_list:
+            if WORKSPACE['component_volume'] in accept_model:
+                model_path = accept_model.replace(WORKSPACE['component_volume'], "", 1)
+            elif os.getcwd() in accept_model:
+                model_path = accept_model.replace(os.getcwd(), "", 1)
+            
+            if os.path.isabs(model_path):
+                model_path = model_path.lstrip('/')
+            bucket_path = osp.join(dir_bucket, model_path)
+            print(f"\nUpload to GS: `{accept_model}` to google storage `{bucket_path}`...")
+           
+            blob = bucket.blob(bucket_path)
+            blob.upload_from_filename(accept_model)
+        
+        # Upload others
+        for others in others_list:
+            if WORKSPACE['component_volume'] in others:
+                other_path = others.replace(WORKSPACE['component_volume'], "", 1)
+            elif os.getcwd() in others:
+                other_path = others.replace(os.getcwd(), "", 1)
+            
+            if os.path.isabs(other_path):
+                other_path = other_path.lstrip('/')
+            bucket_path = osp.join(dir_bucket, other_path)
+            
+            print(f"\nUpload to GS: `{others}` to google storage `{bucket_path}`...")
+           
+            blob = bucket.blob(bucket_path)
+            blob.upload_from_filename(others)
+            
             
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset_repo)
-        if len(os.listdir(repo_path)) != 0:
-            # ----
-            # repo = Repo(osp.join(WORKSPACE['work'], cfg.git.dataset_repo))
-            # origin = repo.remotes.origin  
-            # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
-            # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
-            
-            # import subprocess       # this command working only shell, not gitpython.
-            # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
-            # subprocess.call([safe_directory_str], shell=True)      
+        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset.repo)
+        if osp.isdir(repo_path):
+            if len(os.listdir(repo_path)) != 0: 
+                # ssh key not working when trying git pull with gitpython
+                # delete all file cloned before and git clone again  
+                import shutil
+                shutil.rmtree(repo_path, ignore_errors=True)
+                os.makedirs(repo_path, exist_ok=True)
 
-            # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
-            # origin.pull()   
-            # ----
-            
-            # ssh key not working when trying git pull with gitpython
-            # delete all file cloned before and git clone again  
-            import shutil
-            shutil.rmtree(repo_path, ignore_errors=True)
-            os.makedirs(repo_path, exist_ok=True)
+        try:
+            print(f"Run `$ git clone git@github.com:HibernationNo1/{cfg.git.dataset.repo}.git`")
+            repo = Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset.repo}.git', repo_path)  
+        except:
+            print(f"Can't git clone with ssh!")
+            print(f"Run `$ git clone https://github.com/HibernationNo1/{cfg.git.dataset.repo}.git`")
+            repo = Repo.clone_from(f"https://github.com/HibernationNo1/{cfg.git.dataset.repo}.git", repo_path)
 
-        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset_repo}.git', os.getcwd())  
+        remote_tags = repo.git.ls_remote("--tags").split("\n")
+        tag_names = [tag.split('/')[-1] for tag in remote_tags if tag]
+        if cfg.git.dataset.train.tag not in tag_names:
+            raise KeyError(f"The `{cfg.git.dataset.train.tag}` is not exist in tags of repository `Hibernation/{cfg.git.dataset.repo}`")
+
+        # checkout HEAD to tag
+        repo.git.checkout(cfg.git.dataset.train.tag)
+        
+        return repo
             
             
     
     if __name__=="component.train.train_op":   
         cfg = Config(cfg)
-        main(cfg)
+        
+        main(cfg, osp.join(os.getcwd(), cfg.train_result))
 
         
         
@@ -379,13 +457,13 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     if __name__=="__main__": 
         with open(input_run_flag, "r", encoding='utf-8') as f:
             input_run_flag = json.load(f) 
-
         if 'train' in input_run_flag['pipeline_run_flag']:
-            cfg = dict2Config(cfg, key_name ='flag_list2tuple')       
-         
-            # git_clone_dataset(cfg)              
-            # main(cfg, in_pipeline = True)        
-            # upload_models(cfg)
+            cfg = dict2Config(cfg, key_name ='flag_list2tuple')          
+            
+            train_result = main(cfg, 
+                                osp.join(WORKSPACE['component_volume'], cfg.train_result),
+                                in_pipeline = True)        
+            upload_models(cfg, train_result)
         else:
             print(f"Pass component: train")
         
