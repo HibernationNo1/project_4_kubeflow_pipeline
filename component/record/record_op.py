@@ -50,6 +50,10 @@ def record(cfg : dict, input_run_flag: dict,
             raise OSError(f"Paths '{docker_volume}' and '{local_module_path}' do not exist!")
 
     if __name__=="__main__":    
+        workspace = osp.join(os.getcwd(), cfg['git']['dataset']['repo'])
+        os.makedirs(workspace, exist_ok = True)
+        os.chdir(osp.join(os.getcwd(), cfg['git']['dataset']['repo']))
+
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `record` in component for pipeline")
