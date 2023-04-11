@@ -20,11 +20,14 @@ git = dict(
     branch = dict(dataset_repo = 'develop'),		# for run `git commit`.
     dataset = dict(
         repo = "pipeline_dataset",
-        key = "ann_dataset",
-        category = "board_dataset",
-        tag = "board_dataset_v0.0.5",
-        db_ann_version = "0.0.5"
+        ann = dict(
+            tag = "board_dataset_v0.0.5",
+            version = "0.0.5"
+        ),
+        train = dict(
+            tag = "board_dataset_train_0.0.1",
+            version = "0.0.1"
+        )
     ),
-    dataset_repo = "pipeline_dataset",
     package_repo = "sub_module",
 )
