@@ -2,8 +2,16 @@
 
 
 gs = dict(
-    models_bucket = 'models_taeuk4958',
-    path = None
+    models_bucket = 'train_result_hibernation',
+    path = None,
+    upload = dict(
+        accept_formmat = ['.pth'],  # ".jpg", ".log"
+        model = dict(
+            count = 10,
+            min_epoch = 7,
+            important= 'best_model.pth'
+        )   
+    ) 
     
 )
 
