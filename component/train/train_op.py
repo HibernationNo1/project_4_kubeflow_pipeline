@@ -313,7 +313,11 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
 
 
 
-    def upload_models(cfg):
+    def upload_models(cfg, train_result_path):
+        if not osp.isdir(train_result_path):
+            raise OSError(f"Result of training path is not exist! \nPath: {train_result_path}")
+        
+        
         set_gs_credentials(get_client_secrets())
         storage_client = storage.Client()
         bucket = storage_client.get_bucket(cfg.gs.models_bucket)
@@ -321,62 +325,124 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         dir_bucket = cfg.gs.get('path', None)  
         if dir_bucket is None:
             import time 
-            # yyyy_mm_dd_hh_mm
-            dir_bucket = time.strftime('%Y-%m-%d', time.localtime(time.time())) \
-                        + " "+ str(time.localtime(time.time()).tm_hour) \
-                        + ":" + str(time.localtime(time.time()).tm_min)     
+            # yyyy_mm_dd_hh_mm_ss
+            dir_bucket = time.strftime('%Y_%m_%d_%H_%M_%S')  
+    
         
-        # sort file to upload non-models first
-        result_list = os.listdir(osp.join(os.getcwd(), cfg.train_result))
-        upload_list = []
-        model_list = list()
-        for i, result in enumerate(result_list):
-            if result.split("_")[0] == 'model':
-                continue        ###
-                model_list.append(result)
-            else:
-                upload_list.append(result)
-            
-            if i == len(result_list)-1:
-                for model in model_list:
-                    upload_list.append(model)
+
+        models_dict, others_list = dict(accepted = [], important = []), []
+        def set_upload_list(upload_path_list, path):
+            # Accept only the pattern named model_{epoch}.pth 
+            # or in `cfg.gs.upload.model.important`
+            for upload_path in upload_path_list:
+                current_path = osp.join(path, upload_path)
+                
+                if osp.isdir(current_path):
+                    set_upload_list(os.listdir(current_path), path = current_path)
+                else:
+                    formmat = osp.splitext(osp.basename(current_path))[1]
+                    if formmat in cfg.gs.upload.accept_formmat:
+                        if formmat == '.pth':
+                            try: 
+                                _ = int(osp.basename(current_path).split('.')[0].split('_')[-1])      # for only `try`
+                                models_dict['accepted'].append(current_path)
+                            except:
+                                if osp.basename(current_path) in cfg.gs.upload.model.important:
+                                    models_dict['important'].append(current_path)
+                                else:
+                                    print(f"\nUpload to GS: `{current_path}` is not accepted path!")
+                                
+                        else:
+                            others_list.append(current_path)
                             
-        for file_name in upload_list:
-            print(f"upload {file_name} to google storage...")
-            blob = bucket.blob(os.path.join(dir_bucket, file_name))
-            blob.upload_from_filename(osp.join(cfg.train_result, file_name))
+        set_upload_list(os.listdir(train_result_path), train_result_path)
+
+        # Filter models to upload 
+        sorted_models_list = sorted(models_dict['accepted'], 
+                                    key=lambda x: int(osp.basename(x).split('.')[0].split('_')[-1]), 
+                                    reverse=True)
+        
+        accept_model_list = list()
+        for i, model_name in enumerate(sorted_models_list):
+            if cfg.gs.upload.model.min_epoch > int(osp.basename(model_name).split('.')[0].split('_')[-1]):
+                break
+            
+            if i >= cfg.gs.upload.model.count:
+                break
+            
+            accept_model_list.append(model_name)
+        
+        
+            
+        accept_model_list += models_dict['important']
+
+        # Upload models
+        for accept_model in accept_model_list:
+            if WORKSPACE['component_volume'] in accept_model:
+                model_path = accept_model.replace(WORKSPACE['component_volume'], "", 1)
+            elif os.getcwd() in accept_model:
+                model_path = accept_model.replace(os.getcwd(), "", 1)
+            
+            if os.path.isabs(model_path):
+                model_path = model_path.lstrip('/')
+            bucket_path = osp.join(dir_bucket, model_path)
+            print(f"\nUpload to GS: `{accept_model}` to google storage `{bucket_path}`...")
+           
+            blob = bucket.blob(bucket_path)
+            blob.upload_from_filename(accept_model)
+        
+        # Upload others
+        for others in others_list:
+            if WORKSPACE['component_volume'] in others:
+                other_path = others.replace(WORKSPACE['component_volume'], "", 1)
+            elif os.getcwd() in others:
+                other_path = others.replace(os.getcwd(), "", 1)
+            
+            if os.path.isabs(other_path):
+                other_path = other_path.lstrip('/')
+            bucket_path = osp.join(dir_bucket, other_path)
+            
+            print(f"\nUpload to GS: `{others}` to google storage `{bucket_path}`...")
+           
+            blob = bucket.blob(bucket_path)
+            blob.upload_from_filename(others)
+            
             
     
     def git_clone_dataset(cfg):
-        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset_repo)
-        if len(os.listdir(repo_path)) != 0:
-            # ----
-            # repo = Repo(osp.join(WORKSPACE['work'], cfg.git.dataset_repo))
-            # origin = repo.remotes.origin  
-            # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
-            # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
-            
-            # import subprocess       # this command working only shell, not gitpython.
-            # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
-            # subprocess.call([safe_directory_str], shell=True)      
+        repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset.repo)
+        if osp.isdir(repo_path):
+            if len(os.listdir(repo_path)) != 0: 
+                # ssh key not working when trying git pull with gitpython
+                # delete all file cloned before and git clone again  
+                import shutil
+                shutil.rmtree(repo_path, ignore_errors=True)
+                os.makedirs(repo_path, exist_ok=True)
 
-            # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
-            # origin.pull()   
-            # ----
-            
-            # ssh key not working when trying git pull with gitpython
-            # delete all file cloned before and git clone again  
-            import shutil
-            shutil.rmtree(repo_path, ignore_errors=True)
-            os.makedirs(repo_path, exist_ok=True)
+        try:
+            print(f"Run `$ git clone git@github.com:HibernationNo1/{cfg.git.dataset.repo}.git`")
+            repo = Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset.repo}.git', repo_path)  
+        except:
+            print(f"Can't git clone with ssh!")
+            print(f"Run `$ git clone https://github.com/HibernationNo1/{cfg.git.dataset.repo}.git`")
+            repo = Repo.clone_from(f"https://github.com/HibernationNo1/{cfg.git.dataset.repo}.git", repo_path)
 
-        Repo.clone_from(f'git@github.com:HibernationNo1/{cfg.git.dataset_repo}.git', os.getcwd())  
+        remote_tags = repo.git.ls_remote("--tags").split("\n")
+        tag_names = [tag.split('/')[-1] for tag in remote_tags if tag]
+        if cfg.git.dataset.train.tag not in tag_names:
+            raise KeyError(f"The `{cfg.git.dataset.train.tag}` is not exist in tags of repository `Hibernation/{cfg.git.dataset.repo}`")
+
+        # checkout HEAD to tag
+        repo.git.checkout(cfg.git.dataset.train.tag)
+        
+        return repo
             
             
     
     if __name__=="component.train.train_op":   
         cfg = Config(cfg)
-        main(cfg)
+        
+        main(cfg, osp.join(os.getcwd(), cfg.train_result))
 
         
         
