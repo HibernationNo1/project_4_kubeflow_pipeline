@@ -159,15 +159,15 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         for hook_cfg in cfg.hook_configs:     
             if hook_cfg.type == 'CheckpointHook': 
                 hook_cfg.model_cfg = cfg.model
+                hook_cfg.out_dir = train_result
                 
             if hook_cfg.type == 'Validation_Hook': 
                 hook_cfg.val_dataloader = val_dataloader
                 hook_cfg.logger = get_logger("validation")
-                hook_cfg.result_dir = train_result
                 
                  
             if hook_cfg.type == 'TensorBoard_Hook' and in_pipeline: 
-                hook_cfg.pvc_dir = osp.join(WORKSPACE['volume'], hook_cfg.pvc_dir) 
+                hook_cfg.pvc_dir = osp.join(WORKSPACE['component_volume'], hook_cfg.pvc_dir) 
                                     
         train_runner.register_training_hooks(cfg.hook_configs)  
 
@@ -236,7 +236,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     
     def set_dataset_cfg(cfg, database):
         def get_dataframe(table, version):
-            base_sql = f"SELECT * FROM {table} WHERE record_version = '{version}'"
+            base_sql = f"SELECT * FROM {table} WHERE train_version = '{version}'"
             df = dict()
             for perpose in ["train", "val"]:
                 sql = base_sql + f" AND dataset_purpose = '{perpose}'"
@@ -247,38 +247,43 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         # df_dataset = get_dataframe(cfg.db.table.dataset, cfg.dvc.record.version)
         
         val_data_cfg = cfg.data.val.copy()
-        _ = val_data_cfg.pop("batch_size", None)       # TODO: check batch_size is not using 
+        _ = val_data_cfg.pop("batch_size", None)       
         
-        cfg.data.train.data_root = osp.join(os.getcwd(),
-                                            df_image['train'].category[0], 
-                                            "record", 
-                                            df_image['train'].record_version[0])
+        if not osp.isdir(cfg.data.train.data_root): 
+            cfg.data.train.data_root = osp.join(os.getcwd(),
+                                                cfg.git.dataset.repo,
+                                                cfg.dvc.record.dir,
+                                                df_image['train'].category[0])
+        
+        assert osp.isdir(cfg.data.train.data_root), f"Path of train dataset dir is not exist! \npath: {cfg.data.train.data_root}"
         cfg.data.train.ann_file = osp.join(cfg.data.train.data_root,
                                         df_image['train'].record_file[0])
+        assert osp.isfile(cfg.data.train.ann_file), f"Path of train dataset is not exist! \npath: {cfg.data.train.ann_file}"
+      
         
-        
-        val_data_cfg.data_root = osp.join(os.getcwd(), 
-                                        df_image['val'].category[0], 
-                                        "record", 
-                                        df_image['val'].record_version[0])
-        val_data_cfg.ann_file = osp.join(cfg.data.train.data_root, 
+        val_data_cfg.data_root = cfg.data.train.data_root
+        val_data_cfg.ann_file = osp.join(val_data_cfg.data_root, 
                                         df_image['val'].record_file[0])
-    
+        assert osp.isfile(val_data_cfg.ann_file), f"Path of validaiton dataset is not exist! \npath: {val_data_cfg.ann_file}"
         dataset_cfg = dict(dataset_api = cfg.data.api,
-                        train_cfg = cfg.data.train,
-                        val_cfg = val_data_cfg)
+                           train_cfg = cfg.data.train,
+                           val_cfg = val_data_cfg)
         return dataset_cfg
         
     
     def load_dataset_from_dvc_db(cfg):
-        data_root = osp.join(os.getcwd(), cfg.dvc.category,
-                                            cfg.dvc.record.name,
-                                            cfg.dvc.record.version)
+        dataset_dir = osp.join(os.getcwd(),
+                               cfg.git.dataset.repo)
+        
+        data_root = osp.join(dataset_dir,
+                             cfg.dvc.record.dir,
+                             cfg.dvc.category)
         
         dvc_cfg = dict(remote = cfg.dvc.record.remote,
                        bucket_name = cfg.dvc.record.gs_bucket,
                        client_secrets = get_client_secrets(),
-                       data_root = data_root)
+                       data_root = data_root,
+                       dvc_path = osp.join(dataset_dir, ".dvc"))
         dvc_pull(**dvc_cfg)
 
         database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
