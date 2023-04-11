@@ -20,7 +20,7 @@ hook_configs = [
         type='Validation_Hook',      
         priority = 'LOW',     		 # Be higher than LoggerHook to log validation information 
                                      # and be lower than OptimizerHook to got sufficient GPU memory for run validation.
-        interval = ['iter', 100],     # epoch(or iter) unit to run validation ['epoch', 1]
+        interval = ['iter', 50],     # epoch(or iter) unit to run validation ['epoch', 1]
         val_cfg = dict(
             run = True,  
             iou_thrs = [0.3, 0.9],          # range of iou threshold
@@ -29,8 +29,13 @@ hook_configs = [
             batch_size = 4,
             show_score_thr = 0.7,           # threshold of score to draw image
             save_plot = True,
-            compare_board_info = True 
+            compare_board_info = True ,
             ),
+        best_model = dict(
+            key = "dv_mAP", 	# mAP
+            dir = "best",
+            name = "best_model.pth"
+        ),
         run_infer = True
     ),
              
@@ -56,7 +61,8 @@ hook_configs = [
         type = "CheckpointHook",
         priority='NORMAL',
         interval=['epoch', 1],                  # epoch(or iter) unit to save model    ['iter', 2000]
-        filename_tmpl = 'model_{}.pth'          # model name to be save :  {model_name}_{epoch}.pth
+        filename_tmpl = 'model_{}.pth',         # model name to be save :  {model_name}_{epoch}.pth
+        out_dir = None	# or train_result
     ),
     dict(
         type = "LoggerHook", 
