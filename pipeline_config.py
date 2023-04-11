@@ -90,9 +90,9 @@ def set_cfg_train(args, cfg):
     # And all paths were set by dvc config
     if cfg.get('dvc', None) is not None:
         if args.cfg_pipeline is not None:
-            cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.dvc.category, 
-                                                                        cfg.dvc.record.name, 
-                                                                        cfg.dvc.record.version)
+            cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.git.dataset.repo,
+                                                                         cfg.dvc.record.dir,
+                                                                         cfg.dvc.category)
             cfg.data.train.ann_file = cfg.dvc.record.train
             cfg.data.val.ann_file = cfg.dvc.record.val    
         else:

@@ -23,7 +23,7 @@ RUN pip install -r requirements.txt
 
 # Install MMCV
 RUN pip install mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
-RUN pip install mmdet
+RUN pip install mmdet==2.28.0
 
 RUN apt-get install -y git
 
@@ -33,7 +33,6 @@ RUN chmod 600 /root/.ssh/id_rsa
 RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 
-# nema of repo to be git clone
-WORKDIR pipeline_dataset        
+ 
 
 

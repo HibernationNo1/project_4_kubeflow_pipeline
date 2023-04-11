@@ -22,7 +22,8 @@ def record(cfg : dict, input_run_flag: dict,
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
 
- 
+	
+	
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
                      local_volume = cfg['path'].get('local_volume', None),     # pvc volume path on local
                      docker_volume = cfg['path']['docker_volume'],     # volume path on katib container
@@ -30,7 +31,7 @@ def record(cfg : dict, input_run_flag: dict,
                      )    
 
     # set package path to 'import {custom_package}'
-    if __name__=="component.record.record_op":
+    if __name__=="component.record.record_op":        
         docker_volume = f"/{WORKSPACE['docker_volume']}"
         
         if WORKSPACE['local_volume'] is not None:
@@ -50,6 +51,10 @@ def record(cfg : dict, input_run_flag: dict,
             raise OSError(f"Paths '{docker_volume}' and '{local_module_path}' do not exist!")
 
     if __name__=="__main__":    
+        workspace = osp.join(os.getcwd(), cfg['git']['dataset']['repo'])
+        os.makedirs(workspace, exist_ok = True)
+        os.chdir(osp.join(os.getcwd(), cfg['git']['dataset']['repo']))
+
         assert osp.isdir(WORKSPACE['work']), f"The path '{WORKSPACE['work']}' is not exist!"
         assert osp.isdir(WORKSPACE['component_volume']), f"The path '{WORKSPACE['component_volume']}' is not exist!"
         print(f"    Run `record` in component for pipeline")
@@ -85,7 +90,8 @@ def record(cfg : dict, input_run_flag: dict,
             dvc_cfg = dict(remote = cfg.dvc.ann.remote,
                            bucket_name = cfg.dvc.ann.gs_bucket,
                            client_secrets = get_client_secrets(),
-                           data_root = target_dataset)
+                           data_root = target_dataset,
+                           dvc_path = osp.join(os.getcwd(), ".dvc"))
             data_root = dvc_pull(**dvc_cfg)
             
             database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
@@ -129,8 +135,9 @@ def record(cfg : dict, input_run_flag: dict,
             dvc_add(target_dir = result_dir)
             git_push(cfg, git_repo)
             dvc_push(remote = cfg.dvc.record.remote,
-                    bucket_name = cfg.dvc.record.gs_bucket,
-                    client_secrets = get_client_secrets())
+                     bucket_name = cfg.dvc.record.gs_bucket,
+                     client_secrets = get_client_secrets(),
+                     dvc_path = osp.join(os.getcwd(), ".dvc"))
             
             print(f"Run DataBase commit")
             database.commit()
@@ -457,10 +464,10 @@ def record(cfg : dict, input_run_flag: dict,
                
     
     def select_ann_data(cfg, cursor, database):
-        assert cfg.dvc.ann.version == cfg.git.dataset.db_ann_version, \
-            f"The config `cfg.dvc.ann.version` and `cfg.git.dataset.db_ann_version` must be same."\
+        assert cfg.dvc.ann.version == cfg.git.dataset.ann.version, \
+            f"The config `cfg.dvc.ann.version` and `cfg.git.dataset.ann.version` must be same."\
             f"\b cfg.dvc.ann.version: {cfg.dvc.ann.version}"\
-            f"cfg.git.dataset.db_ann_version: {cfg.git.dataset.db_ann_version}"
+            f"cfg.git.dataset.ann.version: {cfg.git.dataset.ann.version}"
         # select ann data
         select_sql = f"SELECT * FROM {cfg.db.table.anns} WHERE ann_version = '{cfg.dvc.ann.version}';"
         num_results = cursor.execute(select_sql)
@@ -525,19 +532,19 @@ def record(cfg : dict, input_run_flag: dict,
     
     
     def git_push(cfg, repo):
-        repo.git.checkout(f"{cfg.git.branch.dataset_repo}")
+        repo.git.checkout(f"{cfg.git.branch.dataset.repo}")
         
         # Check where HEAD is located
         print(f"Run `$ git branch`")
         for branch in repo.branches:
-            if str(branch)==cfg.git.branch.dataset_repo:
+            if str(branch)==cfg.git.branch.dataset.repo:
                 print(f"  * {branch}(activate)")
             else:
                 print(f"    {branch}")
 
-        assert cfg.git.branch.dataset_repo == str(repo.active_branch), \
+        assert cfg.git.branch.dataset.repo == str(repo.active_branch), \
             f"The branch of the set HEAD and active branch is different.\n"\
-            f"Set branch HEAD: {cfg.git.branch.dataset_repo}, active branch: {repo.active_branch} "
+            f"Set branch HEAD: {cfg.git.branch.dataset.repo}, active branch: {repo.active_branch} "
 
         # Check working directory status
         untracked_files = repo.untracked_files
@@ -559,28 +566,14 @@ def record(cfg : dict, input_run_flag: dict,
         
         # Run git push
         git_remote_name = cfg.git.get("remote", "origin")
-        print(f"Run `$ git push {git_remote_name} {cfg.git.branch.dataset_repo}`")
+        print(f"Run `$ git push {git_remote_name} {cfg.git.branch.dataset.repo}`")
         origin = repo.remote(git_remote_name)
-        origin.push(cfg.git.branch.dataset_repo)        
+        origin.push(cfg.git.branch.dataset.repo)        
     
     def git_clone_dataset(cfg):
         repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset.repo)
         if osp.isdir(repo_path):
-            if len(os.listdir(repo_path)) != 0:
-                # ----
-                # repo = Repo(osp.join(WORKSPACE['work'], cfg.git.dataset_repo))
-                # origin = repo.remotes.origin  
-                # repo.config_writer().set_value("user", "email", "taeuk4958@gmail.com").release()
-                # repo.config_writer().set_value("user", "name", "HibernationNo1").release()
-                
-                # import subprocess       # this command working only shell, not gitpython.
-                # safe_directory_str = f"git config --global --add safe.directory {repo_path}"
-                # subprocess.call([safe_directory_str], shell=True)      
-
-                # # raise: stderr: 'fatal: could not read Username for 'https://github.com': No such device or address'  
-                # origin.pull()   
-                # ----
-                
+            if len(os.listdir(repo_path)) != 0: 
                 # ssh key not working when trying git pull with gitpython
                 # delete all file cloned before and git clone again  
                 import shutil
@@ -597,11 +590,11 @@ def record(cfg : dict, input_run_flag: dict,
 
         remote_tags = repo.git.ls_remote("--tags").split("\n")
         tag_names = [tag.split('/')[-1] for tag in remote_tags if tag]
-        if cfg.git.dataset.tag not in tag_names:
-            raise KeyError(f"The `{cfg.git.dataset.tag}` is not exist in tags of repository `Hibernation/{cfg.git.dataset.repo}`")
+        if cfg.git.dataset.ann.tag not in tag_names:
+            raise KeyError(f"The `{cfg.git.dataset.ann.tag}` is not exist in tags of repository `Hibernation/{cfg.git.dataset.repo}`")
 
         # checkout HEAD to tag
-        repo.git.checkout(cfg.git.dataset.tag)
+        repo.git.checkout(cfg.git.dataset.ann.tag)
         
         return repo
 
@@ -610,8 +603,8 @@ def record(cfg : dict, input_run_flag: dict,
         print(f"    Run record")
         cfg = Config(cfg)
         main(cfg)
-        
-        
+    
+    
     if __name__=="__main__":
         if 'record' in input_run_flag['pipeline_run_flag']:
             cfg = dict2Config(cfg, key_name ='flag_list2tuple')    
