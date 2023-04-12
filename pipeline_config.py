@@ -93,8 +93,10 @@ def set_cfg_train(args, cfg):
             cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.git.dataset.repo,
                                                                          cfg.dvc.record.dir,
                                                                          cfg.dvc.category)
-            cfg.data.train.ann_file = cfg.dvc.record.train
-            cfg.data.val.ann_file = cfg.dvc.record.val    
+            
+            
+            cfg.data.train.ann_file = osp.join(cfg.data.train.data_root, cfg.dvc.record.train)
+            cfg.data.val.ann_file = osp.join(cfg.data.val.data_root, cfg.dvc.record.val)  
         else:
             cfg.pop('dvc')
   
