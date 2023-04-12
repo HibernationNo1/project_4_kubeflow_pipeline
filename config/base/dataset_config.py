@@ -58,13 +58,13 @@ data = dict(
     workers_per_gpu=1,  
     train=dict(
         data_root = data_root,
-        ann_file= 'train_dataset.json',
+        ann_file= f"{data_root}/train_dataset.json",
         img_prefix= "",          
         pipeline=train_pipeline
         ),
     val=dict(      
         data_root = data_root, 
-        ann_file= 'val_dataset.json',
+        ann_file= f"{data_root}/val_dataset.json",
         img_prefix= "",          
         pipeline=val_pipeline,   
         batch_size = 4
