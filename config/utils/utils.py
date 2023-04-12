@@ -2,17 +2,25 @@
 
 
 gs = dict(
-    models_bucket = 'train_result_hibernation',
-    path = None,
-    upload = dict(
+    result_bucket = "train_result_hibernation", # "result_hibernation",
+    train = dict(
+        dir = 'train',
+        path = None,
         accept_formmat = ['.pth'],  # ".jpg", ".log"
         model = dict(
             count = 10,
             min_epoch = 7,
             important= 'best_model.pth'
         )   
-    ) 
-    
+    ),
+    eval = dict(
+        dir = "evaluation",
+        path = None
+    ),
+    test = dict(
+        dir = 'test',
+        path = None
+    )
 )
 
 path = dict(
