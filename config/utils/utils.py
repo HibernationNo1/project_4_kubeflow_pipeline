@@ -2,10 +2,12 @@
 
 
 gs = dict(
-    result_bucket = "train_result_hibernation", # "result_hibernation",
+    download = True,    # if True: download from gs gtorage
+    upload = True,      # if True: upload to gs storage
+    result_bucket = "result_hibernation",
     train = dict(
         dir = 'train',
-        path = None,
+        path = '0.0.2',
         accept_formmat = ['.pth'],  # ".jpg", ".log"
         model = dict(
             count = 10,
@@ -14,10 +16,13 @@ gs = dict(
         )   
     ),
     eval = dict(
+        # download_dir = 'models',
+        target = "0.0.2",
         dir = "evaluation",
-        path = None
+        path = "0.0.2"
     ),
     test = dict(
+        # download_dir = 'models',
         dir = 'test',
         path = None
     )
