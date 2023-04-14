@@ -9,11 +9,13 @@ def test(cfg : dict, input_run_flag: InputPath("dict"),
 
     import json
     import os, os.path as osp
+    import numpy as np
     import glob
     import torch
     import cv2
     import sys
     from git.repo import Repo
+    from google.cloud import storage
 
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
                      local_volume = cfg['path'].get('local_volume', None),     # pvc volume path on local
@@ -57,78 +59,122 @@ def test(cfg : dict, input_run_flag: InputPath("dict"),
 
     from sub_module.configs.pipeline import dict2Config
     from sub_module.configs.config import Config
+    from sub_module.cloud.google.storage import set_gs_credentials, get_client_secrets
     from sub_module.mmdet.inference import build_detector, inference_detector, parse_inference_result
     from sub_module.mmdet.modules.dataparallel import build_dp
     from sub_module.mmdet.visualization import draw_to_img
 
     from sub_module.mmdet.get_info_algorithm import Get_info
 
-    import numpy as np
-
-
-
-    def main(cfg, in_pipeline = False):
-    
-        model_path = cfg.model_path
-        if osp.isfile(model_path):
-            model_path = osp.join(os.getcwd(), cfg.model_path)
-        else:
-            raise OSError(f"The path is not exist!!     path : {model_path}")
-    
-        os.makedirs(osp.join(os.getcwd(), cfg.test_result), exist_ok = True) 
-        
-        model = build_detector(cfg, model_path, device = cfg.device)
-        
-        dp_cfg = dict(model = model, 
-                    cfg = cfg,
-                    device = cfg.device,
-                    classes = model.CLASSES)
-        model = build_dp(**dp_cfg)
+    def main(cfg, test_result, in_pipeline = False):   
+        os.makedirs(test_result, exist_ok = True)
         
         batch_size = cfg.test_data.batch_size
-        all_imgs_path = glob.glob(osp.join(cfg.test_data.data_root, "*.jpg"))
+        
+        if in_pipeline:
+            input_data_dir = osp.join(WORKSPACE['component_volume'], cfg.test_data.data_root)
+        else:
+            input_data_dir = osp.join(os.getcwd(), cfg.test_data.data_root)
+        
+        all_imgs_path = glob.glob(osp.join(input_data_dir, "*.jpg"))
         batch_imgs_list = [all_imgs_path[x:x + batch_size] for x in range(0, len(all_imgs_path), batch_size)]
         
-
-        for batch_imgs in batch_imgs_list:
-            if not isinstance(batch_imgs, list) : batch_imgs = list(batch_imgs)
+        if in_pipeline:
+            if cfg.gs.download:
+                model_dir = download_model(cfg)
+            else:
+                model_dir = osp.join(WORKSPACE['component_volume'], cfg.eval_result)
+        else:
+            if cfg.get('model_path', None) is None:
+                model_dir = osp.join(os.getcwd(), cfg.eval_result)
+            else:
+                model_dir = osp.join(os.getcwd(), osp.dirname(cfg.model_path))
             
-            with torch.no_grad():
-                # len: batch_size
-                batch_results = inference_detector(model, batch_imgs)   
-                
-            # set path of result images
-            out_files = []
-            for img_path in batch_imgs:
-                file_name = osp.basename(img_path)
-                out_file = osp.join(os.getcwd(), cfg.test_result, file_name)
-                out_files.append(out_file)
+        model_path_list = list()
+        def get_model_list(dir_path):
+            # Get path only models
+            if osp.isdir(dir_path):
+                for path_ in os.listdir(dir_path):
+                    get_model_list(osp.join(dir_path, path_))       
+            elif osp.isfile(dir_path):
+                if osp.splitext(dir_path)[-1] == ".pth":
+                    model_path_list.append(dir_path)
+        get_model_list(model_dir)   
+                  
+        for model_path in model_path_list:
+            print(f"\nRun inference - model name: {model_path}")
+            model = build_detector(cfg, model_path, device = cfg.device)
+        
+            dp_cfg = dict(model = model, 
+                        cfg = cfg,
+                        device = cfg.device,
+                        classes = model.CLASSES)
+            model = build_dp(**dp_cfg)
+        
 
-            for img_path, out_file, results in zip(batch_imgs, out_files, batch_results):
-                img = cv2.imread(img_path)  
+            for batch_imgs in batch_imgs_list:
+                if not isinstance(batch_imgs, list) : batch_imgs = list(batch_imgs)
                 
-                bboxes, labels, masks = parse_inference_result(results)    
+                with torch.no_grad():
+                    # len: batch_size
+                    batch_results = inference_detector(model, batch_imgs)   
 
-                # draw bbox, seg, label and save drawn_img
-                draw_cfg = dict(img = img,
-                                bboxes = bboxes,
-                                labels = labels,
-                                masks = masks,
-                                class_names = model.CLASSES,
-                                score_thr = cfg.show_score_thr)
-                img = draw_to_img(**draw_cfg)
-                
-                
-                cv2.imwrite(out_file, img)
+                for img_path, results in zip(batch_imgs, batch_results):
+                    out_file = osp.join(cfg.test_result, osp.basename(img_path))
+                    
+                    img = cv2.imread(img_path)  
+                    
+                    bboxes, labels, masks = parse_inference_result(results)    
 
+                    # draw bbox, seg, label and save drawn_img
+                    draw_cfg = dict(img = img,
+                                    bboxes = bboxes,
+                                    labels = labels,
+                                    masks = masks,
+                                    class_names = model.CLASSES,
+                                    score_thr = cfg.show_score_thr)
+                    img = draw_to_img(**draw_cfg)
+                    
+                    
+                    cv2.imwrite(out_file, img)
+
+                
+                if cfg.get_board_info:      
+                    get_info_instance = Get_info(bboxes, labels, model.CLASSES, score_thr = cfg.get('show_score_thr', 0.5))
+                    number_board_list = get_info_instance.get_board_info()
+                    if len(number_board_list) == 0: continue
+                    print(f"img_path : {img_path}")
+                    for number_board in number_board_list:
+                    	print(f"number_board : {number_board}")
+
+
+    def download_model(cfg):
+        set_gs_credentials(get_client_secrets())
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(cfg.gs.result_bucket)
+        
+        if cfg.gs.test.get('target', None) is None:
+            gs_path = cfg.gs.eval.dir
+        else:
+            gs_path = osp.join(cfg.gs.eval.dir, cfg.gs.test.target)
+        
+        blobs = bucket.list_blobs(prefix=gs_path)
+       
+        model_dir = osp.join(os.getcwd(), cfg.gs.test.get('download_dir', "download"))   
+        for blob in blobs:
+            bucket_path = blob.name[len(gs_path):]
+            if osp.isabs(bucket_path):
+                bucket_path = bucket_path.lstrip('/')
             
-            if cfg.get_board_info:      
-                get_info_instance = Get_info(bboxes, labels, model.CLASSES, score_thr = cfg.get('show_score_thr', 0.5))
-                number_board_list = get_info_instance.get_board_info()
-                print(f"number_board_list : {number_board_list}")
+            if osp.splitext(bucket_path)[-1] != ".pth": continue
+            local_file_path = os.path.join(model_dir, bucket_path)
+            os.makedirs(osp.dirname(local_file_path), exist_ok = True)
+            print(f"Download From `gs:{cfg.gs.result_bucket}/{bucket_path}` to `{local_file_path}`")
+            blob.download_to_filename(local_file_path)
 
-
-
+        return model_dir
+    
+    
 
     if __name__=="component.test.test_op":  
         cfg = Config(cfg)
@@ -140,9 +186,9 @@ def test(cfg : dict, input_run_flag: InputPath("dict"),
 
         if 'test' in input_run_flag['pipeline_run_flag']:
             cfg = dict2Config(cfg, key_name ='flag_list2tuple')    
-            # git_clone_dataset(cfg)
+            main(cfg, osp.join(WORKSPACE['component_volume'], cfg.test_result), in_pipeline = True)
             
-            # main(cfg, in_pipeline = True)
+    
         else:
             print(f"Pass component: test")
         
