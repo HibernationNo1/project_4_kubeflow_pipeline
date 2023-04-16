@@ -88,7 +88,6 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     from sub_module.mmdet.modules.dataparallel import build_dp
     from sub_module.mmdet.optimizer import build_optimizer
     from sub_module.mmdet.runner import build_runner
-            
         
     def main(cfg, train_result, in_pipeline = False):    
         assert torch.cuda.is_available()

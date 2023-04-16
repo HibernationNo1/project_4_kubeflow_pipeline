@@ -67,7 +67,7 @@ data = dict(
         ann_file= f"{data_root}/val_dataset.json",
         img_prefix= "",          
         pipeline=val_pipeline,   
-        batch_size = 4
+        batch_size = 2
         )
     )
 

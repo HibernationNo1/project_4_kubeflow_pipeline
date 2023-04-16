@@ -139,7 +139,7 @@ def evaluate(cfg : dict, input_run_flag: InputPath("dict"),
                             cfg= cfg.eval_cfg,
                             dataloader= val_dataloader)
             eval_ = Evaluate(**eval_cfg)   
-            summary = eval_.compute_mAP()
+            summary = eval_.get_mAP()
             summary['dv_mAP'] = summary['dv']["mAP"]
             summary['mAP'] = summary['normal']["mAP"]
             

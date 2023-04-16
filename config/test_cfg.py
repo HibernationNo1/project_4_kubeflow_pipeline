@@ -23,6 +23,7 @@ test_pipeline = [
         ])
 ]
 
+eval_result = "result/eval"
 test_result = "result/test"
 model_path = None
 device = 'cuda:0'
