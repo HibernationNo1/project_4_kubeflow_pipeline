@@ -93,8 +93,10 @@ def set_cfg_train(args, cfg):
             cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.git.dataset.repo,
                                                                          cfg.dvc.record.dir,
                                                                          cfg.dvc.category)
-            cfg.data.train.ann_file = cfg.dvc.record.train
-            cfg.data.val.ann_file = cfg.dvc.record.val    
+            
+            
+            cfg.data.train.ann_file = osp.join(cfg.data.train.data_root, cfg.dvc.record.train)
+            cfg.data.val.ann_file = osp.join(cfg.data.val.data_root, cfg.dvc.record.val)  
         else:
             cfg.pop('dvc')
   
@@ -110,35 +112,34 @@ def set_cfg_train(args, cfg):
                     cfg.hook_configs[i].pvc_dir = osp.join(CONFIGS['pipeline'].kbf.volume.pvc.mount_path,
                                                           cfg.hook_configs[i].pvc_dir)
                     break
-            
+
 
 def set_cfg_test(args, cfg):
-    if args.model_path is None:
-        raise KeyError(f"Path of model file must be specific to run inference, but got None..  add option '--model_path'")
+    if args.model_path is not None: cfg.model_path = args.model_path  
     
-    cfg.model_path = args.model_path
+    print(f"test: {cfg.get('data_root', None)}")
     
 
 def sef_cfg_evaluate(args, cfg):
-    if args.model_path is None:
-        raise KeyError(f"Path of model file must be specific to run inference, but got None..  add option '--model_path'")
-    
-    cfg.model_path = args.model_path
-
-    cfg.pop('train_pipeline')
-    cfg.data.pop('train')
+    if args.model_path is not None: cfg.model_path = args.model_path
 
     # If get dataset with dvc, load the paths from the database.
     # And all paths were set by dvc config
     if cfg.get('dvc', None) is not None:
         if args.cfg_pipeline is not None:
-            cfg.data.val.data_root = osp.join(cfg.dvc.category, 
-                                              cfg.dvc.record.name, 
-                                              cfg.dvc.record.version)
+            # why set `cfg.data.train.data_root` even unused in `evaluate_op.py`?
+            # To prevent conflicts between configs in `combine_config`
+            cfg.data.train.data_root = cfg.data.val.data_root = osp.join(cfg.git.dataset.repo,
+                                                                         cfg.dvc.record.dir,
+                                                                         cfg.dvc.category)
             
-            cfg.data.val.ann_file = cfg.dvc.record.val    
+            
+            cfg.data.train.ann_file = osp.join(cfg.data.train.data_root, cfg.dvc.record.train)
+            cfg.data.val.ann_file = osp.join(cfg.data.val.data_root, cfg.dvc.record.val) 
         else:
             cfg.pop('dvc')
+    
+    
 
 
 CONFIG_SET_FUNCTION = dict(

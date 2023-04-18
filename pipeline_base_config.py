@@ -1,8 +1,8 @@
 BASE_IMG = dict(
-    record = "localhost:5000/pipeline:0.2",
-    train = "localhost:5000/pipeline:0.4",
-    evaluate = "localhost:5000/pipeline:0.2",
-    test = "localhost:5000/pipeline:0.2"
+    record = "localhost:5000/pipeline:0.6",
+    train = "localhost:5000/pipeline:0.6",
+    evaluate = "localhost:5000/pipeline:0.6",
+    test = "localhost:5000/pipeline:0.6"
     )
 
 class Base_Image_cfg():
@@ -20,7 +20,7 @@ class Base_Image_cfg():
     
 
 """
-docker build docker --no-cache -t localhost:5000/pipeline:0.4
+docker build docker --no-cache -t localhost:5000/pipeline:0.6
 docker push localhost:5000/pipeline:0.1
 docker run --rm -it localhost:5000/pipeline:0.1
 

@@ -5,11 +5,14 @@ _base_ = [
     "utils/utils.py"
 ]
 
-val_result = "result/evaluate"
+train_result = "result/train"
+eval_result = "result/eval"
 model_path = None
-
 device = 'cuda:0'
 
+# Key to determine if it is the best model. ex) mAP
+# AIR: Exact Inference Rate 
+key_name = ["dv_mAP", "EIR"]  
 
 eval_cfg = dict(
     iou_thrs = [0.3, 0.9],          # range of iou threshold
