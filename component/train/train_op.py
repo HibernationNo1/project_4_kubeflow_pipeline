@@ -88,7 +88,6 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
     from sub_module.mmdet.modules.dataparallel import build_dp
     from sub_module.mmdet.optimizer import build_optimizer
     from sub_module.mmdet.runner import build_runner
-            
         
     def main(cfg, train_result, in_pipeline = False):    
         assert torch.cuda.is_available()
@@ -163,6 +162,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                 
             if hook_cfg.type == 'Validation_Hook': 
                 hook_cfg.val_dataloader = val_dataloader
+                hook_cfg.model_cfg = cfg.model
                 hook_cfg.logger = get_logger("validation")
                 
                  
@@ -324,23 +324,21 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         if not osp.isdir(train_result_path):
             raise OSError(f"Result of training path is not exist! \nPath: {train_result_path}")
         
-        
         set_gs_credentials(get_client_secrets())
         storage_client = storage.Client()
-        bucket = storage_client.get_bucket(cfg.gs.models_bucket)
-
-        dir_bucket = cfg.gs.get('path', None)  
+        bucket = storage_client.get_bucket(cfg.gs.result_bucket)
+        
+        dir_bucket = cfg.gs.train.get('path', None)  
         if dir_bucket is None:
             import time 
             # yyyy_mm_dd_hh_mm_ss
             dir_bucket = time.strftime('%Y_%m_%d_%H_%M_%S')  
-    
-        
+        path_bucket = osp.join(cfg.gs.train.dir, dir_bucket) 
 
         models_dict, others_list = dict(accepted = [], important = []), []
         def set_upload_list(upload_path_list, path):
             # Accept only the pattern named model_{epoch}.pth 
-            # or in `cfg.gs.upload.model.important`
+            # or in `cfg.gs.train.model.important`
             for upload_path in upload_path_list:
                 current_path = osp.join(path, upload_path)
                 
@@ -348,13 +346,13 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                     set_upload_list(os.listdir(current_path), path = current_path)
                 else:
                     formmat = osp.splitext(osp.basename(current_path))[1]
-                    if formmat in cfg.gs.upload.accept_formmat:
+                    if formmat in cfg.gs.train.accept_formmat:
                         if formmat == '.pth':
                             try: 
                                 _ = int(osp.basename(current_path).split('.')[0].split('_')[-1])      # for only `try`
                                 models_dict['accepted'].append(current_path)
                             except:
-                                if osp.basename(current_path) in cfg.gs.upload.model.important:
+                                if osp.basename(current_path) in cfg.gs.train.model.important:
                                     models_dict['important'].append(current_path)
                                 else:
                                     print(f"\nUpload to GS: `{current_path}` is not accepted path!")
@@ -371,31 +369,33 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         
         accept_model_list = list()
         for i, model_name in enumerate(sorted_models_list):
-            if cfg.gs.upload.model.min_epoch > int(osp.basename(model_name).split('.')[0].split('_')[-1]):
+            if cfg.gs.train.model.min_epoch > int(osp.basename(model_name).split('.')[0].split('_')[-1]):
                 break
             
-            if i >= cfg.gs.upload.model.count:
+            if i >= cfg.gs.train.model.count:
                 break
             
             accept_model_list.append(model_name)
-        
-        
-            
         accept_model_list += models_dict['important']
-
+        
         # Upload models
         for accept_model in accept_model_list:
+            # Convert path of the model to path that upload to bucket
             if WORKSPACE['component_volume'] in accept_model:
                 model_path = accept_model.replace(WORKSPACE['component_volume'], "", 1)
             elif os.getcwd() in accept_model:
                 model_path = accept_model.replace(os.getcwd(), "", 1)
-            
+                
             if os.path.isabs(model_path):
                 model_path = model_path.lstrip('/')
-            bucket_path = osp.join(dir_bucket, model_path)
-            print(f"\nUpload to GS: `{accept_model}` to google storage `{bucket_path}`...")
-           
-            blob = bucket.blob(bucket_path)
+                
+            if len(model_path.split(f'{cfg.gs.train.dir}/'))>1:
+                model_path = model_path.split(f'{cfg.gs.train.dir}/')[-1]
+                
+            gs_model_path = osp.join(path_bucket, model_path)
+            print(f"\nUpload to GS: `{accept_model}` to google storage `{cfg.gs.result_bucket}` >> `{gs_model_path}`...")
+    
+            blob = bucket.blob(gs_model_path)
             blob.upload_from_filename(accept_model)
         
         # Upload others
@@ -407,9 +407,13 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             
             if os.path.isabs(other_path):
                 other_path = other_path.lstrip('/')
-            bucket_path = osp.join(dir_bucket, other_path)
             
-            print(f"\nUpload to GS: `{others}` to google storage `{bucket_path}`...")
+            if len(other_path.split(f'{cfg.gs.train.dir}/'))>1:
+                other_path = other_path.split(f'{cfg.gs.train.dir}/')[-1]
+                
+            path_other_bucket = osp.join(path_bucket, other_path)
+            
+            print(f"\nUpload to GS: `{others}` to google storage `{path_other_bucket}`...")
            
             blob = bucket.blob(bucket_path)
             blob.upload_from_filename(others)
@@ -452,8 +456,6 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
         main(cfg, osp.join(os.getcwd(), cfg.train_result))
 
         
-        
-        
     if __name__=="__main__": 
         with open(input_run_flag, "r", encoding='utf-8') as f:
             input_run_flag = json.load(f) 
@@ -462,8 +464,9 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
             
             train_result = main(cfg, 
                                 osp.join(WORKSPACE['component_volume'], cfg.train_result),
-                                in_pipeline = True)        
-            upload_models(cfg, train_result)
+                                in_pipeline = True)    
+            if cfg.gs.upload:    
+                upload_models(cfg, train_result)
         else:
             print(f"Pass component: train")
         

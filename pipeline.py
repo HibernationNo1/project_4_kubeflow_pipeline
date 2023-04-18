@@ -82,10 +82,38 @@ def project_pipeline(run_flag: dict,
         .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
 
     _evaluate_op = evaluate_op(input_cfg, _train_op.outputs['run_flag'])\
+        .add_env_variable(SECRETS['gs']["type"]) \
+        .add_env_variable(SECRETS['gs']["project_id"]) \
+        .add_env_variable(SECRETS['gs']["private_key_id"]) \
+        .add_env_variable(SECRETS['gs']["private_key"]) \
+        .add_env_variable(SECRETS['gs']["client_email"]) \
+        .add_env_variable(SECRETS['gs']["client_id"]) \
+        .add_env_variable(SECRETS['gs']["auth_uri"]) \
+        .add_env_variable(SECRETS['gs']["token_uri"]) \
+        .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
+        .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
+        .add_env_variable(SECRETS['db']["password"]) \
+        .add_env_variable(SECRETS['db']["host"]) \
+        .add_env_variable(SECRETS['db']["port"]) \
+        .add_pvolumes({shm_volume_cfg.path: shm_volume})\
         .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
 
     _test_op = test_op(input_cfg, _evaluate_op.outputs['run_flag'])\
-        .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume}) 
+        .add_env_variable(SECRETS['gs']["type"]) \
+        .add_env_variable(SECRETS['gs']["project_id"]) \
+        .add_env_variable(SECRETS['gs']["private_key_id"]) \
+        .add_env_variable(SECRETS['gs']["private_key"]) \
+        .add_env_variable(SECRETS['gs']["client_email"]) \
+        .add_env_variable(SECRETS['gs']["client_id"]) \
+        .add_env_variable(SECRETS['gs']["auth_uri"]) \
+        .add_env_variable(SECRETS['gs']["token_uri"]) \
+        .add_env_variable(SECRETS['gs']["auth_provider_x509_cert_url"]) \
+        .add_env_variable(SECRETS['gs']["client_x509_cert_url"]) \
+        .add_env_variable(SECRETS['db']["password"]) \
+        .add_env_variable(SECRETS['db']["host"]) \
+        .add_env_variable(SECRETS['db']["port"]) \
+        .add_pvolumes({shm_volume_cfg.path: shm_volume})\
+        .add_pvolumes({pvc_cfg.mount_path: pvc_volume.volume})
 
 
 def _parse_args():

@@ -4,6 +4,10 @@ pandas
 GitPython
 google-cloud-storage
 
+memory-profiler
+pympler
+
+
 # for mmdet
 terminaltables
 tensorboard

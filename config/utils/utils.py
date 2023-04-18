@@ -2,17 +2,30 @@
 
 
 gs = dict(
-    models_bucket = 'train_result_hibernation',
-    path = None,
-    upload = dict(
+    download = True,    # if True: download from gs gtorage
+    upload = True,      # if True: upload to gs storage
+    result_bucket = "result_hibernation",
+    train = dict(
+        dir = 'train',
+        path = '0.0.2',
         accept_formmat = ['.pth'],  # ".jpg", ".log"
         model = dict(
             count = 10,
             min_epoch = 7,
             important= 'best_model.pth'
         )   
-    ) 
-    
+    ),
+    eval = dict(
+        # download_dir = 'models',
+        target = "0.0.2",
+        dir = "evaluation",
+        path = "0.0.2"
+    ),
+    test = dict(
+        # download_dir = 'models',
+        dir = 'test',
+        path = None
+    )
 )
 
 path = dict(
