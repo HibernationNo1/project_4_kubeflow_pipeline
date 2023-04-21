@@ -104,8 +104,13 @@ def record(cfg : dict, input_run_flag: dict,
         
             cursor = database.cursor() 
             check_table_exist(cursor, cfg.db.table)
-        
-            image_list, json_list = select_ann_data(cfg, cursor, database)
+
+            selected_dataset = select_ann_data(cfg, cursor, database)
+            if selected_dataset is None:
+                print(f"\n      Stop record component for run next component!!")
+                print(f"The train_dataset version(`{cfg.dvc.record.version}`) already exist in DataBase.") 
+                return False
+            image_list, json_list = selected_dataset
         else:
             data_root = osp.join(os.getcwd(), cfg.ann_data_root)
             if not osp.isdir(data_root): raise OSError(f"The path dose not exist!  \n path: {data_root}")
@@ -134,7 +139,7 @@ def record(cfg : dict, input_run_flag: dict,
             insert_record_data(cfg, cursor, record_dataset.saved_image_list_val, "val")
             
             dvc_add(target_dir = result_dir)
-            git_push(cfg, git_repo)
+            git_push(cfg, git_repo)		# need git push tag manually after git push 
             dvc_push(remote = cfg.dvc.record.remote,
                      bucket_name = cfg.dvc.record.gs_bucket,
                      client_secrets = get_client_secrets(),
@@ -465,13 +470,16 @@ def record(cfg : dict, input_run_flag: dict,
                
     
     def select_ann_data(cfg, cursor, database):
-        assert cfg.dvc.ann.version == cfg.git.dataset.ann.version, \
-            f"The config `cfg.dvc.ann.version` and `cfg.git.dataset.ann.version` must be same."\
-            f"\b cfg.dvc.ann.version: {cfg.dvc.ann.version}"\
-            f"cfg.git.dataset.ann.version: {cfg.git.dataset.ann.version}"
+        # select train data
+        # Stop record component and run next component(train_op) if `train_dataset` of target version already exist in DB. 
+        select_sql = f"SELECT * FROM {cfg.db.table.image_data} WHERE ann_version = '{cfg.dvc.record.version}';"
+        train_num_results = cursor.execute(select_sql)
+        if train_num_results !=0:
+            return None 
+        
         # select ann data
         select_sql = f"SELECT * FROM {cfg.db.table.anns} WHERE ann_version = '{cfg.dvc.ann.version}';"
-        num_results = cursor.execute(select_sql)
+        ann_num_results = cursor.execute(select_sql)
         assert num_results != 0, f" `{cfg.dvc.ann.version}` version of annotations dataset is not being inserted into database"\
            f"\n     DB: {cfg.db.name},      table: {cfg.db.table.anns}"
     
@@ -491,7 +499,7 @@ def record(cfg : dict, input_run_flag: dict,
                                       category,
                                       image_name))
         
-        return image_list, json_list
+        return (image_list, json_list)
     
     
     # insert dataset to database
