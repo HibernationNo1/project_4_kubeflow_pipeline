@@ -18,12 +18,13 @@ def record(cfg : dict, input_run_flag: dict,
     import warnings
     import glob
     import sys
+    import random
     from PIL.Image import fromarray as fromarray
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
 
-	
-	
+    
+    
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
                      local_volume = cfg['path'].get('local_volume', None),     # pvc volume path on local
                      docker_volume = cfg['path']['docker_volume'],     # volume path on katib container
@@ -172,8 +173,8 @@ def record(cfg : dict, input_run_flag: dict,
                                              
             """
             self.cfg = cfg
-            self.image_list = image_list   
-            self.json_list = json_list   
+            self.image_list = image_list 
+            self.json_list = random.shuffle(json_list) 
             if len(self.image_list)!=len(self.json_list):
                 raise ValueError(f"Number of images and json files is not the same!"
                                  f"\n images:{len(self.image_list)}, json files: {len(self.json_list)}")
