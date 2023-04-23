@@ -179,7 +179,8 @@ def record(cfg : dict, input_run_flag: dict,
             """
             self.cfg = cfg
             self.image_list = image_list 
-            self.json_list = random.shuffle(json_list) 
+            self.json_list = json_list
+            random.shuffle(self.json_list) 
             if len(self.image_list)!=len(self.json_list):
                 raise ValueError(f"Number of images and json files is not the same!"
                                  f"\n images:{len(self.image_list)}, json files: {len(self.json_list)}")
