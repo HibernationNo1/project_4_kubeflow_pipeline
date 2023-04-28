@@ -15,8 +15,9 @@ device = 'cuda:0'
 key_name = ["dv_mAP", "EIR"]  
 
 eval_cfg = dict(
-    iou_thrs = [0.3, 0.9],          # range of iou threshold
+    score_thrs = [0.3, 0.9],          # range of iou threshold
     num_thrs_divi = 9,             # divide range of `iou_threshold` by number of `num_thrshd_divi` for compute mAP
+    iou_thrs = 0.6,
     num_window = 3,
     batch_size = 4,
     save_plot = True,

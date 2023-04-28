@@ -24,16 +24,12 @@ RUN pip install -r requirements.txt
 # Install MMCV
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools
 RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
-# RUN pip install mmdet     # if run this line, get 'MMCV CUDA Compiler: not available'
+RUN pip install mmdet==2.28.0
 
-RUN apt-get install -y git
-RUN git clone https://github.com/HibernationNo1/sub_module.git
-
-ENTRYPOINT ["python", "main.py", "--katib"]
+ENTRYPOINT ["python", "main.py"]
   
-# docker build . --no-cache -t localhost:5000/katib:0.3
-# docker push localhost:5000/katib:0.2
-# docker run --rm -it localhost:5000/katib:0.7
+# docker build . --no-cache -t localhost:5000/katib:0.1
+# docker push localhost:5000/katib:0.1
+# docker run --rm -it localhost:5000/katib:0.1
 
-# docker build . --no-cache -t hibernation4958/katib:0.3
-# docker push hibernation4958/katib:0.3
+

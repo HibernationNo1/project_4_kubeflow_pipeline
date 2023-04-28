@@ -18,12 +18,13 @@ def record(cfg : dict, input_run_flag: dict,
     import warnings
     import glob
     import sys
+    import random
     from PIL.Image import fromarray as fromarray
     from PIL.ImageDraw import Draw as Draw    
     from git import Repo
 
-	
-	
+    
+    
     WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
                      local_volume = cfg['path'].get('local_volume', None),     # pvc volume path on local
                      docker_volume = cfg['path']['docker_volume'],     # volume path on katib container
@@ -94,6 +95,8 @@ def record(cfg : dict, input_run_flag: dict,
                            dvc_path = osp.join(os.getcwd(), ".dvc"))
             data_root = dvc_pull(**dvc_cfg)
             
+            git_checkout2branch(git_repo)
+            
             database = pymysql.connect(host=get_environ(cfg.db, 'host'), 
                             port=int(get_environ(cfg.db, 'port')), 
                             user=cfg.db.user, 
@@ -103,8 +106,13 @@ def record(cfg : dict, input_run_flag: dict,
         
             cursor = database.cursor() 
             check_table_exist(cursor, cfg.db.table)
-        
-            image_list, json_list = select_ann_data(cfg, cursor, database)
+
+            selected_dataset = select_ann_data(cfg, cursor, database)
+            if selected_dataset is None:
+                print(f"\n      Stop record component for run next component!!")
+                print(f"The train_dataset version(`{cfg.dvc.record.version}`) already exist in DataBase.") 
+                return False
+            image_list, json_list = selected_dataset
         else:
             data_root = osp.join(os.getcwd(), cfg.ann_data_root)
             if not osp.isdir(data_root): raise OSError(f"The path dose not exist!  \n path: {data_root}")
@@ -133,7 +141,7 @@ def record(cfg : dict, input_run_flag: dict,
             insert_record_data(cfg, cursor, record_dataset.saved_image_list_val, "val")
             
             dvc_add(target_dir = result_dir)
-            git_push(cfg, git_repo)
+            git_push(cfg, git_repo)		# need git push tag manually after git push 
             dvc_push(remote = cfg.dvc.record.remote,
                      bucket_name = cfg.dvc.record.gs_bucket,
                      client_secrets = get_client_secrets(),
@@ -172,8 +180,9 @@ def record(cfg : dict, input_run_flag: dict,
                                              
             """
             self.cfg = cfg
-            self.image_list = image_list   
-            self.json_list = json_list   
+            self.image_list = image_list 
+            self.json_list = json_list
+            random.shuffle(self.json_list) 
             if len(self.image_list)!=len(self.json_list):
                 raise ValueError(f"Number of images and json files is not the same!"
                                  f"\n images:{len(self.image_list)}, json files: {len(self.json_list)}")
@@ -464,14 +473,17 @@ def record(cfg : dict, input_run_flag: dict,
                
     
     def select_ann_data(cfg, cursor, database):
-        assert cfg.dvc.ann.version == cfg.git.dataset.ann.version, \
-            f"The config `cfg.dvc.ann.version` and `cfg.git.dataset.ann.version` must be same."\
-            f"\b cfg.dvc.ann.version: {cfg.dvc.ann.version}"\
-            f"cfg.git.dataset.ann.version: {cfg.git.dataset.ann.version}"
+        # select train data
+        # Stop record component and run next component(train_op) if `train_dataset` of target version already exist in DB. 
+        select_sql = f"SELECT * FROM {cfg.db.table.image_data} WHERE train_version = '{cfg.dvc.record.version}';"
+        train_num_results = cursor.execute(select_sql)
+        if train_num_results !=0:
+            return None 
+        
         # select ann data
         select_sql = f"SELECT * FROM {cfg.db.table.anns} WHERE ann_version = '{cfg.dvc.ann.version}';"
-        num_results = cursor.execute(select_sql)
-        assert num_results != 0, f" `{cfg.dvc.ann.version}` version of annotations dataset is not being inserted into database"\
+        ann_num_results = cursor.execute(select_sql)
+        assert ann_num_results != 0, f" `{cfg.dvc.ann.version}` version of annotations dataset is not being inserted into database"\
            f"\n     DB: {cfg.db.name},      table: {cfg.db.table.anns}"
     
         ann_version_df = pd.read_sql(select_sql, database)
@@ -490,7 +502,7 @@ def record(cfg : dict, input_run_flag: dict,
                                       category,
                                       image_name))
         
-        return image_list, json_list
+        return (image_list, json_list)
     
     
     # insert dataset to database
@@ -532,23 +544,14 @@ def record(cfg : dict, input_run_flag: dict,
     
     
     def git_push(cfg, repo):
-        repo.git.checkout(f"{cfg.git.branch.dataset.repo}")
-        
-        # Check where HEAD is located
-        print(f"Run `$ git branch`")
-        for branch in repo.branches:
-            if str(branch)==cfg.git.branch.dataset.repo:
-                print(f"  * {branch}(activate)")
-            else:
-                print(f"    {branch}")
-
-        assert cfg.git.branch.dataset.repo == str(repo.active_branch), \
+        git_branch_name = repo.active_branch
+        assert str(git_branch_name) == cfg.git.branch.dataset_repo, \
             f"The branch of the set HEAD and active branch is different.\n"\
-            f"Set branch HEAD: {cfg.git.branch.dataset.repo}, active branch: {repo.active_branch} "
-
+            f"Set branch HEAD: {cfg.git.branch.dataset_repo}, active branch: {repo.active_branch} "
+                
         # Check working directory status
-        untracked_files = repo.untracked_files
-        for file_ in untracked_files:
+        changed_files = repo.git.diff(None, name_only=True).split()
+        for file_ in changed_files:
             file_path = osp.join(os.getcwd(), str(file_))
             if not osp.isfile(file_path):
                 raise OSError(f"file_path: {file_path} is not exist!")
@@ -557,18 +560,52 @@ def record(cfg : dict, input_run_flag: dict,
         
         # Check staging status
         staged_files = [item.a_path for item in repo.index.diff("HEAD")]
+        print(f"1 staged_files ; {staged_files}")
         assert len(staged_files)!=0, f"There are no staged file.  check command: `git add`"
-        
+                
         # Run git commit with massage
         commit_msg = f"docs: tag: {cfg.dvc.category}_{cfg.dvc.record.dir}_{cfg.dvc.record.version}"
         print(f"Run `$ git commit -m '{commit_msg}'`")
         repo.index.commit(f"{commit_msg}")
-        
-        # Run git push
+          
+        # Run `git push commit`
         git_remote_name = cfg.git.get("remote", "origin")
-        print(f"Run `$ git push {git_remote_name} {cfg.git.branch.dataset.repo}`")
-        origin = repo.remote(git_remote_name)
-        origin.push(cfg.git.branch.dataset.repo)        
+        print(f"Run `$ git push {git_remote_name} {git_branch_name}`")
+        git_remote = repo.remote(git_remote_name)
+        git_remote.push(git_branch_name)      
+        
+        # Add tag about training dataset
+        tag_name = cfg.git.dataset.train.tag
+        new_tag = repo.create_tag(tag_name, ref=repo.head.commit)
+        
+        remote_tags = repo.git.ls_remote("--tags").split("\n")
+        remote_tag_names = [tag.split('/')[-1] for tag in remote_tags if tag]
+        if new_tag in remote_tag_names:
+            raise KeyError(f"The `{new_tag}`already exist in tags of repository `Hibernation/{cfg.git.dataset.repo}`")
+        else:
+            print(f"Add tag: {new_tag}")
+        
+        # Run `git push tag`
+        print(f"Run `$ git push {git_remote_name} {tag_name}`")  
+        git_remote.push(f"refs/tags/{tag_name}")      
+        
+        
+    def git_checkout2branch(repo):
+        git_branch_name = cfg.git.branch.dataset_repo
+        repo.git.checkout(f"{git_branch_name}")
+        
+        print(f"Run `$ git branch`")
+        for branch in repo.branches:
+            if str(branch)==git_branch_name:
+                print(f"  * {branch}(activate)")
+            else:
+                print(f"    {branch}")
+        
+        assert git_branch_name == str(repo.active_branch), \
+            f"The branch of the set HEAD and active branch is different.\n"\
+            f"Set branch HEAD: {git_branch_name}, active branch: {repo.active_branch} "
+        
+        
     
     def git_clone_dataset(cfg):
         repo_path = osp.join(WORKSPACE['work'], cfg.git.dataset.repo)
@@ -594,7 +631,7 @@ def record(cfg : dict, input_run_flag: dict,
             raise KeyError(f"The `{cfg.git.dataset.ann.tag}` is not exist in tags of repository `Hibernation/{cfg.git.dataset.repo}`")
 
         # checkout HEAD to tag
-        repo.git.checkout(cfg.git.dataset.ann.tag)
+        repo.git.checkout(cfg.git.dataset.ann.tag)      
         
         return repo
 
