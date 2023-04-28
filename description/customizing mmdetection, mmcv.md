@@ -30,7 +30,7 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
 
 **해당 code는 persistent volume에 위치시킨 후 component내에서 자유롭게 import할 수 있도록 하기 위해 [sub_module](https://github.com/HibernationNo1/sub_module) repository로 관리했습니다.**
 
-
+---
 
 
 
@@ -54,6 +54,8 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/model_save.png?raw=true)
 
 
+
+---
 
 
 
@@ -95,6 +97,8 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 
 
 
+---
+
 
 
 ### Modified original hooks 
@@ -106,6 +110,8 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 - 학습 진행 시간과, 앞으로 남은 시간을 day-hour-minute-sec으로 변환하여 출력되도록 했습니다.
 
 
+
+---
 
 
 
