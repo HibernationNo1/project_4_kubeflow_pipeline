@@ -6,46 +6,6 @@
 
 - kubernetes : `1.25.4`
 
-
-
-## Table of Contents
-
-* [Kubernetes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-kubeflow-at-kubernetes:~:text=kubernetes%20%3A%201.25.4-,Kubernetes,-check%20before%20installationttoelzhdpqkf)
-  + [check before installation](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Kubernetes-,check%20before%20installation,-%24%20sudo%20apt%20update)
-  + [install docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%EB%AA%A8%EB%A5%B4%EB%8B%88%20%EB%B0%A9%ED%99%94%EB%B2%BD%EB%8F%84%20%EB%81%84%EA%B8%B0-,install%20docker,-%EA%B3%B5%EC%8B%9D%20%EB%AC%B8%EC%84%9C)
-    - [Install cri-dockerd](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%24%20docker%20ps-,Install%20cri%2Ddockerd,-nvidia%20dirver%2C%20cuda)
-    - [NVIDIA DOCKER](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=for%20the%20API.-,NVIDIA%20DOCKER,-docker%20contianer%EC%95%88%EC%97%90%EC%84%9C)
-  + [install kubelet, kubeadm, kubectl](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=systemctl%20restart%20docker-,install%20kubelet%2C%20kubeadm%2C%20kubectl,-Add%20required%20packages)
-  + [Initialize master node](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Initialize%20master%20node)
-  + [nvidia-device-plugin](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Running%EC%9E%84%EC%9D%84%20%ED%99%95%EC%9D%B8-,nvidia%2Ddevice%2Dplugin,-graphic%20driver%20%EC%A1%B4%EC%9E%AC)
-  + [dynamic volume provisioner](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=ID%20%20%20ID%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20Usage%20%20%20%20%20%20%7C%0A%7C%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%7C%0A%2B%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2B-,dynamic%20volume%20provisioner,-kubernetes%EC%97%90%EC%84%9C%20kubeflow)
-* [kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=WaitForFirstConsumer%20%20%20false%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2012s-,kubeflow,-kustomize)
-  + [kustomize](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kubeflow-,kustomize,-%EA%B3%B5%EC%8B%9D)
-  + [kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kustomize%0A%24%20kustomize%20version-,kubeflow,-install)
-    - [install](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kubeflow-,install,-git%20clone%20kubeflow)
-    - [connect from external](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%ED%95%98%EB%82%98%ED%95%98%EB%82%98%20%EB%B3%B5%EC%82%AC%ED%95%B4%EA%B0%80%EB%A9%B0%20%EC%A7%84%ED%96%89%ED%95%98%EC%9E%90.-,connect%20from%20external,-%24%20kubectl%20get%20svc)
-  + [add user](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=localhost8080%EC%97%90%20%EC%A0%91%EC%86%8D%ED%95%B4%EB%B3%B8%EB%8B%A4.-,add%20user,-dashboard%EC%97%90%20user)
-  + [docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=edit%20profile%20%3Cnamespace_name%3E-,docker,-registry)
-    - registry
-    - [git shh key](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=docker%20images%EC%9D%B4%EB%A6%84-,git%20shh%20key,-check%20if%20already)
-    - [dockerfile](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=key%EB%B3%B5%EB%B6%99-,dockerfile,-ARG%20PYTORCH%3D%221.11.0)
-* [KServe](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=49**/train%3A0.1-,KServe,-doc_kserve0.9)
-  + [KServe](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=%EC%9E%88%EB%8A%94%20%EA%B1%B4%20%EB%AD%90%EB%83%90%3F-,KServe,-%24%20kubectl%20apply%20%2Df)
-  + [Built-in ClusterServingRuntimes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=Running%20%20%200%20%20%20%20%20%20%20%20%20%203m58s-,Built%2Din%20ClusterServingRuntimes,-%24%20kubectl%20apply%20%2Df)
-  + [exam](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=v0.8.0%20or%20higher.-,exam,-preparations)
-* [uninstall](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=TODO%3A%20%EC%8B%A4%ED%8C%A8-,uninstall,-kubeadm%20reset)
-    - [kubeadm reset](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=uninstall-,kubeadm%20reset,-sudo%20systemctl%20restart)
-    - [uninstall kubeadm kubectl kubelet](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=home/hibernation/.kube-,uninstall%20kubeadm%20kubectl%20kubelet,-%24%20sudo%20apt%2Dget)
-    - [uninstall docker](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=kubeadm%20kubectl%20kubelet-,uninstall%20docker,-%24%20docker%20rm%20%2Df)
-* [else](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=cli%20containerd.io-,else,-secret)
-  + [secret](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=else-,secret,-%24%20vi%20client_secrets.txt)
-  + [katib](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=SECRET_NAME%20%2Dn%20kubeflow-,katib,-dockerfile)
-    - [dockerfile](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=katib-,dockerfile,-ARG%20PYTORCH%3D%221.11.0)
-    - [Experiment](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=5000/katib%3A0.1-,Experiment,-%24%20vi%20katib.yaml)
-  + [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/setting.md#install-docker:~:text=swin_mlp_ratio%7D%22%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%20%20%20%20restartPolicy%3A%20Never-,Tensorboard,-kubeflow%20dashboard%EC%97%90%EC%84%9C)
-
-
-
 ## Kubernetes
 
 ### check before installation
@@ -1238,21 +1198,21 @@ istio-ingressgateway   NodePort   10.96.89.178   <none>        15021:32680/TCP,8
 
   
   
-  그래도 안될 경우
+  그래도 안될 경우 port-forward에서`--address=0.0.0.0` 옵션 추가
 
-  1. 모든 bind의 주소를 열어주는 방향으로 port-forward
+  해당 option은 모든 IP에서 접속이 가능하게 한다. 
 
-     ```
-     $ kubectl port-forward --address=0.0.0.0 svc/istio-ingressgateway -n istio-system 8080:80
-     ```
+  ```
+  $ kubectl port-forward --address=0.0.0.0 svc/istio-ingressgateway -n istio-system 8080:80
+  ```
 
-  2. 공인 IP를 통해 접속 시도
+  그리고 <공인IP>:8080으로 접속
   
-     ```
-     http://<공인_IP>:8080
-     ```
+  ```
+  $ <공인IP>:8080
+  ```
   
-     만약 여기서 성공한다면, 다시 `--address=0.0.0.0` option을 제거하고 port forward를 한 후  localhost8080에 접속해본다.
+  된다.
 
 
 
@@ -1948,265 +1908,6 @@ $ kubectl -n project-pipeline create secret generic client-secrets --from-env-fi
 > ```
 > $ kubectl edit secret/SECRET_NAME -n kubeflow
 > ```
-
-
-
-### katib
-
-#### dockerfile
-
-```
-ARG PYTORCH="1.11.0"
-ARG CUDA="11.3"
-ARG CUDNN="8"  
-
-FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel	
-
-ENV TORCH_CUDA_ARCH_LIST="7.5"
-ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
-ENV CMAKE_PREFIX_PATH="$(dirname $(which conda))/../"	
-
-# To fix GPG key error when running apt-get update
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu2004/x86_64/7fa2af80.pub
-RUN apt-get update
-
-# for isntall opencv
-RUN apt-get -y install libgl1-mesa-glx
-RUN apt-get -y install libglib2.0-0
-RUN pip install opencv-python-headless
-
-COPY ./ ./
-RUN pip install -r requirements.txt
-
-# Install MMCV
-RUN pip install --no-cache-dir --upgrade pip wheel setuptools
-RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
-# RUN pip install mmdet     # if run this line, get 'MMCV CUDA Compiler: not available'
-
-RUN apt-get install -y git
-
-  
-# docker build . --no-cache -t localhost:5000/katib:0.1
-# docker push localhost:5000/katib:0.1
-```
-
-
-
-#### Experiment
-
-```
-$ vi katib-exam.yaml
-```
-
-```
-apiVersion: kubeflow.org/v1beta1
-kind: Experiment
-metadata:
-  namespace: pipeline
-  name: katib-exam
-spec:
-  objective:
-    type: maximize
-    goal: 0.8
-    objectiveMetricName: mAP
-    metricStrategies:
-    - name: mAP
-      value: latest		# max 
-  algorithm:
-    algorithmName: random				
-  parallelTrialCount: 2
-  maxTrialCount: 12
-  maxFailedTrialCount: 5
-  parameters:
-    - name: lr
-      parameterType: categorical
-      feasibleSpace:
-        list:
-          - "0.0001"
-          - "0.0005"
-          - "0.001"
-          - "0.00005"
-          - "0.00001"
-    - name: swin_drop_rate
-      parameterType: categorical
-      feasibleSpace:
-        list:
-          - "0.0"
-          - "0.1"
-          - "0.2"
-          - "0.3"
-          - "0.4"
-    - name: swin_window_size
-      parameterType: categorical
-      feasibleSpace:
-        list:
-          - "3"
-          - "5"
-          - "7"
-          - "9"
-          - "11"
-    - name: swin_mlp_ratio
-      parameterType: categorical
-      feasibleSpace:
-        list:
-          - "3"
-          - "4"
-          - "5"
-  metricsCollectorSpec:
-    collector:
-      kind: StdOut
-    source:
-      filter:
-        metricsFormat:
-        - "([\\w|-]+)\\s*=\\s*((-?\\d+)(\\.\\d+)?)"  
-  trialTemplate:
-    primaryContainerName: training-container
-    trialParameters:
-      - name: lr
-        description: learning rate
-        reference: lr
-      - name: swin_drop_rate
-        description: drop_rate of SwinTransformer
-        reference: swin_drop_rate
-      - name: swin_window_size
-        description: window_size of SwinTransformer
-        reference: swin_window_size 
-      - name: swin_mlp_ratio
-        description: mlp_ratio of SwinTransformer
-        reference: swin_mlp_ratio 
-    trialSpec:
-      apiVersion: batch/v1
-      kind: Job
-      spec:
-        template:
-          metadata:
-            annotations:
-              sidecar.istio.io/inject: "false"
-          spec:
-            containers:
-              - name: training-container
-                image: localhost:5000/katib:0.3
-                command:
-                  - "python"
-                  - "main.py"
-                  - "--cfg=configs/swin_maskrcnn.py"
-                  - "--model MaskRCNN"
-                  - "--epoch 100"
-                  - "--lr=${trialParameters.lr}"
-                  - "--swin_drop_rate=${trialParameters.swin_drop_rate}"
-                  - "--swin_window_size=${trialParameters.swin_window_size}"
-                  - "--swin_mlp_ratio=${trialParameters.swin_mlp_ratio}"                  
-            restartPolicy: Never
-```
-
-```
-$ kubectl apply -f katib-exam.yaml
-```
-
-
-
-- check status
-
-  ```
-  $ kubectl -n pipeline get experiment katib-exam -o yaml
-  ```
-
-- check katib-controller
-
-  ```
-  $ kubectl get pod -n kubeflow|grep katib-controller
-  ```
-
-  ```
-  katib-controller-86cd58bc95-4c4gv                        1/1     Running   0             48m
-  ```
-
-- check pod
-
-  ```
-  $ kubectl get pods -n pipeline | grep katib
-  ```
-
-  > trials가 실행되는 pod까지 다 나온다.
-  >
-  > error상태의 pod만 삭제하고자 한다면 
-  >
-  > ```
-  > $ kubectl delete pod --field-selector=status.phase==Failed -n pipeline
-  > ```
-
-  ```
-  katib-random-bc8bdfddc-8gdw7                      1/1     Running     0          5m13s
-  ```
-
-  
-
-  
-
-  
-
-  check log
-
-  ```
-  $ kubectl logs  katib-exam-random-fbb44c8d4-n4fb7 -n pipeline
-  ```
-
-  아래 error발생
-
-  ```
-  INFO:hyperopt.utils:Failed to load cloudpickle, try installing cloudpickle via "pip install cloudpickle" for enhanced pickling support.
-  INFO:hyperopt.fmin:Failed to load cloudpickle, try installing cloudpickle via "pip install cloudpickle" for enhanced pickling support.
-  INFO:pkg.suggestion.v1beta1.hyperopt.base_service:GetSuggestions returns 2 new Trial
-  ```
-
-  
-
-  
-
-  -  `container` log 확인
-
-    ```
-    kubectl logs  katib-exam-random-fbb44c8d4-n4fb7 -n pipeline training-container
-    ```
-
-  - `metrics-logger-and-collector` log 확인
-
-    ```
-    kubectl logs -katib-random-bc8bdfddc-8gdw7 -n pipeline metrics-logger-and-collector
-    ```
-
-    
-
-  
-
-> delete
->
-> ```
-> $ kubectl -n pipeline delete experiment katib-exam
-> ```
->
-> 관련 pod는 알아서 삭제됨
-
-
-
-### Tensorboard
-
-kubeflow dashboard에서 `+ New TensorBoard`
-
-- PVC
-
-  - PVC Name: 기존에 만들어둔 persistent volume중에서 선택
-
-  - Mount Path: PVC의 경로를 기준으로 event file이 save될 path
-
-    > PVC의 경로가 `/pvc`일 때, 
-    >
-    > Mount Path: `tensorboard/` 라면
-    >
-    > event file은 `/pvc/tensorboard/` 에 저장되어야 한다.
-
-
 
 
 
