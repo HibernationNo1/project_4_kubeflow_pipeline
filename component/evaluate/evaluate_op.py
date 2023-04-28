@@ -161,8 +161,9 @@ def evaluate(cfg : dict, input_run_flag: InputPath("dict"),
                         best_model[key_name]['value'] = key_value
                         best_model[key_name]['path'] = model_path
                         best_model[key_name]['result_dir'] = result_dir
-            
-        upload_model(cfg, best_model)
+        
+        if in_pipeline:
+        	upload_model(cfg, best_model)
   
 
     def git_clone_dataset(cfg):

@@ -20,13 +20,13 @@ hook_configs = [
         type='Validation_Hook',      
         priority = 'LOW',     		 # Be higher than LoggerHook to log validation information 
                                      # and be lower than OptimizerHook to got sufficient GPU memory for run validation.
-        interval = ['iter', 50],     # epoch(or iter) unit to run validation ['epoch', 1]
+        interval = ['iter', 100],     # epoch(or iter) unit to run validation ['epoch', 1]
         val_cfg = dict(
             run = True,  
-            iou_thrs = [0.3, 0.9],          # range of iou threshold
+            score_thrs = [0.3, 0.9],          # range of iou threshold
             num_thrs_divi = 9,             # divide range of `iou_threshold` by number of `num_thrshd_divi` for compute mAP
+            iou_thrs = 0.6,
             num_window = 3,
-            batch_size = 4,
             show_score_thr = 0.7,           # threshold of score to draw image
             save_plot = True,
             compare_board_info = True ,
