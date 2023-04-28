@@ -1,5 +1,19 @@
 # Customizing mmdetection, mmcv
 
+##### Table of Contents
+
+- [Add `configuration` and `instance name list` to the trained model file](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#add-configuration-and-instance-name-list-to-the-trained-model-file)
+- [Add custom evaluation code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#add-custom-evaluation-code)
+  - [dv mAP](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#dv-map)
+  - [exact Inference Rate(EIR)](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#exact-inference-rateeir)
+- [Modified original hooks](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#modified-original-hooks)
+- [Add custom hooks](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#add-custom-hooks)
+  - [Validation_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#validation_hook)
+  - [TensorBoard_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#tensorboard_hook)
+  - [Check_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#check_hook)
+
+
+
 model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetection](https://github.com/open-mmlab/mmdetection)**과 [open-mmlab](https://github.com/open-mmlab)/**[mmcv](https://github.com/open-mmlab/mmcv)**를 차용했으며, 몇 가지 수정을 통해 원하는 동작을 추가했습니다.
 
 ![](https://github.com/open-mmlab/mmdetection/raw/main/resources/mmdet-logo.png)
