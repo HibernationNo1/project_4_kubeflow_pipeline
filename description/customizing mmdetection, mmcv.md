@@ -32,6 +32,8 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
 
 
 
+
+
 ### Add `configuration` and `instance name list` to the trained model file
 
 - 기존 mmdet의 code는 학습 된 model을 이어서 학습하거나, inference를 진행할 때 
@@ -53,7 +55,11 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/**[mmdetecti
 
 
 
+
+
 ### Add custom evaluation code
+
+
 
 #### dv mAP
 
@@ -75,6 +81,8 @@ validation 및 evaluation을 진행할 때 object detection의 성능 평가 지
 
 
 
+
+
 #### exact Inference Rate(EIR)
 
 model의 inference 목표인 License Plate의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것의 성공률을 의미합니다.
@@ -84,6 +92,8 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 10개의 License Plate중 6개를 정확하게 추론했을 시 EIR는 0.6이 됩니다.
 
 ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/License%20plate.png?raw=true)
+
+
 
 
 
@@ -97,9 +107,13 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 
 
 
+
+
 ### Add custom hooks
 
 해당 code: [costom.py](https://github.com/HibernationNo1/sub_module/blob/568cbe11b2a76c22d545200463845013030a1048/mmdet/hooks/custom.py)
+
+
 
 #### Validation_Hook
 
@@ -110,10 +124,14 @@ validation을 진행하는 code를 추가했습니다.
 
 
 
+
+
 #### TensorBoard_Hook
 
 - local의 위치 또는 persistent volume(pipeline의 component로 학습이 진행될 때)의 특정 위치에 tensorboard의 event.out file을 저장하는 code를 추가했습니다.
 - loss와 mAP등 원하는 값을 tensorboard에 기록하도록 하는 code를 추가했습니다.
+
+
 
 
 
