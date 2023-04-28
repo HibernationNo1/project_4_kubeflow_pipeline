@@ -1,5 +1,5 @@
 
-
+train_data_v = 'v0.0.4'
 
 gs = dict(
     download = True,    # if True: download from gs gtorage
@@ -7,7 +7,7 @@ gs = dict(
     result_bucket = "result_hibernation",
     train = dict(
         dir = 'train',
-        path = '0.0.2',
+        path = train_data_v,		# upload path
         accept_formmat = ['.pth'],  # ".jpg", ".log"
         model = dict(
             count = 10,
@@ -17,9 +17,9 @@ gs = dict(
     ),
     eval = dict(
         # download_dir = 'models',
-        target = "0.0.2",
-        dir = "evaluation",
-        path = "0.0.2"
+        target = train_data_v,		# download path
+        dir = "evaluation",	
+        path = train_data_v			# upload path
     ),
     test = dict(
         # download_dir = 'models',
@@ -38,16 +38,14 @@ path = dict(
 
 git = dict(
     remote = "origin",
-    branch = dict(dataset_repo = 'develop'),		# for run `git commit`.
+    branch = dict(dataset_repo = 'master'),		# for run `git commit`.
     dataset = dict(
         repo = "pipeline_dataset",
         ann = dict(
-            tag = "board_dataset_v0.0.5",
-            version = "0.0.5"
+            tag = "board_dataset_ann_v0.0.7"		# should match the git repo tag for download ann_dataset
         ),
         train = dict(
-            tag = "board_dataset_train_0.0.1",
-            version = "0.0.1"
+            tag = f"board_dataset_train_{train_data_v}"		# should match the git repo tag for download train_dataset
         )
     ),
     package_repo = "sub_module",

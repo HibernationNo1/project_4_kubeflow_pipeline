@@ -258,7 +258,7 @@ def train(cfg : dict, input_run_flag: InputPath("dict"),
                                                 cfg.dvc.record.dir,
                                                 df_image['train'].category[0])
         
-        print(f"Number of image: {len(glob.glob(cfg.data.train.data_root +'/*.jpg'))}")
+        print(f"Number of images: {len(glob.glob(cfg.data.train.data_root +'/*.jpg'))}")
             
         assert osp.isdir(cfg.data.train.data_root), f"Path of train dataset dir is not exist! \npath: {cfg.data.train.data_root}"
         cfg.data.train.ann_file = osp.join(cfg.data.train.data_root,
