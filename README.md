@@ -2,15 +2,11 @@
 
 # Project: Automatic License Plate Recognition
 
-## Table of Contents
-
-
-
-## Overview
-
 해당 프로젝트는 kubernetes상에서 kubeflow를 활용하여 모델을 학습하는 pipeline을 구현한 프로젝트입니다.
 
-전체적인 흐름도는 아래와 같습니다.
+model을 통해 기대하는 inference결과는 번호판의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것입니다.
+
+- 전체적인 흐름도는 아래와 같습니다.
 
 
 
@@ -42,11 +38,24 @@
 
 
 
-
-
 ---
 
+## Table of Contents
 
+- [Managing dataset](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#managing-dataset)
+  - [Process Of creating Datasets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#process-of-creating-datasets)
+- [Pipeline Configuration With Kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipeline-configuration-with-kubeflow)
+  1. [Customizing mmdetection, mmcv](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#1-customizing-mmdetection-mmcv)
+  2. [kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#2-kubeflow)
+     - [Experiments(Katib-AutoML)](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#experimentskatib-automl)
+     - [Volumes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#volumes)
+     - [Pipelines, Experiments(KFP), Runs](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipelines-experimentskfp-runs)
+     - [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#tensorboard)
+     - [Secrets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#secrets)
+- [Project management](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/README.md#project-management)
+- [TODO List](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#todo-list)
+- [Installation Process](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#installation-process)
+- [참고 문헌 및 강의](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#%EC%B0%B8%EA%B3%A0-%EB%AC%B8%ED%97%8C-%EB%B0%8F-%EA%B0%95%EC%9D%98)
 
 ## Managing dataset 
 
@@ -102,6 +111,7 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 1. Model load시 추가적인 infomation을 요구할 것 없이 model내부에서 내용을 가져와 training 및 inference를 진행할 수 있게 했습니다.
 2. Object Detction의 성능 평가 지표인 **mAP**를 한 단계 더욱 고차원적인 방법으로 계산하는 성능 평가 지표를 만들었습니다.
 3. 제가 만든 dataset를 위한 model 평가 지표를 추가했습니다.
+4. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
 
 해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.
 
@@ -326,11 +336,25 @@ $ kubectl -n project-pipeline create secret generic project_secrets --from-env-f
 
 ---
 
+## Project management
+
+- 해당 project는 총 3개의 repository에 의해 관리됩니다.
+
+  - dataset을 관리하는 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git)
+  - component에서 사용하는 module을 관리하는 [sub_module](https://github.com/HibernationNo1/sub_module)
+  - pipeline을 구성하는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)
+
+  이 중 main repository는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)으로 결정하고 proejct을 진행했으며, local에서도 각 repository의 module을 사용하고 git으로 관리할 수 있도록 **`git-Submodules`**기능을 사용했습니다.  
+
+- [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)과 [sub_module](https://github.com/HibernationNo1/sub_module)은 특정 목적을 가진 branch를 임의로 생성, 삭제하며 운영 및 관리했으며, master branch에 merge를 하는경우 약식으로 github의 **`Pull requests`**기능을 사용하여 협업 환경에서 프로젝트를 진행하는 것 처럼 시뮬레이션을 해 보았습니다.
+
+
+
 
 
 ## TODO List
 
-- Model serving (with katib)
+- Model serving (with kserve)
 - Using other model (swin-transformer, Mask2Former)
 
 
