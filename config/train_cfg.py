@@ -28,15 +28,18 @@ hook_configs = [
             iou_thrs = 0.6,
             num_window = 3,
             show_score_thr = 0.7,           # threshold of score to draw image
-            save_plot = True,
-            compare_board_info = True ,
+            save_plot = True
             ),
         best_model = dict(
             key = "dv_mAP", 	# mAP
             dir = "best",
             name = "best_model.pth"
         ),
-        run_infer = True
+        infer_cfg = dict(
+            run = True,					# if True, run inferece and save result image
+            compare_board = True	# if True, compute EIR
+		)
+                         
     ),
              
     dict(
@@ -78,9 +81,13 @@ hook_configs = [
     ),
     dict(
         type = "TensorBoard_Hook",
-        interval = ['iter', 10],
+        interval = ['iter', 100],
         pvc_dir = "tensorboard",
-        out_dir = train_result          
+        out_dir = train_result,
+        categories = dict(						# tensorboard categories
+            val = ['mAP', 'dv_mAP', 'EIR'],
+            acc = ['acc']
+            )          
         # priority='VERY_LOW'       # default priority: 'VERY_LOW'
     )      
 ]
