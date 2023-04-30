@@ -1,6 +1,6 @@
 python  pipeline.py \
 --cfg_pipeline config/pipeline.py \
---pipeline_v 0.25 \
+--pipeline_v 0.28 \
 --dashboard_pw 4958  \
 --cfg_record config/record_cfg.py  \
 --cfg_train config/train_cfg.py \
