@@ -1,5 +1,5 @@
 
-train_data_v = 'v0.0.4'
+train_data_v = 'v0.0.5'
 
 gs = dict(
     download = True,    # if True: download from gs gtorage
