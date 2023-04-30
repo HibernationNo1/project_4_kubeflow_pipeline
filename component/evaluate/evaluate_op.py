@@ -143,7 +143,7 @@ def evaluate(cfg : dict, input_run_flag: InputPath("dict"),
             summary['dv_mAP'] = summary['dv']["mAP"]
             summary['mAP'] = summary['normal']["mAP"]
             
-            exact_inference_rate = eval_.run_inference()
+            exact_inference_rate = eval_.run_inference(compare_board = True)
             if exact_inference_rate is None:
                 json.dump(summary, open(osp.join(result_dir, "summary.json"), "w"), indent=4)
             else: 
