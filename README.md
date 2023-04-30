@@ -2,11 +2,11 @@
 
 # Project: Automatic License Plate Recognition
 
-## Overview
-
 해당 프로젝트는 kubernetes상에서 kubeflow를 활용하여 모델을 학습하는 pipeline을 구현한 프로젝트입니다.
 
-전체적인 흐름도는 아래와 같습니다.
+model을 통해 기대하는 inference결과는 번호판의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것입니다.
+
+- 전체적인 흐름도는 아래와 같습니다.
 
 
 
@@ -52,7 +52,7 @@
      - [Pipelines, Experiments(KFP), Runs](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipelines-experimentskfp-runs)
      - [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#tensorboard)
      - [Secrets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#secrets)
-- [Project management]
+- [Project management](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/README.md#project-management)
 - [TODO List](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#todo-list)
 - [Installation Process](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#installation-process)
 - [참고 문헌 및 강의](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#%EC%B0%B8%EA%B3%A0-%EB%AC%B8%ED%97%8C-%EB%B0%8F-%EA%B0%95%EC%9D%98)
