@@ -1,19 +1,22 @@
-# conda create -n pipeline python=3.8 pytorch==1.13.0 torchvision cudatoolkit=11.6 -c conda-forge -y  
-# pip install mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu116/torch1.13.0/index.html    
+# conda create -n kserve_03 python=3.8 -c conda-forge -y  
+# pip install mmcv-full==1.7.1 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.12.0/index.html    
+# conda create -n pipeline python=3.8 pytorch==1.13.0 torchvision cudatoolkit=11.2 -c conda-forge -y  
+# pip install mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.12.0/index.html    
 # pip install -r requirements.txt
-mmdet
+# mmdet== 2.28.1
 
-dvc[gs]
-kfp
-kubernetes
-kserve
+dvc[gs]		# 3.2.3
+kfp==1.8.19
+kubernetes==19.15.0
+kserve==0.9.0
 
-pymysql
+addict==2.4.0
+Pillow==9.5.0
+pymysql==1.1.0
 pandas
-numpy
-GitPython
-pycocotools
-terminaltables
-opencv-python
-tensorboard
-
+GitPython==3.1.31
+pycocotools==2.0.6
+terminaltables==3.1.0
+# opencv-python==4.7.0.72
+tensorboard==2.11.2
+torchvision==0.13.0
