@@ -4,9 +4,13 @@
 
 해당 프로젝트는 kubernetes상에서 kubeflow를 활용하여 모델을 학습하는 pipeline을 구현한 프로젝트입니다.
 
-model을 통해 기대하는 inference결과는 번호판의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것입니다.
+현재까지 완성된 정도는 아래와 같습니다.
 
-- 전체적인 흐름도는 아래와 같습니다.
+- kubeflow - Experiments(Katib-AutoML) 을 통한 최적의 hyper-parameter 검색
+- kubeflow - Pipelines설계 (dataset통합, 학습, 검증 및 평가, 추론 테스트) 
+- kubeflow - Endpoints (Kserve)를 활용한 model serving
+
+전체적인 흐름도는 아래와 같습니다.
 
 
 
@@ -367,8 +371,9 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 ### TODO List
 
-- Using other model (swin-transformer, Mask2Former)
+- using other model (swin-transformer, Mask2Former)
 - create more dataset
+- set private storage for Inferenceservice Storage
 - make docker image for service model inference
 - using CI/CD
 
