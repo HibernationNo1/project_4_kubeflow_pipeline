@@ -50,8 +50,8 @@ model을 통해 기대하는 inference결과는 번호판의 각 text를 인식�
      - [Pipelines, Experiments(KFP), Runs](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipelines-experimentskfp-runs)
      - [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#tensorboard)
      - [Secrets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#secrets)
-- Model Serving
-- about project
+- [Model Serving](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#model-serving)
+- [About project](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#about-project)
   - [Project management](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#project-management)
   - [TODO List](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#todo-list)
   - [Installation Process](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#installation-process)
