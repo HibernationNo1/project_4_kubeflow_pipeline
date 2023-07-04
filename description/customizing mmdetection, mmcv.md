@@ -2,18 +2,17 @@
 
 ##### Table of Contents
 
-- [Add `configuration` and `instance name list` to the trained model file](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#add-configuration-and-instance-name-list-to-the-trained-model-file)
-- [Add custom evaluation code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#add-custom-evaluation-code)
-  - [dv mAP](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#dv-map)
-  - [exact Inference Rate(EIR)](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#exact-inference-rateeir)
-- [Modified original hooks](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#modified-original-hooks)
-- Modify hooks 
-  - Modify Original hooks 
-  - Add custom hooks
-    - [Validation_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#validation_hook)
-    - [TensorBoard_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#tensorboard_hook)
-    - [Check_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md#check_hook)
-- Remove dependencies
+- [Add `configuration` and `instance name list` to the model file](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#add-configuration-and-instance-name-list-to-the-model-file)
+- [Add custom evaluation code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#add-custom-evaluation-code)
+  - [dv mAP](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#dv-map)
+  - [exact Inference Rate(EIR)](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#exact-inference-rateeir)
+- [Modify hooks](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#modify-hooks) 
+  - [Modify Original hooks](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#modify-original-hooks) 
+  - [Add custom hooks](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#add-custom-hooks)
+    - [Validation_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#validation_hook)
+    - [TensorBoard_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/master/docs/description/customizing%20mmdetection%2C%20mmcv.md#tensorboard_hook)
+    - [Check_Hook](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#check_hook)
+- [Remove dependencies](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#remove-dependencies)
 
 
 
