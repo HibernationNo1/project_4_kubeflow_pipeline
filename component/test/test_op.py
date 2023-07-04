@@ -178,7 +178,7 @@ def test(cfg : dict, input_run_flag: InputPath("dict"),
 
     if __name__=="component.test.test_op":  
         cfg = Config(cfg)
-        main(cfg)
+        main(cfg, osp.join(os.getcwd(), cfg.test_result))
 
     if __name__=="__main__":    
         with open(input_run_flag, "r", encoding='utf-8') as f:
