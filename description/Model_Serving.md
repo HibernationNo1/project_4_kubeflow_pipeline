@@ -10,15 +10,15 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 #### Table of Contents
 
-- Serving
+- [Serving](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md#serving)
 
-  - Requirements
-    - handler
-    - docker image
-    - storageUri
-  - InferenceService
+  - [Requirements](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md#requirements)
+    - [handler](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md#handler)
+    - [docker image](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md#docker-image)
+    - [storageUri](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md#storageuri)
+  - [InferenceService](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md#inferenceservice)
 
-- Test-Result
+- [Test-Result](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md#test-result)
 
   
 
@@ -30,9 +30,13 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 ### Requirements
 
+torchserve를 kserve.inferenceservice의 위에서 구동하기 위한 필요조건입니다.
+
+
+
 #### handler
 
-torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니다.
+torchserve를 구동하기 위해 필요한 class및 method를 구성했습니다.
 
 - `_load_model`을 통해 model을 build하는 과정에서 instance의 순서와 configuration를 **model.pth**으로부터 자동으로 load하도록 했습니다. 
 - input data가 image이기 때문에  `image_processing`을 진행했습니다.
@@ -47,7 +51,9 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
 
 #### docker image
 
-1. **dockerfile**
+InferenceService의 deploment에 의해 torchserve가 동작할 pod가 생성될 때, 해당 pod의 환경을 구성하기 위해 필요한 사항입니다.
+
+1. dockerfile
 
    layer 구성은 아래의 환경이 포함되도록 했습니다.
 
@@ -58,7 +64,7 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
 
    해당 dockerfile은 [`docker/dockerfile`](https://github.com/HibernationNo1/project4_kserve/blob/master/docker/Dockerfile)에 있습니다.
 
-2. **build and push**
+2. build and push
 
    ```
    $ docker build docker --no-cache -t localhost:5000/kserve:0.1-gpu
@@ -89,7 +95,11 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
 
 #### storageUri
 
-1. **download model from google storage**
+InferenceService상에서 torchserve를 구동하기 위해 다운로드 할 storage를 지정합니다.
+
+> 1, 2번은 ` torch-model-archiver`명령어를 통해 storage에 업로드 할 파일을 만드는 방법입니다.
+
+1. download model from google storage
 
    사전에 google storage에 업로드 된 `.pth`파일을 내려받습니다.
 
@@ -97,7 +107,7 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
    $ gsutil cp -r gs://model_storage_hibernation/models/pipeline.pth ./archrive/pipeline.pth 
    ```
 
-2. **make archiver file**(`.mar`)
+2. make archiver file(`.mar`)
 
    `torch-model-archiver`명령어로 `.mar` 파일을 만들고 google storage에 업로드 할 derectory에 저장합니다. 
 
@@ -116,7 +126,7 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
 
      해당 dir에는 `gs/config/config.properties` 와 `gs/model-store/pipeline.mar`이 위치하게 됩니다.
 
-     **config.properties**
+     아래는 config.properties 파일의 내용입니다.
 
      ```
      inference_address=http://0.0.0.0:8095
@@ -157,6 +167,10 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
    
 
 ### InferenceService
+
+kserve의 InferenceService를 생성합니다.
+
+`torchserve`, `storageUri`, `image`를 직접 구성하여 원하는 동작이 이루어지도록 했습니다.
 
 1. create resource
 
@@ -220,6 +234,8 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
 
 ## Test-Result
 
+test를 통해 해당 InferenceService가 정상적으로 동작하는지 확인합니다.
+
 [request.py](https://github.com/HibernationNo1/project4_kserve/blob/master/request/request.py)를 통해 InferenceService에 신호를 보냅니다.
 
 해당 code의 동작 순서는 아래와 같습니다.
@@ -233,6 +249,8 @@ torchserve를 통해 `.mar`파일을 만들기 위해 handler를 구성했습니
 
 
 test를 위해 API로 보낼 이미지는 아래 3개를 사용했습니다.
+
+> 3번 이미지는 다른 형태의 plate가 한 장의 사진에 위치할 수 있도록 임의로 만든 이미지입니다.
 
 ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_1.png?raw=true)
 
