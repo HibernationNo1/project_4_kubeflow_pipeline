@@ -23,10 +23,10 @@ pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
 ##### Table of Contents
 
-- Record
-- Train
-- Evaluate
-- Test
+- [Record](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#record)
+- [Train](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#train)
+- [Evaluate](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#evaluate)
+- [Test](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#test)
 
 
 
