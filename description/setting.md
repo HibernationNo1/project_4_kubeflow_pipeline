@@ -322,6 +322,12 @@ Mirantis cri-dockerd CRI 소켓 파일 경로는 `/run/cri-dockerd.sock` (Kubern
    Sep 20 14:01:38 ubuntu systemd[1]: Listening on CRI Docker Socket for the API.
    ```
 
+7. restart
+
+   ```
+   $ sudo systemctl restart cri-docker.service
+   ```
+
    
 
 #### NVIDIA DOCKER
@@ -620,7 +626,7 @@ docker contianer안에서 GPU를 사용하기 위해선 필수
    ```
    $ sudo kubeadm init \
      --pod-network-cidr=10.244.0.0/16 \
-     --apiserver-advertise-address 192.168.219.100\
+     --apiserver-advertise-address 172.30.1.70\
      --cri-socket unix:///run/cri-dockerd.sock
    ```
 
