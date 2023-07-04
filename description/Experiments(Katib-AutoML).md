@@ -2,10 +2,12 @@
 
 ##### Table of Contents
 
-- [Resource](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiments(Katib-AutoML).md#resource)
-- [Dockerfile](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiments(Katib-AutoML).md#dockerfile)
-- [Status](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiments(Katib-AutoML).md#status)
-- [result](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiments(Katib-AutoML).md#result)
+- [Resource](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#resource)
+- [Dockerfile](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#dockerfile)
+  - [base pytorch](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#base-pytorch)
+  - [base ubuntu:20.04](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#base-ubuntu2004)
+- [Status](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#status)
+- [result](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#result)
 
 
 
@@ -15,11 +17,13 @@ Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib 
 
 ## Resource
 
-- 수집하고자 하는 metric은 `mAP`, `dv_mAP`, `EIR` 으로 하였으며, goal의 기준으로 할 metric은 `mAP`로 결정했습니다.
+아래는 Experiment를 구성하는 과정에서 지정한 사항들입니다.
+
+- 수집하고자 하는 metric은 `mAP`, `dv_mAP`, `EIR` 으로 하였으며, **goal**의 기준으로 할 metric은 `mAP`로 결정했습니다.
 
 - parameters 결정 algorithm은 `random`으로 했습니다.
 
-- metric을 수집하기 위한 model의 최소 performance를 얻기 위해 사용되는 GPU의 memory가 두 개 이상의 trail을 실행하기에 충분치 않아 `parallelTrialCount`는 1로 결정했습니다.
+- 해당 프로젝트에서 사용되는 GPU의 memory가 두 개 이상의 trail을 실행하기에 충분치 않아 `parallelTrialCount`는 1로 결정했습니다.
 
 - 각 parameter의 type을 `float`으로 설정 시 균일하지 못한 편차의 값이 연속적으로 할당되는 문제가 있어, `str` type으로 전달 후 code에서 각각 알맞은 type으로 변형되도록 했습니다.
 
@@ -160,9 +164,15 @@ $ kubectl apply -f experiments.yaml
 
 ## Dockerfile
 
-Experiments를 진행시 build될 docker image의 dockerfile입니다.
+dockerfile구성에 대한 내용과 설명입니다.
 
-```
+dockerfile은 [pytorch/pytorch](https://hub.docker.com/r/pytorch/pytorch)를 참조한 것과 Ubuntu20.04를 기반으로 만든 것 2가지가 있습니다.
+
+아래는 Experiments를 진행시 build될 docker image의 dockerfile입니다.
+
+### base pytorch
+
+```dockerfile
 ARG PYTORCH="1.11.0"
 ARG CUDA="11.3"
 ARG CUDNN="8"  
@@ -183,13 +193,18 @@ RUN apt-get -y install libgl1-mesa-glx
 RUN apt-get -y install libglib2.0-0
 RUN pip install opencv-python-headless
 
-COPY ./ ./
+WORKDIR /home/workspace
+RUN mkdir -p /home/workspace
+COPY ./sub_module /home/workspace/sub_module
+COPY ./test_dataset /home/workspace/test_dataset
+COPY ./component /home/workspace/component
+COPY ./config /home/workspace/config
+COPY ./sh /home/workspace/sh
+COPY ./pipeline_base_config.py ./pipeline_config.py ./pipeline_utils.py ./pipeline.py \
+	 ./main.py ./requirements.txt /home/workspace/
 RUN pip install -r requirements.txt
 
-# Install MMCV
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools
-RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
-RUN pip install mmdet==2.28.0
 
 RUN apt-get install -y git
 
@@ -200,7 +215,7 @@ RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 
 
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["sh", "sh/local_train.sh"]
   
 ```
 
@@ -231,14 +246,6 @@ ENTRYPOINT ["python", "main.py"]
   해당 docker contianer에서 opencv package를 사용하기 위한 install입니다.
 
 - ```
-  RUN pip install --no-cache-dir --upgrade pip wheel setuptools
-  RUN pip install --no-cache-dir mmcv-full==1.5.3 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
-  RUN pip install mmdet==2.28.0
-  ```
-
-  해당 project를 진행하기 위해 필요한 mmcv, mmdet의 특정 version을 install합니다.
-
-- ```
   RUN mkdir /root/.ssh
   ADD id_rsa /root/.ssh/id_rsa
   RUN chmod 600 /root/.ssh/id_rsa
@@ -256,18 +263,107 @@ ENTRYPOINT ["python", "main.py"]
 
 
 
-\+
+### base ubuntu:20.04
 
-- `COPY ./ ./`
+```dockerfile
+FROM ubuntu:20.04
+LABEL org.opencontainers.image.ref.name=ubuntu
+LABEL org.opencontainers.image.version=20.04
 
-   **1. Experiments를 진행 시**, **2. local에서 code실행 시**, **3. component상의 container에서 code실행 시** 비슷하지만 서로 다른 code를 구성하는 것에 번거로움을 느껴 모두 같은 code상에서 문제 없이 실행되도록 했습니다.
+ARG TARGETARCH=amd64
+ENV DEBIAN_FRONTEND=noninteractive
 
-  때문에 code를 그대로 전부 dockerfile에 복사하여 실행되도록 했습니다.
+# ADD file:d05d1c0936b046937bd5755876db2f8da3ed8ccbcf464bb56c312fbc7ed78589 in / 
+CMD ["/bin/bash"]
 
-  \\
+# install package
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl vim sudo wget git
 
-   예시) `record_op.py`의 code중 일부 
 
+# set CUDA
+ENV NVARCH=x86_64
+ENV NVIDIA_REQUIRE_CUDA=cuda>=11.3 brand=nvidia,driver>=470,driver<471 
+ENV NV_CUDA_COMPAT_PACKAGE=cuda-compat-11-3
+ENV NV_CUDA_CUDART_PACKAGE=cuda-cudart-11-3
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gnupg2 ca-certificates && \
+    curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/${NVARCH}/3bf863cc.pub | apt-key add - && \
+    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/${NVARCH} /" > /etc/apt/sources.list.d/cuda.list && \
+    rm -rf /var/lib/apt/lists/* 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ${NV_CUDA_CUDART_PACKAGE}\
+    ${NV_CUDA_COMPAT_PACKAGE} && \
+    rm -rf /var/lib/apt/lists/* 
+RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
+    echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf 
+ENV PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# install python3, package-python, java
+ENV PYTHONUNBUFFERED=TRUE
+ARG PYTHON_VERSION=3.8
+RUN apt-get update --fix-missing && apt-get upgrade -y && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt remove python-pip && \
+	apt-get install -y python3-pip && \
+    apt-get install --no-install-recommends -y \
+    python$PYTHON_VERSION \
+    python3-distutils \
+    python$PYTHON_VERSION-dev \
+    python$PYTHON_VERSION-venv \
+    openjdk-17-jdk \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* 
+# create symbolic link for use `python` command for `python3`
+RUN ln -s /usr/bin/python3 /usr/local/bin/python
+
+ENV PATH /home/venv/bin${PATH:+:${PATH}}
+
+WORKDIR /home/workspace
+RUN mkdir -p /home/workspace
+COPY ./sub_module /home/workspace/sub_module
+COPY ./test_dataset /home/workspace/test_dataset
+COPY ./component /home/workspace/component
+COPY ./config /home/workspace/config
+COPY ./sh /home/workspace/sh
+COPY ./pipeline_base_config.py ./pipeline_config.py ./pipeline_utils.py ./pipeline.py \
+	 ./main.py ./requirements.txt /home/workspace/
+
+
+# install requirements
+RUN pip install -r requirements.txt
+RUN pip install opencv-python-headless
+RUN pip install torch==1.12.1+cu113  -f https://download.pytorch.org/whl/torch_stable.html
+
+ENTRYPOINT ["sh", "sh/local_train.sh"]
+```
+
+
+
+
+
+**COPY**
+
+- `COPY `
+
+   **1. Experiments를 진행 시**
+
+  **2. local에서 code실행 시**
+
+  **3. component상의 container에서 code실행 시** 
+
+  위 3가지의 상이한 실행 환경을 위해 모두 같은 code상에서 문제 없이 실행되도록 하기 위해 필요한 code를 dockerfile에 복사하여 실행되도록 했습니다.
+
+  
+  
+  - 예시) `record_op.py`의 code중 일부 
+  
   ```
   	WORKSPACE = dict(component_volume = cfg['path']['component_volume'],       # pvc volume path on component container
                        local_volume = cfg['path'].get('local_volume', None),     # pvc volume path on local
@@ -313,8 +409,12 @@ ENTRYPOINT ["python", "main.py"]
        
       sys.path.append(PACKAGE_PATH) 
   ```
-
+  
   component의 container로 code를 실행 시  `__name__=="__main__"`이고, local 또는 docker run으로 code를 실행 시 `__name__=="component.record.record_op"` 임을 활용했습니다.
+
+
+
+
 
 ---
 

@@ -18,11 +18,11 @@ model을 통해 기대하는 inference결과는 번호판의 각 text를 인식�
 
 2. **Integrate `annotation dataset` into` coco data` set form**
 
-   mmdetection model의 학습 데이터로 사용하기 위해 coco dataset과 같은 구조로 데이터셋을 구성합니다.
+   model의 학습 데이터로 사용하기 위해 coco dataset과 같은 구조로 데이터셋을 통합합니다.
 
 3. **Model training and evaluation**
 
-   model을 학습하고 evaluation과 inference test를 진행합니다.
+   model을 학습하고 evaluation과 test를 진행합니다.
 
    model을 통해 기대하는 inference결과는 번호판의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것입니다.
 
@@ -30,11 +30,9 @@ model을 통해 기대하는 inference결과는 번호판의 각 text를 인식�
 
    ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/License%20plate%20desc_1.png?raw=true)
 
-4. Model serving
+4. **Model serving**
 
-   model을 배포합니다.
-
-   > 구현중에 있습니다.
+   학습된 model을 serving합니다.
 
 
 
@@ -52,21 +50,26 @@ model을 통해 기대하는 inference결과는 번호판의 각 text를 인식�
      - [Pipelines, Experiments(KFP), Runs](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipelines-experimentskfp-runs)
      - [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#tensorboard)
      - [Secrets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#secrets)
-- [Project management](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/README.md#project-management)
-- [TODO List](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#todo-list)
-- [Installation Process](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#installation-process)
-- [참고 문헌 및 강의](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#%EC%B0%B8%EA%B3%A0-%EB%AC%B8%ED%97%8C-%EB%B0%8F-%EA%B0%95%EC%9D%98)
+- [Model Serving](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#model-serving)
+- [About project](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#about-project)
+  - [Project management](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#project-management)
+  - [TODO List](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#todo-list)
+  - [Installation Process](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#installation-process)
+  - [참고 문헌 및 강의](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#%EC%B0%B8%EA%B3%A0-%EB%AC%B8%ED%97%8C-%EB%B0%8F-%EA%B0%95%EC%9D%98)
 
 ## Managing dataset 
 
-- 자동차 번호판을 학습시키는 것을 trining의 목적으로 했습니다.
+- dataset의 category는 **자동차 번호판**으로 구성하였습니다.
 
-- dataset은 `labelme.exe`를 통해 직접 만들었으며, DVC를 이용해 version관리를 하였고 DB에서 data의 정보를 관리했습니다.
-- 실제 자동차 번호판을 모아놓은 데이터 셋을 만들고자 했지만, 자동차 소유주들에게 자문을 구한 결과 '모르는 사람이 자신의 자동차의 번호판을 촬영해간다면 매우 불쾌할 수 있다.'는 의견을 듣고, python을 사용해 배경 이미지에 임의로 번호판을 그려 dataset을 구성하는 것으로 방향을 잡게 되었습니다. 
+  실제 자동차 번호판을 모아놓은 데이터 셋을 만들고자 했지만 '모르는 사람이 자신의 자동차의 번호판을 촬영해간다면 매우 불쾌할 수 있다.'는 의견을 듣고, python을 사용해 배경 이미지에 임의로 번호판을 그려 dataset을 구성하는 것으로 방향을 잡게 되었습니다. 
+
+- dataset은 `labelme.exe`를 통해 직접 그려가며 만들었으며, [DVC](https://dvc.org/)를 이용해 version을 관리했습니다.
+
+- DateBase에서 data의 정보를 version별로 구분하여 관리했습니다.
 
 
 
-### Process Of creating Datasets
+### Creating Datasets
 
 1. 핸드폰으로 사진을 찍습니다.
 
@@ -74,7 +77,7 @@ model을 통해 기대하는 inference결과는 번호판의 각 text를 인식�
 
    ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/%EB%A7%8C%EB%93%A0%20%EC%9D%B4%EB%AF%B8%EC%A7%80%201.png?raw=true)
 
-   [drawing code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/tmp_code/draw_board.py) : image위에 임의의 번호판을 그리는 code입니다.
+   [drawing code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/tmp_code/draw_board.py) : 이미지 위에 임의의 번호판을 그리는 code입니다.
 
    번호판의 다양한 color, type, size을 결정 후 랜덤하게 할당되도록 했습니다. 
 
@@ -85,7 +88,7 @@ model을 통해 기대하는 inference결과는 번호판의 각 text를 인식�
 4. 라벨링을 완료한 파일들은 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository로 관리합니다.
 
    1. 라벨링 작업이 완료된 dataset을 DVC를 활용하여 version을 관리하며, dvc명령어에 의해 google cloud에 push합니다.
-   2. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git)의 [main.py](https://github.com/HibernationNo1/pipeline_dataset/blob/master/main.py) code실행 시 pymysql를 통해 서버에 구축한 DB에 각 image의 path 및 infomation을 기록하여 관리합니다. 
+   2. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git)의 [main.py](https://github.com/HibernationNo1/pipeline_dataset/blob/master/main.py) code실행 시 pymysql를 통해 서버에 구축한 DB에 각 이미지의 path, dataset version등 여러 정보를 기록하여 관리합니다. 
    3. tag를 통해 **annotation dataset**과 training dataset의 commit을 구분합니다.
 
    해당 reposigoty의 설명은 [README.md](https://github.com/HibernationNo1/pipeline_dataset/blob/master/README.md)를 통해 확인하실 수 있습니다.
@@ -108,12 +111,14 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 
 ![](https://raw.githubusercontent.com/open-mmlab/mmcv/main/docs/en/mmcv-logo.png)
 
-1. Model load시 추가적인 infomation을 요구할 것 없이 model내부에서 내용을 가져와 training 및 inference를 진행할 수 있게 했습니다.
-2. Object Detction의 성능 평가 지표인 **mAP**를 한 단계 더욱 고차원적인 방법으로 계산하는 성능 평가 지표를 만들었습니다.
-3. 제가 만든 dataset를 위한 model 평가 지표를 추가했습니다.
-4. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
+1. Model은 **Swin-Transformer**(Backbone)와 **Mask-RCNN**(Head)으로 구성했으며, mmdetection의 code를 사용했습니다.
+2. Model load시 `config`와 같은 추가적인 파일을 load할 것 없이 model파일 내부에서 관련 내용을 가져와 training 및 inference를 진행할 수 있도록 했습니다.
+3. Object Detction의 성능 평가 지표인 **mAP**를 한 단계 더욱 고차원적인 방법으로 계산하는 성능 평가 지표를 만들었습니다.
+4. 제가 만든 dataset를 위한 model 평가 지표를 추가했습니다.
+5. Component, Kserve와 같은 resource를 위한 docke image를 구성하는 과정에서 mmcv, mmdet의 설치가 되지 않는 문제가 있어 의존성을 제거했습니다.
+6. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
 
-해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.
+★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
 
 
 
@@ -127,7 +132,7 @@ Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib 
 
 hyper parameter는 `learning rate`와 `backbone model`의 몇 가지 parameter만 조정했습니다.
 
-해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.
+★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
 
 
 
@@ -135,13 +140,17 @@ hyper parameter는 `learning rate`와 `backbone model`의 몇 가지 parameter�
 
 #### Volumes
 
-persistance volume을 python SDK를 사용하여 생성합니다.
+persistance volume을 생성하여 사용합니다.
 
 **사용 이유**:
 
-- component에서 custom package를 import하기 위해 사용합니다.
+- Component에서 custom package를 import하기 위해 사용합니다.
 
-  poersistent volume에 `git clone`한 후 python system path에 해당 volume의 path를 append합니다.
+  > custom package: 위에서 말씀드린`sub_module`과 같은 보조 library 또는 module을 의미합니다.
+  >
+  > 보안산 PypI에 업로드 할 수 없는 library인 경우 직접 import 할 수 있도록 하기 위함힙니다.
+
+  poersistent volume에 git으로 관리하는 code를  `git clone`한 후, python system path에 해당 volume의 path를 append하여 사용합니다.
 
   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/sys%20append.png?raw=true)
 
@@ -151,73 +160,32 @@ persistance volume을 python SDK를 사용하여 생성합니다.
 
 #### Pipelines, Experiments(KFP), Runs
 
-- `Pipeline`, `Experiment`, `Run` 의 create, pipeline version control 그리고 delete동작은 모두 python SDK를 사용하여 구현했습니다.
+`Pipeline`, `Experiment`, `Run` 의 create, pipeline version control 그리고 delete동작은 모두 python SDK를 사용하여 구현했습니다.
 
-  pipeline의 경우 upload하는 version의 존재 유무에 따라 Run의 동작이 달라질 수 있도록 했습니다. 
+pipeline의 경우 upload하는 version의 존재 유무에 따라 Run의 동작이 달라질 수 있도록 했습니다. 
 
-  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20upload.png?raw=true)
+해당 code는 [pipeline_utils.py](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/pipeline_utils.py)의 `line:17`에서 에서 확인하실 수 있습니다.
 
-- pipeline의 component는 아래와 같이 간단하게 구현했습니다.
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20upload.png?raw=true)
 
-  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20graph.png?raw=true)
+pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
-  - **Record** : labelme.exe를 통해 만들어진 annotations dataset을 training을 위한 `train_dataset.json`으로 통합합니다.
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20graph.png?raw=true)
 
-    통합 후 images는 google cloud에, 각 image및 dataset의 관련 정보는 DB에 commit합니다.
+- 각각의 component는 Persistence volume을 통해 보조 code를 import합니다.
+- 각각의 component는 필요한 데이터를 google storage에서 다운로드하고, 동작의 결과를 google storage에 업로드합니다.
 
-    ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Record.png?raw=true)
+**Recode** : labelme.exe를 통해 만들어진 annotations dataset을 training을 위한 `train_dataset.json`으로 통합합니다.
 
-    1.  [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository를 `clone`하고 annotation dataset의 특정 version이 명시된 tag로 `checkout`합니다. 
-  
-    2. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository의 dvc file을 통해 google storage로부터 annotation dataset을 download합니다.
-  
-       DB의 annotation dataset의 정보를 토대로 image list와 json list를 생성합니다.
-  
-    3. annotation dataset을 model에 input으로 사용할 수 있도록 coco dataset과 같은 구조로 통합하여 training dataset을 구성합니다.
-  
-    4. training dataset의 정보를 DB에 insert하고 `dvc add`, `add push`를 통해 google storage에 upload합니다.
-  
-  - **Train** :  model training을 진행합니다.
-  
-    training과정에서 저장한 model과 logs, tensorboard는 volume에 저장하고 google storage로 push합니다.
-  
-    ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Training.png?raw=true)
+**Train** : model training을 진행합니다.
 
-    1. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository를 `clone`하고 training dataset의 특정 version이 명시된 tag로 `checkout`합니다. 
-  
-    2. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository의 dvc file을 통해 google storage로부터 training dataset을 download합니다.
-  
-       DB의 training dataset의 정보를 토대로 Dataloader를 build합니다.
-  
-    3. Model training과 validation을 진행합니다.
-  
-    4. **Google cloud SDK**를 통해 trained model과 log파일들을  google storage에 upload합니다.
-  
-  - **Evaluate** : trained model을 통해 evaluation을 진행합니다.
-  
-    ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Evaluation.png?raw=true)
-  
-    >  1번의 과정은 Train component와 동일합니다.
-  
-    1. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository를 `clone`하고 training dataset의 특정 version이 명시된 tag로 `checkout`합니다. 
-    2. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository의 dvc file을 통해 google storage로부터 validation dataset을 download합니다.
-  
-       DB의 training dataset의 정보를 토대로 Dataloader를 build합니다.
-  
-       **Google cloud SDK**를 통해 trained model을 download합니다.
-  
-    3. `mAp`, `dv_mAP`, `EIR` 등 사용자가 결정한 성능 평가 지표에 대한 결과값을 계산하고, 특정 지표값에 대해 성능이 좋은 model을 선별하여 save합니다. 
-    4. **Google cloud SDK**를 통해 evaluation과정에서 선별된 model을 google storage에 upload합니다.
-  
-  - **Test**: trained model을 통해 inferene를 진행합니다. 
-  
-    ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Test.png?raw=true)
-  
-    1. **Google cloud SDK**를 통해 Google storage의 **result bucket**으로부터 evaluation과정에서 선별된 model을 download합니다.
-    
-    2. download한 model로 test dataset에 대해 inference를 진행하고, object detection의 결과를 시각화합니다.
-    
-       ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/inference%20result.png?raw=true)
+**Evaluate** : trained model을 통해 evaluation을 진행합니다.
+
+**Test**: trained model을 통해 inferene를 진행합니다. 
+
+★☆★pipeline에 대한 자세한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+
+
 
 
 
@@ -232,8 +200,6 @@ training과정에서 특정 value를 실시간으로 확인할 수 있도록 per
 
 
 **Connection**
-
-port forward
 
 ```
 $ kubectl get pods -n pipeline | grep pipeline-project
@@ -251,6 +217,10 @@ Handling connection for 6006
 
 
 **Result**
+
+각 loss외에도 성능 평가 지표와 GPU memory사용량 등을 기록할 수 있도록 했습니다.
+
+tensorboard에 관한 code는 [custom.py](https://github.com/HibernationNo1/sub_module/blob/ca9a56efb315352f57096edc73a9af81a79c34e8/mmdet/hooks/custom.py) `Line: 198`에서 확인하실 수 있습니다.
 
 ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/tensorboard_viewer.png?raw=true)
 
@@ -336,42 +306,87 @@ $ kubectl -n project-pipeline create secret generic project_secrets --from-env-f
 
 ---
 
-## Project management
+## Model Serving
 
-- 해당 project는 총 3개의 repository에 의해 관리됩니다.
+Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model serving을 진행했습니다.
+
+**Service의 목표는 이미지 데이터를 입력받아 License plate를 감지하고 해당 정보를 출력하는 것입니다.**
+
+**kserve.InferenceService**에 관한 code및 모든 file은 [project4_kserve](https://github.com/HibernationNo1/project4_kserve) repository로 관리하고 있습니다.
+
+1. InferenceService를 생성했습니다.
+
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_6.png?raw=true)
+
+2. serving된 model로 직접 inference를 진행했습니다.
+
+   test를 위해 API로 보낼 이미지는 아래 3개를 사용했습니다.
+
+   > 3번 이미지는 다른 형태의 plate가 한 장의 사진에 위치할 수 있도록 임의로 만든 이미지입니다.
+
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_1.png?raw=true)
+
+   ```
+   $ python request/request.py {image_name}.jpg --kserve
+   ```
+
+   
+
+   아래는 response로 받은 결과입니다.
+
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_2.png?raw=true)
+
+   response는 **plate의 모양**, **plate의 이미지 상 좌표 및 크기**, **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**에 대한 정보를 담고 있습니다.
+
+   해당 데이터를 토대로 사용자가 보기 쉽게(`각 번호를 위치에 맞게, plate의 모양 타입에 맞게`) 변환하여 보여줍니다.
+
+★☆★model serving에 대한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+
+
+
+
+
+## About project
+
+
+
+### Project management
+
+- 해당 project는 총 4개의 repository에 의해 관리됩니다.
 
   - dataset을 관리하는 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git)
   - component에서 사용하는 module을 관리하는 [sub_module](https://github.com/HibernationNo1/sub_module)
   - pipeline을 구성하는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)
+  - model serving에 관한 [project_4_kserve](https://github.com/HibernationNo1/project_4_kserve)
 
-  이 중 main repository는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)으로 결정하고 proejct을 진행했으며, local에서도 각 repository의 module을 사용하고 git으로 관리할 수 있도록 **`git-Submodules`**기능을 사용했습니다.  
+  이 중 main repository는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)으로, main repository에서도 `sub_module`과 같은 repository를 import하고 git으로 관리할 수 있도록 **`git-Submodules`**기능을 사용했습니다.  
 
-- [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)과 [sub_module](https://github.com/HibernationNo1/sub_module)은 특정 목적을 가진 branch를 임의로 생성, 삭제하며 운영 및 관리했으며, master branch에 merge를 하는경우 약식으로 github의 **`Pull requests`**기능을 사용하여 협업 환경에서 프로젝트를 진행하는 것 처럼 시뮬레이션을 해 보았습니다.
-
-
-
+- [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline),  [project_4_kserve](https://github.com/HibernationNo1/project_4_kserve)와 [sub_module](https://github.com/HibernationNo1/sub_module)은 특정 목적을 가진 branch를 임의로 생성, 삭제하며 운영 및 관리했으며, master branch에 merge를 하는경우 약식으로 github의 **`Pull requests`**기능을 사용하여 협업 환경에서 프로젝트를 진행하는 것 처럼 시뮬레이션을 해 보았습니다.
 
 
-## TODO List
 
-- Model serving (with kserve)
+### TODO List
+
 - Using other model (swin-transformer, Mask2Former)
+- create more dataset
+- make docker image for service model inference
+- using CI/CD
 
 
 
-## Installation Process
+### Installation Process
 
-Ubuntu 20.04 환경에서 프로젝트를 진행했으며, 전체적인 tools 및 package의 설치과정은 **[여기](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/setting.md)**에서 확인하실 수 있습니다.
+Ubuntu 20.04 환경에서 프로젝트를 진행했으며, 전체적인 tool 및 package의 설치과정은 **[여기](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/setting.md)**에서 확인하실 수 있습니다.
 
 
 
 - **used**
-  - **technology** : `docker`, `kubernetes`, `kubeflow`, `dvc`, `git`, `google cloud storage`, `mysql`, `PypI`
-  - **package**: `torch`, `numpy`, `opencv`, `pymysql`, `pandas`, `kubernetes-sdk`, `kubeflow-sdk`, `gitpython`, `json`, `mmcv`
+  - **technology** : `docker`, `kubernetes`, `kubeflow`, `katib`, `kserve`, `torchserve` , `dvc`, `git`, `google cloud storage`, `mysql`, `PypI`
+  - **package**: `torch`, `numpy`, `opencv`, `pymysql`, `pandas`, `kubernetes-sdk`, `kubeflow-sdk`, `gitpython`, `json`, `mmcv`, `mmdet`
 
 
 
-## 참고 문헌 및 강의
+### 참고 문헌 및 강의
 
 - **mmdet**: https://github.com/open-mmlab/mmdetection
 - **mmvc**: https://github.com/open-mmlab/mmcv
