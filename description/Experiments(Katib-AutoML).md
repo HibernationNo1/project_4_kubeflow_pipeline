@@ -430,7 +430,7 @@ ENTRYPOINT ["sh", "sh/local_train.sh"]
 
 2. 해당 resource가 문제 없이 생성되었다면, experiment에 의해 정의된 pod와 `Trail`이 진행되는 pod의 상태를 확인합니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/katib_log_2.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/katib_log_2.png?raw=true)
 
    `katib-local-random-f87dd5767-bnxxw` :  experiment에 의해 정의된 pod입니다.
 
@@ -438,7 +438,7 @@ ENTRYPOINT ["sh", "sh/local_train.sh"]
 
    - log확인
 
-     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/katib_log_1.png?raw=true)
+     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/katib_log_1.png?raw=true)
 
      해당 pod의 log를 확인하고자 하면 `training-container`와 `metrics-logger-and-collector`의 두 가지 metric을 선택할 수 있습니다.
 
@@ -446,7 +446,7 @@ ENTRYPOINT ["sh", "sh/local_train.sh"]
 
      - `metrics-logger-and-collector`: image에 포함된 code의 진행 상황을 log로 출력합니다.
 
-       ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/katib_log_3.png?raw=true)
+       ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/katib_log_3.png?raw=true)
 
 
 
@@ -471,4 +471,4 @@ katib-custom   Succeeded   True     23m
 
 이후 kubeflow central dashboard를 통해 확인한 결과입니다. 
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiment.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/Experiment.png?raw=true)

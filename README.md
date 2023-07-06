@@ -14,7 +14,7 @@
 
 
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/overview_.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/overview_.png?raw=true)
 
 1. **Collect dataset and labeling**
 
@@ -30,9 +30,9 @@
 
    model을 통해 기대하는 inference결과는 번호판의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것입니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/License%20plate%20desc.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc.png?raw=true)
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/License%20plate%20desc_1.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc_1.png?raw=true)
 
 4. **Model serving**
 
@@ -79,7 +79,7 @@
 
 2. python code를 통해 사진 위 무작위 좌표에 간단한 번호판 그림을 그려 넣습니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/%EB%A7%8C%EB%93%A0%20%EC%9D%B4%EB%AF%B8%EC%A7%80%201.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/%EB%A7%8C%EB%93%A0%20%EC%9D%B4%EB%AF%B8%EC%A7%80%201.png?raw=true)
 
    [drawing code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/tmp_code/draw_board.py) : 이미지 위에 임의의 번호판을 그리는 code입니다.
 
@@ -97,7 +97,7 @@
 
    해당 reposigoty의 설명은 [README.md](https://github.com/HibernationNo1/pipeline_dataset/blob/master/README.md)를 통해 확인하실 수 있습니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/dataset%20init.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/labeling.png?raw=true)
 
    
 
@@ -132,9 +132,9 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 
 Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib system을 사용했습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiment.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/Experiment.png?raw=true)
 
-hyper parameter는 `learning rate`와 `backbone model`의 몇 가지 parameter만 조정했습니다.
+`learning rate`와 `backbone model`의 몇 가지 hyper parameter에 대해서 조정을 진행했습니다.
 
 ★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
 
@@ -156,7 +156,7 @@ persistance volume을 생성하여 사용합니다.
 
   poersistent volume에 git으로 관리하는 code를  `git clone`한 후, python system path에 해당 volume의 path를 append하여 사용합니다.
 
-  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/sys%20append.png?raw=true)
+  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/sys%20append.png?raw=true)
 
 - component에 의해 생성된 data를 보호합니다.(model file, evaluation result 등)
 
@@ -170,11 +170,11 @@ pipeline의 경우 upload하는 version의 존재 유무에 따라 Run의 동작
 
 해당 code는 [pipeline_utils.py](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/pipeline_utils.py)의 `line:17`에서 에서 확인하실 수 있습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20upload.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/pipeline%20upload.png?raw=true)
 
 pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20graph.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/pipeline%20graph.png?raw=true)
 
 - 각각의 component는 Persistence volume을 통해 보조 code를 import합니다.
 - 각각의 component는 필요한 데이터를 google storage에서 다운로드하고, 동작의 결과를 google storage에 업로드합니다.
@@ -199,7 +199,7 @@ training과정에서 특정 value를 실시간으로 확인할 수 있도록 per
 
 **Add tensorboard**
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/tensorboard.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/tensorboard.png?raw=true)
 
 
 
@@ -226,7 +226,7 @@ Handling connection for 6006
 
 tensorboard에 관한 code는 [custom.py](https://github.com/HibernationNo1/sub_module/blob/ca9a56efb315352f57096edc73a9af81a79c34e8/mmdet/hooks/custom.py) `Line: 198`에서 확인하실 수 있습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/tensorboard_viewer.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/tensorboard_viewer.png?raw=true)
 
 
 
@@ -320,7 +320,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 1. InferenceService를 생성했습니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_6.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_6.png?raw=true)
 
 2. serving된 model로 직접 inference를 진행했습니다.
 
@@ -328,7 +328,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
    > 3번 이미지는 다른 형태의 plate가 한 장의 사진에 위치할 수 있도록 임의로 만든 이미지입니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_1.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_1.png?raw=true)
 
    ```
    $ python request/request.py {image_name}.jpg --kserve
@@ -338,7 +338,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
    아래는 response로 받은 결과입니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_2.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_2.png?raw=true)
 
    response는 **plate의 모양**, **plate의 이미지 상 좌표 및 크기**, **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**에 대한 정보를 담고 있습니다.
 
@@ -351,6 +351,78 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 
 ## About project
+
+
+
+### Trouble Shooting
+
+- **version 문제 해결**
+
+  - cluster를 구성하는 과정에서 여러 프로그램의 version의 호환을 맞춰야 하는 경우가 있었습니다.
+
+    ```
+    cri-dockerd >= 0.3.0		# 0.2.6이하의 version에서는 kubeadm init을 실행 시 error발생
+    kubernetes >= 1.25.0 		
+    kserve >= 0.8				# kubernetes version <= 1.24.0이하인 경우 kubeflow 1.6.0과 호환 문제 발생
+    ```
+
+  - torch와 cuda toolkit의 version을 docker image로 build가능한 것(`torch==1.12.1+cu113`)으로 맞춰야 했습니다.
+
+    - `torch<=1.12.0` : docker container상에서 mmcv, mmdet의 의존성 제거 과정에서 포함한 cpython프로그래밍 함수를 import하지 못했습니다. 
+
+    - `torch==1.12.0` : `'Adam' object has no attribute '_warned_capturable_if_run_uncaptured'`라는 error가 발생합니다.
+
+    - `torch>=1.13.0` , `cuda11.6`: docker hub에서 제공되는 torch관련 image들은 torch의 version이 1.13을 넘어가는 순간부터 cuda toolkit의 최소 적용 version이 `11.6`이게 됩니다. 
+
+      이는 mmcv, mmdet의 의존성 제거 과정에서 포함한 cpython프로그래밍 함수를 import하지 못하게 되었습니다.
+
+  - 사용 가능한 Linux device가 1개 뿐이라 master node에서 프로젝트를 진행했습니다.
+
+    kubernetes는 1.13부터 Daemonset이 기본적으로 master node에서 schedule되지 않게 했기 때문에, taint를 해제한 상태로 프로젝트를 진행하고 있습니다.
+
+- **mmcv, mmdet의 의존성 제거**
+
+  docker image를 build하는 과정에서, mmcv의 설치 명령어를 포함한 `RUN`명령어가 동작하지 않는 문제가 있었습니다. (`pip install -r requirements.txt`역시 마찬가지)
+
+  때문에 mmcv, mmdet를 `pip install`을 하지 않고도 학습 및 추론이 이루어져야 했기 때문에 [sub_module](https://github.com/HibernationNo1/sub_module)에 해당 module로부터 필요한 모든 code를 옮겨 관리하도록 했습니다.
+
+- **persistance volume 구성**
+
+  pipeline의 component에서 사용자 정의 code를 사용할 경우 PyPI에 package를 등록하여 pip로 설치하는 것은 보안문제가 될 수 있다고 판단했습니다.
+
+  때문에 필요한 code는 private repository로 관리한다는 가정 하에 persistance volume으로 공유하도록 했습니다.
+
+  이를 위해 component의 환경이 되는 docker image는 build시 ssh인증 파일이 포함되도록 했습니다.
+
+- **The input parameter length exceed maximum size of 10000.**
+
+  pipeline구성 시 input parameter를 전달할 때 model의 configuration을 포함 한 여러 지정값을 전달 시 text가 10000자 이상으로 넘어갈 시 발생하는 error입니다. 
+
+  해당 namespace에 configmap을 생성하여 maximum size를 늘리고자 했지만 동작하지 않았습니다.
+
+  때문에 configuration file을 [sub_module](https://github.com/HibernationNo1/sub_module)에 포함했습니다.
+
+  input parameter를 전달할 때는 모든 값이 boolean type인, configuration과 같은 구조의 dict를 전달하도록 했습니다.
+
+  component시작 시 input parameter와 configuration file을 대조하도록 했으며, input parameter의 특정 값이 False이 아닌 경우만 configuration의 지정 값에 수정이 적용되도록 했습니다.
+
+  이를 통해 새로운 version의 pipeline을 구성할 때마다 input parameter의 최대 사이즈에 도달하지 않고도 사용자가 원하는 flag및 configuration값을 전달하는것에 문제가 없도록 했습니다.
+
+- **아마존 웹 서비스(AWS)상에서 개발**
+
+  초기에는 AWS의 cloud에서 cluster를 구축하여 여러 node를 활용하여 개발을 진행하려 했습니다. 하지만 아래 두 가지 문제에 직면하여 포기하게 되었습니다.
+
+  - 비용 문제
+
+    GPU를 활용하는 cluster를 구축 시 사용될 예상 청구비용과, PC와 GPU구입 비용을 비교를 하며 고민을 했었습니다. 그리고 제가 내린 결론은 PC구입이였습니다.
+
+  - 보안 사고
+
+    자격 인증 key가 알 수 없는 경로로 유출되어 여러 유럽 서버에서 EC2가 생성되어 순식간에 수십만원의 비용이 청구되는 사고가 있었습니다. 
+
+    이후 PC를 포맷하고 support팀의 안내에 따라 여러 보안 설정을 마치고 비용은 환불받을 수 있었지만, AWS cloud service는 추 후 더욱 깊히 공부를 한 후 진행을 해야겠다 생각하게 되었습니다.  
+
+     
 
 
 
@@ -381,7 +453,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 ### Installation Process
 
-Ubuntu 20.04 환경에서 프로젝트를 진행했으며, 전체적인 tool 및 package의 설치과정은 **[여기](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/setting.md)**에서 확인하실 수 있습니다.
+Ubuntu 20.04 환경에서 프로젝트를 진행했으며, 전체적인 tool 및 package의 설치과정은 **[여기](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/setting.md)**에서 확인하실 수 있습니다.
 
 
 
