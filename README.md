@@ -14,7 +14,7 @@
 
 
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/overview_.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/overview_.png?raw=true)
 
 1. **Collect dataset and labeling**
 
@@ -30,9 +30,9 @@
 
    model을 통해 기대하는 inference결과는 번호판의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것입니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/License%20plate%20desc.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc.png?raw=true)
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/License%20plate%20desc_1.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc_1.png?raw=true)
 
 4. **Model serving**
 
@@ -79,7 +79,7 @@
 
 2. python code를 통해 사진 위 무작위 좌표에 간단한 번호판 그림을 그려 넣습니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/%EB%A7%8C%EB%93%A0%20%EC%9D%B4%EB%AF%B8%EC%A7%80%201.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/%EB%A7%8C%EB%93%A0%20%EC%9D%B4%EB%AF%B8%EC%A7%80%201.png?raw=true)
 
    [drawing code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/tmp_code/draw_board.py) : 이미지 위에 임의의 번호판을 그리는 code입니다.
 
@@ -97,7 +97,7 @@
 
    해당 reposigoty의 설명은 [README.md](https://github.com/HibernationNo1/pipeline_dataset/blob/master/README.md)를 통해 확인하실 수 있습니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/dataset%20init.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/labeling.png?raw=true)
 
    
 
@@ -132,9 +132,9 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 
 Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib system을 사용했습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/Experiment.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/Experiment.png?raw=true)
 
-hyper parameter는 `learning rate`와 `backbone model`의 몇 가지 parameter만 조정했습니다.
+`learning rate`와 `backbone model`의 몇 가지 hyper parameter에 대해서 조정을 진행했습니다.
 
 ★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
 
@@ -156,7 +156,7 @@ persistance volume을 생성하여 사용합니다.
 
   poersistent volume에 git으로 관리하는 code를  `git clone`한 후, python system path에 해당 volume의 path를 append하여 사용합니다.
 
-  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/sys%20append.png?raw=true)
+  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/sys%20append.png?raw=true)
 
 - component에 의해 생성된 data를 보호합니다.(model file, evaluation result 등)
 
@@ -170,11 +170,11 @@ pipeline의 경우 upload하는 version의 존재 유무에 따라 Run의 동작
 
 해당 code는 [pipeline_utils.py](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/pipeline_utils.py)의 `line:17`에서 에서 확인하실 수 있습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20upload.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/pipeline%20upload.png?raw=true)
 
 pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/pipeline%20graph.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/pipeline%20graph.png?raw=true)
 
 - 각각의 component는 Persistence volume을 통해 보조 code를 import합니다.
 - 각각의 component는 필요한 데이터를 google storage에서 다운로드하고, 동작의 결과를 google storage에 업로드합니다.
@@ -199,7 +199,7 @@ training과정에서 특정 value를 실시간으로 확인할 수 있도록 per
 
 **Add tensorboard**
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/tensorboard.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/tensorboard.png?raw=true)
 
 
 
@@ -226,7 +226,7 @@ Handling connection for 6006
 
 tensorboard에 관한 code는 [custom.py](https://github.com/HibernationNo1/sub_module/blob/ca9a56efb315352f57096edc73a9af81a79c34e8/mmdet/hooks/custom.py) `Line: 198`에서 확인하실 수 있습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/tensorboard_viewer.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/tensorboard_viewer.png?raw=true)
 
 
 
@@ -320,7 +320,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 1. InferenceService를 생성했습니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_6.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_6.png?raw=true)
 
 2. serving된 model로 직접 inference를 진행했습니다.
 
@@ -328,7 +328,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
    > 3번 이미지는 다른 형태의 plate가 한 장의 사진에 위치할 수 있도록 임의로 만든 이미지입니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_1.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_1.png?raw=true)
 
    ```
    $ python request/request.py {image_name}.jpg --kserve
@@ -338,7 +338,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
    아래는 response로 받은 결과입니다.
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_2.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_2.png?raw=true)
 
    response는 **plate의 모양**, **plate의 이미지 상 좌표 및 크기**, **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**에 대한 정보를 담고 있습니다.
 

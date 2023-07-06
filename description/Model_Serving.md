@@ -196,7 +196,7 @@ kserve의 InferenceService를 생성합니다.
          image: "172.30.1.70:5000/kserve:0.1"
    ```
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_6.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_6.png?raw=true)
 
 2. check resource
 
@@ -206,7 +206,7 @@ kserve의 InferenceService를 생성합니다.
      $ kubectl get InferenceService kserve-torchserve -n pipeline
      ```
 
-     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_3.png?raw=true)
+     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_3.png?raw=true)
 
    - pod
 
@@ -216,7 +216,7 @@ kserve의 InferenceService를 생성합니다.
      $ kubectl get pod -n pipeline -l serving.kserve.io/inferenceservice=kserve-torchserve
      ```
 
-     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_4.png?raw=true)
+     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_4.png?raw=true)
 
 3. port-forward
 
@@ -226,7 +226,7 @@ kserve의 InferenceService를 생성합니다.
    $ kubectl port-forward {pod_name} -n pipeline 8081:8080
    ```
 
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_5.png?raw=true)
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_5.png?raw=true)
 
 ---
 
@@ -252,7 +252,7 @@ test를 위해 API로 보낼 이미지는 아래 3개를 사용했습니다.
 
 > 3번 이미지는 다른 형태의 plate가 한 장의 사진에 위치할 수 있도록 임의로 만든 이미지입니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_1.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_1.png?raw=true)
 
 ```
 $ python request/request.py {image_name}.jpg --kserve
@@ -262,7 +262,7 @@ $ python request/request.py {image_name}.jpg --kserve
 
 아래는 response로 받은 결과입니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/kserve_2.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/kserve_2.png?raw=true)
 
 response는 **plate의 모양**, **plate의 이미지 상 좌표 및 크기**, **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**에 대한 정보를 담고 있습니다.
 

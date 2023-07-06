@@ -3,6 +3,7 @@
 ##### Table of Contents
 
 - [Add `configuration` and `instance name list` to the model file](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#add-configuration-and-instance-name-list-to-the-model-file)
+- Post Processing
 - [Add custom evaluation code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#add-custom-evaluation-code)
   - [dv mAP](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#dv-map)
   - [exact Inference Rate(EIR)](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#exact-inference-rateeir)
@@ -61,7 +62,7 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
   > - 기존 dataset 구축 module [mmdet_CocoDataset](https://github.com/open-mmlab/mmdetection/blob/main/mmdet/datasets/coco.py)
   > - 변경 후 dataset 구축 module [Custom_dataset](https://github.com/HibernationNo1/sub_module/blob/568cbe11b2a76c22d545200463845013030a1048/mmdet/data/dataset.py) : METAINFO 삭제
   
-  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/model_save.png?raw=true)
+  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/model_save.png?raw=true)
 
 
 
@@ -69,21 +70,64 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 
 
 
+### Post Processing
+
+Inference의 결과로 얻어진 데이터를 토대로 License plate의 정보를 추출합니다.
+
+- Inference result 예시
+
+  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License_plate_4.png?raw=true)
+
+  위 사진에서 기대하는 post-ptocessing의 결과는 아래와 같습니다.
+
+  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License_plate_3.png?raw=true)
+
+  - `type`: License plate의 형태는 text가 두 줄로 이루어진 `r_board`와, text아 한 줄로 이루어진 `l_board`로 나뉩니다.
+
+  - `board_center_p`: 검출된 License plate가 image의 어느 위치에 있는지 pixel단위로 나타냅니다.
+
+  - `width`, `height `: 검출된 License plate의 width, height에 대해서 나타냅니다.
+
+  - `sub_text`: 검출된 License plate의 text중 새 개로 이루어진 부분을 나타냅니다.
+
+    마지막 text는 반드시 `a~e` 의 알파벳이 위치한 경우만 검출 성공으로 간주합니다.
+
+  - `main_text`: 검출된 License plate의 text중 네 개로 이루어진 부분을 나타냅니다.
+
+
+
+위의 정보를 얻기 위해 labeling단계부터 각 text외에도 `sub_text`, `main_text`영역까지 라벨링을 진행합니다.
+
+아래는 target object에 대해 labeling을 완료 한 예시 사진입니다.
+
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License_plate_1.png?raw=true)
+
+
+
+Post Processing은 아래의 순서로 이루어집니다.
+
+1. 특정 board의 bounding box영역 내에 위치한 `sub_text`와 `main_text`가 모두 검출되었는지 확인.
+2. 번호 및 알파벳의 중앙 위치를 각각의 text의 위치와 비교하여 몇 번째의 text인지 확인
+3. `sub_text`와 `main_text`의 각 내부 text의 길이가 3, 4개가 맞는지 확인
+4. `sub_text`내부의 text중 의 세 번째가 숫자가 아님(알파벳임)을 확인
+
+
+
 ### Add custom evaluation code
 
-#### dv mAP
+#### 1. dv mAP
 
 **Object Detction의 성능 평가 지표인 mAP를 한 단계 더욱 고차원적인 방법으로 계산하는 성능 평가 지표를 만들었습니다.**
 
 validation 및 evaluation을 진행할 때 object detection의 성능 평가 지표인 *mean average precision*(이하 mAP)을 계산하는 방법에 mask boundary point을 활용한 더욱 고차원적인 **custom** 평가 기능을 추가했습니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/DV%20mAP.png?raw=true)
+![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/DV%20mAP.png?raw=true)
 
 - 위 1번은 서로 다른 label이지만 bounding box의 크기가 일치하기 때문에 **Intersection Of Union**(이하 IOU)가 높은 값으로 계산됩니다.
 
   이는 label을 잘못 추론하더라도 정답으로 계산될 수 있으며, model의 **mAP**의 계산 시 더 좋은 성능을 가진 것 처럼 보여질 수 있습니다.
 
-- 하지만 위 2번 처럼 mask의 bounding points를 (point 개수를 기준으로) 3분할로 나눈 후 각각의 분할에 대해 bounding box를 구하고, IOU를 계산하여 평균을 내면 더욱 정확한 정확도를 얻을 수 있습니다.  
+- 하지만 위 2번 처럼 mask의 bounding points를 3분할(point 개수 기준)로 나눈 후 각각의 분할에 대해 bounding box를 구하고, IOU를 계산하여 평균을 내면 더욱 정확한 정확도를 얻을 수 있습니다.  
 
   이러한 방식은 label이 정답에 맞게 추론을 하더라도, mask를 더욱 정확히 추론했는지까지 확인할 수 있기 때문에 segmentation의 목적에 맞는 성능 평가 지표로 생각됩니다.
 
@@ -95,7 +139,7 @@ validation 및 evaluation을 진행할 때 object detection의 성능 평가 지
 
 
 
-#### Exact Inference Rate(EIR)
+#### 2. Exact Inference Rate(EIR)
 
 **해당 proeject의 dataset를 위한 model 평가 지표를 추가했습니다.**
 
@@ -105,7 +149,9 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 
 이러한 방식을 통해 계산하자면, 10개의 License Plate중 6개를 정확하게 추론했을 시 EIR는 0.6이 됩니다.
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/License%20plate.png?raw=true)
+- 62개의 License Plate 중 정확하게 예측 한 plate의 개수가 28인 경우
+
+   License_plate_2 사진
 
 
 
@@ -127,10 +173,6 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 
 
 
----
-
-
-
 #### Add custom hooks
 
 **제가 필요로 하는 동작을 수행하는 hook class를 추가했습니다.**
@@ -139,7 +181,7 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 
 
 
-##### Validation_Hook
+##### 1. Validation_Hook
 
 validation을 진행하는 code를 추가했습니다.
 
@@ -148,14 +190,14 @@ validation을 진행하는 code를 추가했습니다.
 
 
 
-##### TensorBoard_Hook
+##### 2. TensorBoard_Hook
 
 - local의 위치 또는 persistent volume(pipeline의 component로 학습이 진행될 때)의 특정 위치에 tensorboard의 event.out file을 저장하는 code를 추가했습니다.
 - loss와 mAP등 원하는 값을 tensorboard에 기록하도록 하는 code를 추가했습니다.
 
 
 
-##### Check_Hook
+##### 3. Check_Hook
 
 - model을 구성하는 특정 module이 configuration에 명시된 module과 맞는지 확인하는 code를 추가했습니다.
 - dataset의 classes의 개수와 head에 명시된 instance의 개수가 맞는지 확인하는 code를 추가했습니다. 
