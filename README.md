@@ -52,7 +52,6 @@
 ## Table of Contents
 
 - [Managing dataset](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#managing-dataset)
-  - [Process Of creating Datasets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#process-of-creating-datasets)
 - [Pipeline Configuration With Kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipeline-configuration-with-kubeflow)
   1. [Customizing mmdetection, mmcv](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#1-customizing-mmdetection-mmcv)
   2. [kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#2-kubeflow)
@@ -68,47 +67,81 @@
   - [Installation Process](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#installation-process)
   - [참고 문헌 및 강의](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#%EC%B0%B8%EA%B3%A0-%EB%AC%B8%ED%97%8C-%EB%B0%8F-%EA%B0%95%EC%9D%98)
 
-## Managing dataset 
 
-- dataset의 category는 **자동차 번호판**으로 구성하였습니다.
-
-  실제 자동차 번호판을 모아놓은 데이터 셋을 만들고자 했지만 '모르는 사람이 자신의 자동차의 번호판을 촬영해간다면 매우 불쾌할 수 있다.'는 의견을 듣고, python을 사용해 배경 이미지에 임의로 번호판을 그려 dataset을 구성하는 것으로 방향을 잡게 되었습니다. 
-
-- dataset은 `labelme.exe`를 통해 직접 그려가며 만들었으며, [DVC](https://dvc.org/)를 이용해 version을 관리했습니다.
-
-- DateBase에서 data의 정보를 version별로 구분하여 관리했습니다.
-
-
-
-### Creating Datasets
-
-1. 핸드폰으로 사진을 찍습니다.
-
-2. python code를 통해 사진 위 무작위 좌표에 간단한 번호판 그림을 그려 넣습니다.
-
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/%EB%A7%8C%EB%93%A0%20%EC%9D%B4%EB%AF%B8%EC%A7%80%201.png?raw=true)
-
-   [drawing code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/tmp_code/draw_board.py) : 이미지 위에 임의의 번호판을 그리는 code입니다.
-
-   번호판의 다양한 color, type, size을 결정 후 랜덤하게 할당되도록 했습니다. 
-
-3. `Labelme.exe`를 통해 번호판이 그려진 이미지에 라벨링 작업을 진행합니다.
-
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/labeling.png?raw=true)
-
-4. 라벨링을 완료한 파일들은 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git) repository로 관리합니다.
-
-   1. 라벨링 작업이 완료된 dataset을 DVC를 활용하여 version을 관리하며, dvc명령어에 의해 google cloud에 push합니다.
-   2. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git)의 [main.py](https://github.com/HibernationNo1/pipeline_dataset/blob/master/main.py) code실행 시 pymysql를 통해 서버에 구축한 DB에 각 이미지의 path, dataset version등 여러 정보를 기록하여 관리합니다. 
-   3. tag를 통해 **annotation dataset**과 training dataset의 commit을 구분합니다.
-
-   해당 reposigoty의 설명은 [README.md](https://github.com/HibernationNo1/pipeline_dataset/blob/master/README.md)를 통해 확인하실 수 있습니다.
-
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/labeling.png?raw=true)
-
-   
 
 ---
+
+
+
+## Managing Dataset 
+
+- **Dataset 소개**
+
+  - dataset의 category는 **자동차 번호판**으로 구성하였습니다.
+
+    실제 자동차 번호판을 모아놓은 데이터 셋을 만들고자 했지만 '모르는 사람이 자신의 자동차의 번호판을 촬영해간다면 매우 불쾌할 수 있다.'는 의견을 듣고, python을 사용해 배경 이미지에 임의로 번호판을 그려 dataset을 구성하는 것으로 방향을 잡게 되었습니다. 
+
+  - dataset은 `labelme.exe`를 통해 직접 그려가며 만들었으며, [DVC](https://dvc.org/)와 GIT을 이용해 version을 관리했습니다.
+
+  - DateBase에서 data의 정보를 version별로 구분하여 관리했습니다.
+
+  - dataset images와 version관리 파일은 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset) repository로 관리합니다.
+
+- **Dataset 라이프 사이클**
+
+  dataset은 다음과 같은 두 개의 과정이 있습니다.
+
+  - annotation dataset
+
+    `labeme.exe`를 통해 각 image에 대하여 라벨링이 완료된 dataset
+
+  - training datase
+
+    training을 진행할 때 직접적으로 input으로 사용되기 위해 coco형태로 통합된 dataset
+
+  각각 dataset의 새 version이 구성되는 경우, 관련 정보는 DataBase에 저장합니다.
+
+- **Dataset 구축**
+
+  1. 핸드폰 사진 촬영
+
+  2. python code를 통해 사진 위 무작위 좌표에 간단한 임의 번호판 생성
+
+     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/%EB%A7%8C%EB%93%A0%20%EC%9D%B4%EB%AF%B8%EC%A7%80%201.png?raw=true)
+
+     [drawing code](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/tmp_code/draw_board.py) : 이미지 위에 임의의 번호판을 그리는 code입니다.
+
+     번호판의 color, type, size값을 다양하게 구성 후 랜덤하게 할당되도록 했습니다. 
+
+- **Dataset 관리**
+
+  - annotation dataset
+
+    1. 라벨링 작업이 완료된 dataset은 dvc명령어를 통해 google cloud에 push합니다.
+
+    2. [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset) repository의 [main.py](https://github.com/HibernationNo1/pipeline_dataset/blob/master/main.py) code를 실행합니다.
+
+       pymysql를 활용하여 서버에 구축한 DB에 각 이미지의 path, dataset version등 여러 정보를 기록하여 관리합니다. 
+
+    >  위 동작에 관한 설명은 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset) repository의  [README.md](https://github.com/HibernationNo1/pipeline_dataset/blob/master/README.md)를 통해 확인하실 수 있습니다.
+
+  - training datas
+
+    [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline) repository의 [component/record/record_op.py](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/component/record/record_op.py) code를 실행합니다.
+
+    - google storage로부터 annotation dataset을 pull합니다.
+    - 학습을 위해 coco형태로 통합합니다.
+    - pymysql를 활용하여 DB에 통합 된 dataset의 path, purpose,version등 여러 정보를 기록하여 관리합니다. 
+
+  각각의 dataset은 tag를 사용하여 annotation dataset과 training dataset의 commit을 구분합니다.
+
+
+
+
+
+---
+
+
 
 
 
