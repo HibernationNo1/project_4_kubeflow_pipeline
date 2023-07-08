@@ -498,12 +498,15 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 - 해당 project는 총 4개의 repository에 의해 관리됩니다.
 
-  - dataset을 관리하는 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git)
-  - component에서 사용하는 module을 관리하는 [sub_module](https://github.com/HibernationNo1/sub_module)
-  - pipeline을 구성하는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)
-  - model serving에 관한 [project_4_kserve](https://github.com/HibernationNo1/project_4_kserve)
+  - pipeline을 구성하는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)  (main repository)
 
-  이 중 main repository는 [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline)으로, main repository에서도 `sub_module`과 같은 repository를 import하고 git으로 관리할 수 있도록 **`git-Submodules`**기능을 사용했습니다.  
+    `sub_module`, `pipeline_dataset`과 같은 repository를 import함과 동시에, 별도의 git repository로 관리할 수 있도록 **`git-Submodules`**기능을 사용
+
+  - dataset을 관리하는 [pipeline_dataset](https://github.com/HibernationNo1/pipeline_dataset.git)
+
+  - component에서 사용하는 module을 관리하는 [sub_module](https://github.com/HibernationNo1/sub_module)
+
+  - model serving에 관한 [project_4_kserve](https://github.com/HibernationNo1/project_4_kserve)  
 
 - [project_4_kubeflow_pipeline](https://github.com/HibernationNo1/project_4_kubeflow_pipeline),  [project_4_kserve](https://github.com/HibernationNo1/project_4_kserve)와 [sub_module](https://github.com/HibernationNo1/sub_module)은 특정 목적을 가진 branch를 임의로 생성, 삭제하며 운영 및 관리했으며, master branch에 merge를 하는경우 약식으로 github의 **`Pull requests`**기능을 사용하여 협업 환경에서 프로젝트를 진행하는 것 처럼 시뮬레이션을 해 보았습니다.
 
@@ -511,11 +514,27 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 ### TODO List
 
-- using other model (swin-transformer, Mask2Former)
-- create more dataset
-- set private storage for Inferenceservice Storage
-- make docker image for service model inference
-- using CI/CD
+- **Create more dataset**
+
+  dataset규모 증량을 통한 model성능 향상
+
+- **Set private storage for Inferenceservice Storage**
+
+  Inferenceservice resource생성 시 private 저장소 활용 (보안사고 예방)
+
+- **make docker image for service model inference**
+
+  Inferenceservice를 상시 가동중인 server에 배포 및 해당 service에 대해 누구든 test를 진행할 수 있는 code구현
+
+- **Using CI/CD**
+
+  GitHub Actions를 이용한 CI/CD 구축
+
+- **Using other model (swin-transformer, Mask2Former)**
+
+  GPU메모리 환경 개선 후 더욱 큰 model활용
+
+  
 
 
 
@@ -524,10 +543,6 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 Ubuntu 20.04 환경에서 프로젝트를 진행했으며, 전체적인 tool 및 package의 설치과정은 **[여기](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/setting.md)**에서 확인하실 수 있습니다.
 
 
-
-- **used**
-  - **technology** : `docker`, `kubernetes`, `kubeflow`, `katib`, `kserve`, `torchserve` , `dvc`, `git`, `google cloud storage`, `mysql`, `PypI`
-  - **package**: `torch`, `numpy`, `opencv`, `pymysql`, `pandas`, `kubernetes-sdk`, `kubeflow-sdk`, `gitpython`, `json`, `mmcv`, `mmdet`
 
 
 
