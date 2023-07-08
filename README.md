@@ -1,13 +1,18 @@
 # Project: Automatic License Plate Recognition
 
 - **프로젝트 소개**: kubeflow를 활용한 임의 번호판 검출 모델 학습 Pipeline구축 및 InferenceService배포 
+
 - **개발 인원**: 개인 프로젝트
+
 - **개발 기간**: 2022.11.01 ~ (진행중)
+
 - **진행 상황**
   - kubeflow - Experiments(Katib-AutoML) 을 통한 최적의 hyper-parameter 검색 (구현 완료)
   - Pipelines설계 (dataset통합, 학습, 검증 및 평가, 추론 테스트)  (구현 완료)
   - Endpoints (Kserve)를 활용한 model serving (테스트 완료)
 
+- **진행 예정** : [TODO List](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#todo-list)
+  
 - **사용 기술**
   - **technology** : `docker`, `kubernetes`, `kubeflow`, `katib`, `kserve`, `torchserve` , `DVC`, `GIT`, `Google Cloud Storage`, `MySQL`, `PypI`
   - **python - package, library**: `pytorch`, `numpy`, `opencv`, `pymysql`, `pandas`, `kubernetes-sdk`, `kubeflow-sdk`, `gitpython`, `json`, `mmcv`, `mmdet`
@@ -514,6 +519,14 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
 ### TODO List
 
+- **Monitoring with prometheus**
+
+  prometheus를 활용한 resource 모니터링, Grafana 대시보드 구성
+
+- **make docker image for service model inference**
+
+  Inferenceservice를 상시 가동중인 server에 배포 및 해당 service에 대해 누구든 test를 진행할 수 있는 code구현
+
 - **Create more dataset**
 
   dataset규모 증량을 통한 model성능 향상
@@ -521,10 +534,6 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 - **Set private storage for Inferenceservice Storage**
 
   Inferenceservice resource생성 시 private 저장소 활용 (보안사고 예방)
-
-- **make docker image for service model inference**
-
-  Inferenceservice를 상시 가동중인 server에 배포 및 해당 service에 대해 누구든 test를 진행할 수 있는 code구현
 
 - **Using CI/CD**
 
