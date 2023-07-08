@@ -1,42 +1,49 @@
-
-
 # Project: Automatic License Plate Recognition
 
-해당 프로젝트는 kubernetes상에서 kubeflow를 활용하여 모델을 학습하는 pipeline을 구현한 프로젝트입니다.
+- **프로젝트 소개**: kubeflow를 활용한 임의 번호판 검출 모델 학습 Pipeline구축 및 InferenceService배포 
+- **개발 인원**: 개인 프로젝트
+- **개발 기간**: 2022.11.01 ~ (진행중)
+- **진행 상황**
+  - kubeflow - Experiments(Katib-AutoML) 을 통한 최적의 hyper-parameter 검색 (구현 완료)
+  - Pipelines설계 (dataset통합, 학습, 검증 및 평가, 추론 테스트)  (구현 완료)
+  - Endpoints (Kserve)를 활용한 model serving (테스트 완료)
 
-현재까지 완성된 정도는 아래와 같습니다.
+- **사용 기술**
+  - **technology** : `docker`, `kubernetes`, `kubeflow`, `katib`, `kserve`, `torchserve` , `DVC`, `GIT`, `Google Cloud Storage`, `MySQL`, `PypI`
+  - **python - package, library**: `pytorch`, `numpy`, `opencv`, `pymysql`, `pandas`, `kubernetes-sdk`, `kubeflow-sdk`, `gitpython`, `json`, `mmcv`, `mmdet`
 
-- kubeflow - Experiments(Katib-AutoML) 을 통한 최적의 hyper-parameter 검색
-- kubeflow - Pipelines설계 (dataset통합, 학습, 검증 및 평가, 추론 테스트) 
-- kubeflow - Endpoints (Kserve)를 활용한 model serving
+- **흐름도**
 
-전체적인 흐름도는 아래와 같습니다.
+  ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/overview_.png?raw=true)
+
+  1. **Collect dataset and labeling**
+
+     dataset을 수집하고 라벨링을 진행합니다.
+
+  2. **Integrate `annotation dataset` into` coco data` set form**
+
+     model의 학습 데이터로 사용하기 위해 coco dataset과 같은 구조로 데이터셋을 통합합니다.
+
+  3. **Model training and evaluation**
+
+     model을 학습하고 evaluation과 test를 진행합니다.
+
+     - 번호판과 각 text를 감지하는 것이 model을 통해 기대하는 inference결과입니다.
+     - Inference의 결과로 얻어진 데이터를 토대로 License plate의 정보를 추출하는 것이 Post Processing의 목적입니다.
+
+     
+
+     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc.png?raw=true)
+
+     ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc_1.png?raw=true)
+
+  4. **Model serving**
+
+     학습된 model을 serving합니다.
 
 
 
-![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/overview_.png?raw=true)
 
-1. **Collect dataset and labeling**
-
-   dataset을 수집하고 라벨링을 진행합니다.
-
-2. **Integrate `annotation dataset` into` coco data` set form**
-
-   model의 학습 데이터로 사용하기 위해 coco dataset과 같은 구조로 데이터셋을 통합합니다.
-
-3. **Model training and evaluation**
-
-   model을 학습하고 evaluation과 test를 진행합니다.
-
-   model을 통해 기대하는 inference결과는 번호판의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것입니다.
-
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc.png?raw=true)
-
-   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/License%20plate%20desc_1.png?raw=true)
-
-4. **Model serving**
-
-   학습된 model을 serving합니다.
 
 
 
