@@ -162,11 +162,39 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 5. Component, Kserve와 같은 resource를 위한 docke image를 구성하는 과정에서 mmcv, mmdet의 설치가 되지 않는 문제가 있어 의존성을 제거했습니다.
 6. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
 
-★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+>  ★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
 
 
 
 ### 2. kubeflow
+
+pipeline을 구성하는 과정에서 활용된 kubeflow의 resource는 아래와 같습니다.
+
+1. **Experiments(Katib-AutoML)**
+
+   model의 가장 이상적인 학습을 위해 hyper parameter를 조정합니다.
+
+2. **volume**
+
+   pipeline의 각 component에서 접근할 수 있는 공용 공간입니다.
+
+3. **Pipelines, Experiments(KFP), Runs**
+
+   - `Runs`: 구축된 Pipelines이 정상적으로 동작하는지 확인합니다.
+
+   - `Pipelines`: 여러 component를 활용하여 pipeline을 구축합니다.
+
+   - `Experiments(KFP)`: pipeline을 목적에 따른 category로 관리합니다.
+
+4. **Tensorboard**
+
+   학습 과정의 정보를 확인하기 위해 여러 data를 수집합니다. 
+
+5. **Secrets**
+
+   보안상 노출해서는 안되는 값을 사용해야 되는 경우를 위해 사용합니다.
+
+
 
 #### Experiments(Katib-AutoML)
 
@@ -176,7 +204,7 @@ Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib 
 
 `learning rate`와 `backbone model`의 몇 가지 hyper parameter에 대해서 조정을 진행했습니다.
 
-★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+>  ★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
 
 
 
@@ -190,15 +218,15 @@ persistance volume을 생성하여 사용합니다.
 
 - Component에서 custom package를 import하기 위해 사용합니다.
 
-  > custom package: 위에서 말씀드린`sub_module`과 같은 보조 library 또는 module을 의미합니다.
+  > custom package란, 위에서 말씀드린`sub_module`과 같은 보조 library 또는 module을 의미합니다.
   >
-  > 보안산 PypI에 업로드 할 수 없는 library인 경우 직접 import 할 수 있도록 하기 위함힙니다.
+  > 보안산 PypI에 업로드 할 수 없는 library인 경우 직접 import 할 수 있도록 하기 위함입니다.
 
   poersistent volume에 git으로 관리하는 code를  `git clone`한 후, python system path에 해당 volume의 path를 append하여 사용합니다.
 
   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/sys%20append.png?raw=true)
 
-- component에 의해 생성된 data를 보호합니다.(model file, evaluation result 등)
+- component에 의해 생성된 data를 저장합니다.(model file, evaluation result 등)
 
 
 
@@ -208,7 +236,7 @@ persistance volume을 생성하여 사용합니다.
 
 pipeline의 경우 upload하는 version의 존재 유무에 따라 Run의 동작이 달라질 수 있도록 했습니다. 
 
-해당 code는 [pipeline_utils.py](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/pipeline_utils.py)의 `line:17`에서 에서 확인하실 수 있습니다.
+>  해당 code는 [pipeline_utils.py](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/pipeline_utils.py)의 `line:17`에서 에서 확인하실 수 있습니다.
 
 ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/pipeline%20upload.png?raw=true)
 
@@ -227,7 +255,7 @@ pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
 **Test**: trained model을 통해 inferene를 진행합니다. 
 
-★☆★pipeline에 대한 자세한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+> ★☆★pipeline에 대한 자세한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md)**에 정리해두었습니다. ★☆★
 
 
 
