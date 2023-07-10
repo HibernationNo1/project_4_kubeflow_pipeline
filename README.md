@@ -182,7 +182,7 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 
 7. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
 
-★☆★해당 내용 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. ★☆★
+★☆★해당 파트에 관한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. ★☆★
 
 
 
@@ -218,6 +218,8 @@ pipeline을 구성하는 과정에서 활용된 kubeflow의 resource는 아래�
 
 #### Experiments(Katib-AutoML)
 
+resource중 Experiments에 관한 설명입니다.
+
 Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib system을 사용했습니다.
 
 ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/Experiment.png?raw=true)
@@ -240,6 +242,8 @@ Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib 
 
 #### Volumes
 
+resource중 Volumes에 관한 설명입니다.
+
 persistance volume을 생성하여 사용합니다.
 
 **사용 이유**:
@@ -259,6 +263,8 @@ persistance volume을 생성하여 사용합니다.
 
 
 #### Pipelines, Experiments(KFP), Runs
+
+resource중 Pipelines 구성에 관한 설명입니다.
 
 `Pipeline`, `Experiment`, `Run` 의 create, pipeline version control 그리고 delete동작은 모두 python SDK를 사용하여 구현했습니다.
 
@@ -299,6 +305,8 @@ pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
 #### Tensorboard
 
+resource중 Tensorboard에 관한 설명입니다.
+
 training과정에서 특정 value를 실시간으로 확인할 수 있도록 persistance volume에 tensorboard event file을 저장하도록 했습니다.
 
 **Add tensorboard**
@@ -335,6 +343,8 @@ tensorboard에 관한 code는 [custom.py](https://github.com/HibernationNo1/sub_
 
 
 #### Secrets
+
+resource중 Secrets에 관한 설명입니다.
 
 component의 code상에서 dataset을 관리할 때 DB의 passward나 google secrets key와 같이 중요한 정보를 사용하는 경우가 있습니다.
 
