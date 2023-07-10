@@ -2,7 +2,7 @@
 
 ##### Table of Contents
 
-- [Resource](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#resource)
+- [Experiment](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#experiment)
 - [Dockerfile](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#dockerfile)
   - [base pytorch](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#base-pytorch)
   - [base ubuntu:20.04](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#base-ubuntu2004)
@@ -15,7 +15,7 @@ Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib 
 
 
 
-## Resource
+## Experiment
 
 아래는 Experiment를 구성하는 과정에서 지정한 사항들입니다.
 
@@ -260,6 +260,8 @@ ENTRYPOINT ["sh", "sh/local_train.sh"]
   ```
 
   Experiment실행 시 container의 동작을 명시합니다.
+
+>  pytorch/pytorch를 기반으로 한 해당 dockerfile은 프로젝트 진행 중 추가된 code의 기능에 의해 version호환이 맞지 않아 아래의 ubuntu:20.04를 기반으로 한 `base ubuntu:20.04` image로 대체되었습니다.
 
 
 
