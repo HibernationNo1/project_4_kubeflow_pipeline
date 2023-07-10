@@ -27,11 +27,15 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 
 
 
-`mmdetection`과 `mmcv`중 필요한 부분만 차용하여 하나의 폴더 아래 위치시킨 후 각각의 함수가 상호작용하여 호출할 수 있도록 전체적인 구성을 변경했습니다.
+- Model은 segmentation을 수행할 수 있는 **Swin-Transformer**(Backbone)와 **Mask-RCNN**(Head)으로 구성했습니다.
 
-그 과정에서 여러 function과 class의 수많은 수정이 이루어졌으나, 사소한 부분이 상항히 많이 포함되어 있기에 전부 적어놓지는 않았습니다.
+- `mmdetection`과 `mmcv`중 필요한 부분만 차용하여 하나의 폴더 아래 위치시킨 후 각각의 함수가 상호작용하여 호출할 수 있도록 전체적인 구성을 변경했습니다.
 
-**해당 code는 persistent volume에 `git clone`으로 위치시킨 후 component내에서 자유롭게 import할 수 있도록 하기 위해 [sub_module](https://github.com/HibernationNo1/sub_module) repository로 관리했습니다.**
+  그 과정에서 여러 function과 class의 수많은 수정이 이루어졌으나, 사소한 부분이 상항히 많이 포함되어 있기에 전부 적어놓지는 않았습니다.
+
+- **해당 code는 persistent volume에 `git clone`으로 위치시킨 후 component내에서 자유롭게 import할 수 있도록 하기 위해 [sub_module](https://github.com/HibernationNo1/sub_module) repository로 관리했습니다.**
+
+
 
 ---
 
@@ -143,7 +147,7 @@ validation 및 evaluation을 진행할 때 object detection의 성능 평가 지
 
 **해당 proeject의 dataset를 위한 model 평가 지표를 추가했습니다.**
 
-**Exact Inference Rate**는 model의 inference결과인 License Plate의 각 text를 인식하고  **등록지역(두 자리 번호)**, **차종기호(A~E 중 하나)**, **일련번호(네 자리 번호)**를 각각 추출해내는 것의 성공률, 즉 `실제_License Plate/추론_License Plate` 을 의미합니다.
+**Exact Inference Rate**는 model의 inference결과인 License Plate의 각 text를 인식하고 post-processing이 성공적으로 이루어지는 경우의 비율, 즉  `실제_License Plate/추론_License Plate` 을 의미합니다.
 
 labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의 instance로 추가하여 진행하였고, 해당 영역에 대한 predicted mask를 통해 License Plate의 각 text를 인식하도록 했습니다. 
 
@@ -151,7 +155,7 @@ labeling진행 시 plate의 sub number과 main number의 각 영역을 하나의
 
 - 62개의 License Plate 중 정확하게 예측 한 plate의 개수가 28인 경우
 
-   License_plate_2 사진
+   ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/images/License_plate_2.png?raw=true)
 
 
 
