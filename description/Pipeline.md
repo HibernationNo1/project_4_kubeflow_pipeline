@@ -99,7 +99,7 @@ training과정에서 저장한 model과 logs, tensorboard는 volume에 저장하
 
    **Google cloud SDK**를 통해 trained model을 다운로드합니다.
 
-3. `mAp`, `dv_mAP`, `EIR` 등 사용자가 결정한 성능 평가 지표에 대한 결과값을 계산하고, 특정 지표값에 대해 성능이 좋은 model을 선별하여 저장합니다. 
+3. `mAp`, [`dv_mAP`](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#1-dv-map), [`EIR`](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#2-exact-inference-rateeir) 등 사용자가 결정한 성능 평가 지표에 대한 결과값을 계산하고, 특정 지표값에 대해 성능이 좋은 model을 선별하여 저장합니다. 
 
 4. **Google cloud SDK**를 통해 evaluation과정에서 선별된 model을 google storage에 업로드합니다.
 
@@ -114,6 +114,8 @@ training과정에서 저장한 model과 logs, tensorboard는 volume에 저장하
 1. **Google cloud SDK**를 통해 Google storage의 **result bucket**으로부터 evaluation과정에서 선별된 model을 download합니다.
 
 2. download한 model로 test dataset에 대해 inference를 진행하고, object detection의 결과를 시각화합니다.
+
+3. [post-processing](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#post-processing)에 의한 결과를 저장합니다
 
    ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/inference%20result.png?raw=true)
 
