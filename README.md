@@ -48,23 +48,16 @@
 
 
 
-
-
-
-
----
-
 ## Table of Contents
 
 - [Managing dataset](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#managing-dataset)
+- [Customizing mmdetection, mmcv](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#1-customizing-mmdetection-mmcv)
 - [Pipeline Configuration With Kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipeline-configuration-with-kubeflow)
-  1. [Customizing mmdetection, mmcv](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#1-customizing-mmdetection-mmcv)
-  2. [kubeflow](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#2-kubeflow)
-     - [Experiments(Katib-AutoML)](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#experimentskatib-automl)
-     - [Volumes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#volumes)
-     - [Pipelines, Experiments(KFP), Runs](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipelines-experimentskfp-runs)
-     - [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#tensorboard)
-     - [Secrets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#secrets)
+  - [Experiments(Katib-AutoML)](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#experimentskatib-automl)
+  - [Volumes](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#volumes)
+  - [Pipelines, Experiments(KFP), Runs](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#pipelines-experimentskfp-runs)
+  - [Tensorboard](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#tensorboard)
+  - [Secrets](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#secrets)
 - [Model Serving](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#model-serving)
 - [About project](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#about-project)
   - [Project management](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#project-management)
@@ -73,8 +66,6 @@
   - [참고 문헌 및 강의](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/README.md#%EC%B0%B8%EA%B3%A0-%EB%AC%B8%ED%97%8C-%EB%B0%8F-%EA%B0%95%EC%9D%98)
 
 
-
----
 
 
 
@@ -144,15 +135,7 @@
 
 
 
----
-
-
-
-
-
-## Pipeline Configuration With Kubeflow
-
-### 1. Customizing mmdetection, mmcv
+## Customizing mmdetection, mmcv
 
 model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection](https://github.com/open-mmlab/mmdetection) 과 [open-mmlab](https://github.com/open-mmlab)/[mmcv](https://github.com/open-mmlab/mmcv)를 차용했으며, 몇 가지 수정을 통해 원하는 동작을 추가했습니다.
 
@@ -182,41 +165,43 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 
 7. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
 
-★☆★해당 내용 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. ★☆★
+★☆★해당 파트에 관한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. ★☆★
 
 
 
-### 2. kubeflow
+## Pipeline Configuration With Kubeflow
 
 pipeline을 구성하는 과정에서 활용된 kubeflow의 resource는 아래와 같습니다.
 
-1. **Experiments(Katib-AutoML)**
+- Experiments(Katib-AutoML)
 
-   model의 가장 이상적인 학습을 위해 hyper parameter를 조정합니다.
+  model의 가장 이상적인 학습을 위해 hyper parameter를 조정합니다.
 
-2. **volume**
+- volume
 
-   pipeline의 각 component에서 접근할 수 있는 공용 공간입니다.
+  pipeline의 각 component에서 접근할 수 있는 공용 공간입니다.
 
-3. **Pipelines, Experiments(KFP), Runs**
+- Pipelines, Experiments(KFP), Runs
 
-   - `Runs`: 구축된 Pipelines이 정상적으로 동작하는지 확인합니다.
+  - `Runs`: 구축된 Pipelines이 정상적으로 동작하는지 확인합니다.
 
-   - `Pipelines`: 여러 component를 활용하여 pipeline을 구축합니다.
+  - `Pipelines`: 여러 component를 활용하여 pipeline을 구축합니다.
 
-   - `Experiments(KFP)`: pipeline을 목적에 따른 category로 관리합니다.
+  - `Experiments(KFP)`: pipeline을 목적에 따른 category로 관리합니다.
 
-4. **Tensorboard**
+- Tensorboard
 
-   학습 과정의 정보를 확인하기 위해 여러 data를 수집합니다. 
+  학습 과정의 정보를 확인하기 위해 여러 data를 수집합니다. 
 
-5. **Secrets**
+- Secrets
 
-   보안상 노출해서는 안되는 값을 사용해야 되는 경우를 위해 사용합니다.
+  보안상 노출해서는 안되는 값을 사용해야 되는 경우를 위해 사용합니다.
 
 
 
 #### Experiments(Katib-AutoML)
+
+resource중 Experiments에 관한 설명입니다.
 
 Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib system을 사용했습니다.
 
@@ -232,13 +217,15 @@ Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib 
 
   [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#base-ubuntu2004)
 
-★☆★**Experiments(Katib-AutoML)** 구현에 관한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. ★☆★
+★☆★Experiments(Katib-AutoML) 구현에 관한 자세한 내용은 [이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)에 정리해두었습니다. ★☆★
 
 
 
 
 
 #### Volumes
+
+resource중 Volumes에 관한 설명입니다.
 
 persistance volume을 생성하여 사용합니다.
 
@@ -260,6 +247,8 @@ persistance volume을 생성하여 사용합니다.
 
 #### Pipelines, Experiments(KFP), Runs
 
+resource중 Pipelines 구성에 관한 설명입니다.
+
 `Pipeline`, `Experiment`, `Run` 의 create, pipeline version control 그리고 delete동작은 모두 python SDK를 사용하여 구현했습니다.
 
 pipeline의 경우 upload하는 version의 존재 유무에 따라 Run의 동작이 달라질 수 있도록 했습니다. 
@@ -272,32 +261,35 @@ pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
 ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/pipeline%20graph.png?raw=true)
 
-- 각각의 component는 Persistence volume을 통해 보조 code를 import합니다.
-- 각각의 component는 필요한 데이터를 google storage에서 다운로드하고, 동작의 결과를 google storage에 업로드합니다.
+> 각각의 component는 Persistence volume을 통해 보조 code를 import합니다.
+>
+> 각각의 component는 필요한 데이터를 google storage에서 다운로드하고, 동작의 결과를 google storage에 업로드합니다.
 
-**Recode** : labelme.exe를 통해 만들어진 annotations dataset을 training을 위한 `train_dataset.json`으로 통합합니다.
+- Recode : labelme.exe를 통해 만들어진 annotations dataset을 training을 위한 `train_dataset.json`으로 통합합니다.
 
-[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#record)
+  [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#record)
 
-**Train** : model training을 진행합니다.
+- `Train` : model training을 진행합니다.
 
-[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#train)
+  [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#train)
 
-**Evaluate** : trained model을 통해 evaluation을 진행합니다.
+- `Evaluate` : trained model을 통해 evaluation을 진행합니다.
 
-[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#evaluate)
+  [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#evaluate)
 
-**Test**: trained model을 통해 inferene를 진행합니다. 
+- `Test`: trained model을 통해 inferene를 진행합니다. 
 
-[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#test)
+  [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#test)
 
-★☆★해당 내용에 관한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md)**에 정리해두었습니다. ★☆★
+★☆★Pipelines구성에 관한 자세한 내용은 [이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md)에 정리해두었습니다. ★☆★
 
 
 
 
 
 #### Tensorboard
+
+resource중 Tensorboard에 관한 설명입니다.
 
 training과정에서 특정 value를 실시간으로 확인할 수 있도록 persistance volume에 tensorboard event file을 저장하도록 했습니다.
 
@@ -335,6 +327,8 @@ tensorboard에 관한 code는 [custom.py](https://github.com/HibernationNo1/sub_
 
 
 #### Secrets
+
+resource중 Secrets에 관한 설명입니다.
 
 component의 code상에서 dataset을 관리할 때 DB의 passward나 google secrets key와 같이 중요한 정보를 사용하는 경우가 있습니다.
 
@@ -411,8 +405,6 @@ $ kubectl -n project-pipeline create secret generic project_secrets --from-env-f
   
 
 
-
----
 
 ## Model Serving
 
