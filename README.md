@@ -161,13 +161,28 @@ model의 학습 code는 [open-mmlab](https://github.com/open-mmlab)/[mmdetection
 ![](https://raw.githubusercontent.com/open-mmlab/mmcv/main/docs/en/mmcv-logo.png)
 
 1. Model은 **Swin-Transformer**(Backbone)와 **Mask-RCNN**(Head)으로 구성했으며, mmdetection의 code를 사용했습니다.
-2. Model load시 `config`와 같은 추가적인 파일을 load할 것 없이 model파일 내부에서 관련 내용을 가져와 training 및 inference를 진행할 수 있도록 했습니다.
-3. Object Detction의 성능 평가 지표인 **mAP**를 한 단계 더욱 고차원적인 방법으로 계산하는 성능 평가 지표를 만들었습니다.
-4. 제가 만든 dataset를 위한 model 평가 지표를 추가했습니다.
-5. Component, Kserve와 같은 resource를 위한 docke image를 구성하는 과정에서 mmcv, mmdet의 설치가 되지 않는 문제가 있어 의존성을 제거했습니다.
-6. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
 
->  ★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+2. Model load시 `config`와 같은 추가적인 파일을 load할 것 없이 model파일 내부에서 관련 내용을 가져와 training 및 inference를 진행할 수 있도록 했습니다.
+
+   [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#add-configuration-and-instance-name-list-to-the-model-file)
+
+3. Inference의 결과로 얻어진 데이터를 토대로 License plate의 정보를 추출하는 post-processing을 구현했습니다.
+
+   [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#post-processing)
+
+4. Object Detction의 성능 평가 지표인 **mAP**를 한 단계 더욱 고차원적인 방법으로 계산하는 성능 평가 지표를 만들고 구현했습니다.
+
+   [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#1-dv-map)
+
+5. 제가 만든 dataset를 위한 model 평가 지표를 구현했습니다.
+
+   [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md#2-exact-inference-rateeir)
+
+6. Component, Kserve와 같은 resource를 위한 docke image를 구성하는 과정에서 mmcv, mmdet의 설치가 되지 않는 문제가 있어 의존성을 제거했습니다.
+
+7. 해당 code는 [sub_module](https://github.com/HibernationNo1/sub_module)에 의해 관리하고 있습니다.
+
+★☆★해당 내용 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/customizing%20mmdetection%2C%20mmcv.md)**에 정리해두었습니다. ★☆★
 
 
 
@@ -207,9 +222,17 @@ Hyper-prameter tuning을 진행하기 위해 Kubeflow의 구성 요소인 Katib 
 
 ![](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/docs/description/images/Experiment.png?raw=true)
 
-`learning rate`와 `backbone model`의 몇 가지 hyper parameter에 대해서 조정을 진행했습니다.
+- `learning rate`와 `backbone model`의 몇 가지 hyper parameter에 대해서 조정을 진행했습니다.
 
->  ★☆★해당 내용에 관한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+- 수집하고자 하는 metric은 `mAP`, `dv_mAP`, `EIR` 으로 하였으며, **goal**의 기준으로 할 metric은 `mAP`로 결정했습니다.
+
+  [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#Experiment)
+
+- dockerfile은 ubuntu:20.04를 기반으로 한 `base ubuntu:20.04` image를 사용했습니다.
+
+  [detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md#base-ubuntu2004)
+
+★☆★**Experiments(Katib-AutoML)** 구현에 관한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Experiments(Katib-AutoML).md)**에 정리해두었습니다. ★☆★
 
 
 
@@ -254,13 +277,21 @@ pipeline의 component는 아래와 같이 간단하게 구현했습니다.
 
 **Recode** : labelme.exe를 통해 만들어진 annotations dataset을 training을 위한 `train_dataset.json`으로 통합합니다.
 
+[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#record)
+
 **Train** : model training을 진행합니다.
+
+[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#train)
 
 **Evaluate** : trained model을 통해 evaluation을 진행합니다.
 
+[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#evaluate)
+
 **Test**: trained model을 통해 inferene를 진행합니다. 
 
-> ★☆★pipeline에 대한 자세한 설명이 길기 때문에, 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md)**에 정리해두었습니다. ★☆★
+[detail](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md#test)
+
+★☆★해당 내용에 관한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Pipeline.md)**에 정리해두었습니다. ★☆★
 
 
 
@@ -417,7 +448,7 @@ Kserve의 InferenceService를 기반으로 한 torchserve를 배포하여 model 
 
    해당 데이터를 토대로 사용자가 보기 쉽게(`각 번호를 위치에 맞게, plate의 모양 타입에 맞게`) 변환하여 보여줍니다.
 
-★☆★model serving에 대한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md)**에 정리해두었습니다. 링크를 클릭하시면 확인하실 수 있습니다.★☆★
+★☆★Model serving과정에 관한 자세한 내용은 **[이곳](https://github.com/HibernationNo1/project_4_kubeflow_pipeline/blob/master/description/Model_Serving.md)**에 정리해두었습니다. ★☆★
 
 
 
