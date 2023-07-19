@@ -1,6 +1,10 @@
 # Project: Automatic License Plate Recognition
 
-- **프로젝트 소개**: kubeflow를 활용한 임의 번호판 검출 모델 학습 Pipeline구축 및 InferenceService배포 
+- **프로젝트 소개**: 영상인식을 통한 차량 번호판 정보 검출
+
+  - 데이터의 생성부터 구축까지 직접 진행했습니다. 
+
+  - kubeflow를 활용하여 학습 Pipeline구축 및 InferenceService를 배포했습니다.
 
 - **개발 인원**: 개인 프로젝트
 
